@@ -2430,28 +2430,28 @@ ConfigInfo::ConfigInfo(Options &opt){
     AddEntry("Gas_internal_property_names", name);
     name = StripIndexOffName(opt.gas_chem_names, opt.gas_chem_names_aperture,
         opt.gas_chem_index, opt.gas_chem_index_aperture);
-    AddEntry("Gas_chemsitry_names", name);
+    AddEntry("Gas_chemistry_names", name);
     name = StripIndexOffName(opt.gas_chemproduction_names, opt.gas_chemproduction_names_aperture,
         opt.gas_chemproduction_index, opt.gas_chemproduction_index_aperture);
-    AddEntry("Gas_chemsitry_production_names", name);
+    AddEntry("Gas_chemistry_production_names", name);
     name = StripIndexOffName(opt.star_internalprop_names, opt.star_internalprop_names_aperture,
         opt.star_internalprop_index, opt.star_internalprop_index_aperture);
     AddEntry("Star_internal_property_names", name);
     name = StripIndexOffName(opt.star_chem_names, opt.star_chem_names_aperture,
         opt.star_chem_index, opt.star_chem_index_aperture);
-    AddEntry("Star_chemsitry_names", name);
+    AddEntry("Star_chemistry_names", name);
     name = StripIndexOffName(opt.star_chemproduction_names, opt.star_chemproduction_names_aperture,
         opt.star_chemproduction_index, opt.star_chemproduction_index_aperture);
-    AddEntry("Star_chemsitry_production_names", name);
+    AddEntry("Star_chemistry_production_names", name);
     name = StripIndexOffName(opt.bh_internalprop_names, opt.bh_internalprop_names_aperture,
         opt.bh_internalprop_index, opt.bh_internalprop_index_aperture);
     AddEntry("BH_internal_property_names", name);
     name = StripIndexOffName(opt.bh_chem_names, opt.bh_chem_names_aperture,
         opt.bh_chem_index, opt.bh_chem_index_aperture);
-    AddEntry("BH_chemsitry_names", name);
+    AddEntry("BH_chemistry_names", name);
     name = StripIndexOffName(opt.bh_chemproduction_names, opt.bh_chemproduction_names_aperture,
         opt.bh_chemproduction_index, opt.bh_chemproduction_index_aperture);
-    AddEntry("BH_chemsitry_production_names", name);
+    AddEntry("BH_chemistry_production_names", name);
     name = StripIndexOffName(opt.extra_dm_internalprop_names, opt.extra_dm_internalprop_names_aperture,
         opt.extra_dm_internalprop_index, opt.extra_dm_internalprop_index_aperture);
     AddEntry("Extra_DM_internal_property_names", name);
@@ -2465,11 +2465,11 @@ ConfigInfo::ConfigInfo(Options &opt){
     funcname.clear();
     for (auto &x:opt.gas_chem_function) funcname.push_back(calcinttostring[x]);
     for (auto &x:opt.gas_chem_function_aperture) funcname.push_back(calcinttostring[x]);
-    AddEntry("Gas_chemsitry_calculation_type", funcname);
+    AddEntry("Gas_chemistry_calculation_type", funcname);
     funcname.clear();
     for (auto &x:opt.gas_chemproduction_function) funcname.push_back(calcinttostring[x]);
     for (auto &x:opt.gas_chemproduction_function_aperture) funcname.push_back(calcinttostring[x]);
-    AddEntry("Gas_chemsitry_production_calculation_type", funcname);
+    AddEntry("Gas_chemistry_production_calculation_type", funcname);
     funcname.clear();
 
     for (auto &x:opt.star_internalprop_function) funcname.push_back(calcinttostring[x]);
@@ -2478,11 +2478,11 @@ ConfigInfo::ConfigInfo(Options &opt){
     funcname.clear();
     for (auto &x:opt.star_chem_function) funcname.push_back(calcinttostring[x]);
     for (auto &x:opt.star_chem_function_aperture) funcname.push_back(calcinttostring[x]);
-    AddEntry("Star_chemsitry_calculation_type", funcname);
+    AddEntry("Star_chemistry_calculation_type", funcname);
     funcname.clear();
     for (auto &x:opt.star_chemproduction_function) funcname.push_back(calcinttostring[x]);
     for (auto &x:opt.star_chemproduction_function_aperture) funcname.push_back(calcinttostring[x]);
-    AddEntry("Star_chemsitry_production_calculation_type", funcname);
+    AddEntry("Star_chemistry_production_calculation_type", funcname);
     funcname.clear();
 
     for (auto &x:opt.bh_internalprop_function) funcname.push_back(calcinttostring[x]);
@@ -2491,11 +2491,11 @@ ConfigInfo::ConfigInfo(Options &opt){
     funcname.clear();
     for (auto &x:opt.bh_chem_function) funcname.push_back(calcinttostring[x]);
     for (auto &x:opt.bh_chem_function_aperture) funcname.push_back(calcinttostring[x]);
-    AddEntry("BH_chemsitry_calculation_type", funcname);
+    AddEntry("BH_chemistry_calculation_type", funcname);
     funcname.clear();
     for (auto &x:opt.bh_chemproduction_function) funcname.push_back(calcinttostring[x]);
     for (auto &x:opt.bh_chemproduction_function_aperture) funcname.push_back(calcinttostring[x]);
-    AddEntry("BH_chemsitry_production_calculation_type", funcname);
+    AddEntry("BH_chemistry_production_calculation_type", funcname);
     funcname.clear();
 
     for (auto &x:opt.extra_dm_internalprop_function) funcname.push_back(calcinttostring[x]);
@@ -2504,37 +2504,37 @@ ConfigInfo::ConfigInfo(Options &opt){
     funcname.clear();
 
     AddEntry("Gas_internal_property_index", opt.gas_internalprop_index, opt.gas_internalprop_index_aperture);
-    AddEntry("Gas_chemsitry_index", opt.gas_chem_index, opt.gas_chem_index_aperture);
-    AddEntry("Gas_chemsitry_production_index", opt.gas_chemproduction_index, opt.gas_chemproduction_index_aperture);
+    AddEntry("Gas_chemistry_index", opt.gas_chem_index, opt.gas_chem_index_aperture);
+    AddEntry("Gas_chemistry_production_index", opt.gas_chemproduction_index, opt.gas_chemproduction_index_aperture);
     AddEntry("Star_internal_property_index", opt.star_internalprop_index, opt.star_internalprop_index_aperture);
-    AddEntry("Star_chemsitry_index", opt.star_chem_index, opt.star_chem_index_aperture);
-    AddEntry("Star_chemsitry_production_index", opt.star_chemproduction_index, opt.star_chemproduction_index_aperture);
+    AddEntry("Star_chemistry_index", opt.star_chem_index, opt.star_chem_index_aperture);
+    AddEntry("Star_chemistry_production_index", opt.star_chemproduction_index, opt.star_chemproduction_index_aperture);
     AddEntry("BH_internal_property_index", opt.bh_internalprop_index, opt.bh_internalprop_index_aperture);
-    AddEntry("BH_chemsitry_index", opt.bh_chem_index, opt.bh_chem_index_aperture);
-    AddEntry("BH_chemsitry_production_index", opt.bh_chemproduction_index, opt.bh_chemproduction_index_aperture);
+    AddEntry("BH_chemistry_index", opt.bh_chem_index, opt.bh_chem_index_aperture);
+    AddEntry("BH_chemistry_production_index", opt.bh_chemproduction_index, opt.bh_chemproduction_index_aperture);
     AddEntry("Extra_DM_internal_property_index", opt.extra_dm_internalprop_index, opt.extra_dm_internalprop_index_aperture);
 
     AddEntry("Gas_internal_property_output_units", opt.gas_internalprop_output_units, opt.gas_internalprop_output_units_aperture);
     AddEntry("Tcut_halogas", opt.temp_max_cut);
-    AddEntry("Gas_chemsitry_output_units", opt.gas_chem_output_units, opt.gas_chem_output_units_aperture);
-    AddEntry("Gas_chemsitry_production_output_units", opt.gas_chemproduction_output_units, opt.gas_chemproduction_output_units_aperture);
+    AddEntry("Gas_chemistry_output_units", opt.gas_chem_output_units, opt.gas_chem_output_units_aperture);
+    AddEntry("Gas_chemistry_production_output_units", opt.gas_chemproduction_output_units, opt.gas_chemproduction_output_units_aperture);
     AddEntry("Star_internal_property_output_units", opt.star_internalprop_output_units, opt.star_internalprop_output_units_aperture);
-    AddEntry("Star_chemsitry_output_units", opt.star_chem_output_units, opt.star_chem_output_units_aperture);
-    AddEntry("Star_chemsitry_production_output_units", opt.star_chemproduction_output_units, opt.star_chemproduction_output_units_aperture);
+    AddEntry("Star_chemistry_output_units", opt.star_chem_output_units, opt.star_chem_output_units_aperture);
+    AddEntry("Star_chemistry_production_output_units", opt.star_chemproduction_output_units, opt.star_chemproduction_output_units_aperture);
     AddEntry("BH_internal_property_output_units", opt.bh_internalprop_output_units, opt.bh_internalprop_output_units_aperture);
-    AddEntry("BH_chemsitry_output_units", opt.bh_chem_output_units, opt.bh_chem_output_units_aperture);
-    AddEntry("BH_chemsitry_production_output_units", opt.bh_chemproduction_output_units, opt.bh_chemproduction_output_units_aperture);
+    AddEntry("BH_chemistry_output_units", opt.bh_chem_output_units, opt.bh_chem_output_units_aperture);
+    AddEntry("BH_chemistry_production_output_units", opt.bh_chemproduction_output_units, opt.bh_chemproduction_output_units_aperture);
     AddEntry("Extra_DM_internal_property_output_units", opt.extra_dm_internalprop_output_units, opt.extra_dm_internalprop_output_units_aperture);
 
     AddEntry("Gas_internal_property_input_output_unit_conversion_factors", opt.gas_internalprop_input_output_unit_conversion_factors, opt.gas_internalprop_input_output_unit_conversion_factors_aperture);
-    AddEntry("Gas_chemsitry_input_output_unit_conversion_factors", opt.gas_chem_input_output_unit_conversion_factors, opt.gas_chem_input_output_unit_conversion_factors_aperture);
-    AddEntry("Gas_chemsitry_production_input_output_unit_conversion_factors", opt.gas_chemproduction_input_output_unit_conversion_factors, opt.gas_chemproduction_input_output_unit_conversion_factors_aperture);
+    AddEntry("Gas_chemistry_input_output_unit_conversion_factors", opt.gas_chem_input_output_unit_conversion_factors, opt.gas_chem_input_output_unit_conversion_factors_aperture);
+    AddEntry("Gas_chemistry_production_input_output_unit_conversion_factors", opt.gas_chemproduction_input_output_unit_conversion_factors, opt.gas_chemproduction_input_output_unit_conversion_factors_aperture);
     AddEntry("Star_internal_property_input_output_unit_conversion_factors", opt.star_internalprop_input_output_unit_conversion_factors, opt.star_internalprop_input_output_unit_conversion_factors_aperture);
-    AddEntry("Star_chemsitry_input_output_unit_conversion_factors", opt.star_chem_input_output_unit_conversion_factors, opt.star_chem_input_output_unit_conversion_factors_aperture);
-    AddEntry("Star_chemsitry_production_input_output_unit_conversion_factors", opt.star_chemproduction_input_output_unit_conversion_factors, opt.star_chemproduction_input_output_unit_conversion_factors_aperture);
+    AddEntry("Star_chemistry_input_output_unit_conversion_factors", opt.star_chem_input_output_unit_conversion_factors, opt.star_chem_input_output_unit_conversion_factors_aperture);
+    AddEntry("Star_chemistry_production_input_output_unit_conversion_factors", opt.star_chemproduction_input_output_unit_conversion_factors, opt.star_chemproduction_input_output_unit_conversion_factors_aperture);
     AddEntry("BH_internal_property_input_output_unit_conversion_factors", opt.bh_internalprop_input_output_unit_conversion_factors, opt.bh_internalprop_input_output_unit_conversion_factors_aperture);
-    AddEntry("BH_chemsitry_input_output_unit_conversion_factors", opt.bh_chem_input_output_unit_conversion_factors, opt.bh_chem_input_output_unit_conversion_factors_aperture);
-    AddEntry("BH_chemsitry_production_input_output_unit_conversion_factors", opt.bh_chemproduction_input_output_unit_conversion_factors, opt.bh_chemproduction_input_output_unit_conversion_factors_aperture);
+    AddEntry("BH_chemistry_input_output_unit_conversion_factors", opt.bh_chem_input_output_unit_conversion_factors, opt.bh_chem_input_output_unit_conversion_factors_aperture);
+    AddEntry("BH_chemistry_production_input_output_unit_conversion_factors", opt.bh_chemproduction_input_output_unit_conversion_factors, opt.bh_chemproduction_input_output_unit_conversion_factors_aperture);
     AddEntry("Extra_DM_internal_property_input_output_unit_conversion_factors", opt.extra_dm_internalprop_input_output_unit_conversion_factors, opt.extra_dm_internalprop_input_output_unit_conversion_factors_aperture);
 
     //other options
