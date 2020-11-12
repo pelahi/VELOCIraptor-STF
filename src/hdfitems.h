@@ -843,7 +843,7 @@ class H5OutputFile
 
         // Dataset creation properties
         prop_id = H5P_DEFAULT;
-#ifdef USEHDFCOMPRESSOIN
+#ifdef USEHDFCOMPRESSION
         // this defines compression
         if(nonzero_size && large_dataset)
         {
