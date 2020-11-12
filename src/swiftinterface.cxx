@@ -3,6 +3,7 @@
  */
 
 #include "swiftinterface.h"
+#include "timer.h"
 
 #ifdef SWIFTINTERFACE
 
@@ -690,6 +691,7 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
     //calculate data and output
     numingroup=BuildNumInGroup(Nlocal, ngroup, pfof);
     pglist=SortAccordingtoBindingEnergy(libvelociraptorOpt,Nlocal,parts.data(),ngroup,pfof,numingroup,pdata);//alters pglist so most bound particles first
+    vr::Timer write_timer;
     WriteProperties(libvelociraptorOpt,ngroup,pdata);
     WriteGroupCatalog(libvelociraptorOpt, ngroup, numingroup, pglist, parts);
     //if baryons have been searched output related gas baryon catalogue
@@ -703,6 +705,7 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
     //if returning to swift as swift is writing a snapshot, then write for the groups where the particles are found in a file
     //assuming that the swift task and swift index can be used to determine where a particle will be written.
     if (ireturngroupinfoflag != 1 ) WriteSwiftExtendedOutput (libvelociraptorOpt, ngroup, numingroup, pglist, parts);
+    cout << "Wrote all data in " << write_timer;
 
     // Find offset to first group on each MPI rank
     Int_t ngoffset=0,ngtot=0;

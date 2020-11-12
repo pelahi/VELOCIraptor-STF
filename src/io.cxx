@@ -19,6 +19,7 @@
 #ifdef USEADIOS
 #include "adios.h"
 #endif
+#include "timer.h"
 
 ///write the information stored in a unit struct as meta data into a HDF5 file
 #ifdef USEHDF
@@ -434,6 +435,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 #if defined(USEHDF)||defined(USEADIOS)
     DataGroupNames datagroupnames;
 #endif
+    vr::Timer write_timer;
 
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
@@ -978,6 +980,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 #ifdef USEMPI
     MPIBuildWriteComm(opt);
 #endif
+    std::cout << "Wrote catalogues in " << write_timer << '\n';
 }
 
 ///if particles are separately searched (i.e. \ref Options.iBaryonSearch is set) then produce list of particle types
@@ -1003,6 +1006,7 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
+    vr::Timer write_timer;
 
     os << opt.outname << ".catalog_parttypes";
     os2 << opt.outname << ".catalog_parttypes.unbound";
@@ -1197,6 +1201,7 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
 #ifdef USEMPI
     MPIBuildWriteComm(opt);
 #endif
+    std::cout << "Wrote particle type info in " << write_timer << '\n';
 }
 
 ///Write the particles in each SO region
@@ -1236,6 +1241,7 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
 #if defined(USEHDF)||defined(USEADIOS)
     DataGroupNames datagroupnames;
 #endif
+    vr::Timer write_timer;
 
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
@@ -1572,6 +1578,7 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
 #ifdef USEMPI
     MPIFreeWriteComm();
 #endif
+    std::cout << "Wrote " << fname << " in " << write_timer << '\n';
 }
 
 //@}
@@ -1586,6 +1593,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     ostringstream os;
     char buf[40];
     long unsigned ngtot=0, noffset=0, ng=ngroups, nwritecommtot=0;
+    vr::Timer write_timer;
 
     //if need to convert from physical back to comoving
     if (opt.icomoveunit) {
@@ -2801,7 +2809,6 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         // delete[] propdataset;
     }
 #endif
-    cout<<"Done"<<endl;
     if (opt.ibinaryout!=OUTHDF) Fout.close();
 #ifdef USEHDF
     else Fhdf.close();
@@ -2825,6 +2832,8 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
 #ifdef USEMPI
     MPIFreeWriteComm();
 #endif
+
+    std::cout << "Wrote " << fname << " in " << write_timer << '\n';
 }
 
 void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
@@ -2834,6 +2843,7 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
     char buf[40];
     Int_t ngtot=0, noffset=0, ng=ngroups, nhalos=0, nhalostot=0, nwritecommtot=0, nhalowritecommtot=0;
     vector<unsigned long long> indices(ngroups), haloindices;
+    vr::Timer write_timer;
 
     //void pointer to hold data
     void *data;
@@ -3135,7 +3145,6 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
         // delete[] profiledataset;
     }
 #endif
-    cout<<"Done"<<endl;
     if (opt.ibinaryout!=OUTHDF) Fout.close();
 #ifdef USEHDF
     else Fhdf.close();
@@ -3144,6 +3153,8 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
 #ifdef USEMPI
     MPIFreeWriteComm();
 #endif
+
+    std::cout << "Wrote " << fname << " in " << write_timer << '\n';
 }
 
 //@}
@@ -3170,6 +3181,7 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
+    vr::Timer write_timer;
 
     os << opt.outname << ".catalog_groups";
 #ifdef USEMPI
@@ -3425,7 +3437,7 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
 #ifdef USEMPI
     MPIFreeWriteComm();
 #endif
-    cout<<"Done saving hierarchy"<<endl;
+    std::cout << "Wrote " << fname << " in " << write_timer << '\n';
 }
 
 ///Write subfind style format of properties, where selection of properties
