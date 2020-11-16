@@ -8,7 +8,9 @@
 
 //-- For MPI
 
+#include "logging.h"
 #include "stf.h"
+#include "timer.h"
 
 /// \name routines which check to see if some search region overlaps with local mpi domain
 //@{
@@ -115,8 +117,8 @@ Int_t OpenMPLocalSearch(Options &opt,
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
-    double time1=MyGetTime();
-    cout<<ThisTask<<": Starting local openmp searches "<<endl;
+    vr::Timer search_timer;
+    LOG(info) << "Starting local OpenMP searches";
     #pragma omp parallel default(shared) \
     private(i,p3dfofomp,orgIndex, ng)
     {
@@ -137,7 +139,7 @@ Int_t OpenMPLocalSearch(Options &opt,
         ngtot += ng;
     }
     }
-    cout<<ThisTask<<" finished local search "<<ngtot<<" in "<<MyGetTime()-time1<<endl;
+    LOG(info) << "Finished local search " << ngtot << " in " << search_timer;
     return ngtot;
 }
 
@@ -150,12 +152,13 @@ OMP_ImportInfo *OpenMPImportParticles(Options &opt, const Int_t nbodies, vector<
     Int_t i,j,orgIndex,sum;
     int omptask;
     importtotal=0;
-    double time1=MyGetTime();
     OMP_ImportInfo *ompimport;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
-    cout<<ThisTask<<": Starting import build "<<endl;
+
+    vr::Timer import_timer;
+    LOG(info) << "Starting import build";
     for (i=0;i<numompregions;i++) omp_nrecv_total[i]=omp_nrecv_offset[i]=0;
     for (i=0;i<numompregions;i++) {
         for (j=ompdomain[i].noffset;j<ompdomain[i].noffset+ompdomain[i].ncount;j++) {
@@ -168,7 +171,7 @@ OMP_ImportInfo *OpenMPImportParticles(Options &opt, const Int_t nbodies, vector<
 
     for (i=1;i<numompregions;i++) omp_nrecv_offset[i] = omp_nrecv_offset[i-1]+omp_nrecv_total[i-1];
     for (i=0;i<numompregions;i++) {
-        if (opt.iverbose > 1) cout<<ThisTask<<" omp region "<<i<<" is importing "<<omp_nrecv_total[i]<<endl;
+        LOG(debug) << "OpenMP region " << i << " is importing " << omp_nrecv_total[i];
         importtotal += omp_nrecv_total[i];
         omp_nrecv_total[i] = 0;
     }
@@ -189,7 +192,7 @@ OMP_ImportInfo *OpenMPImportParticles(Options &opt, const Int_t nbodies, vector<
             }
         }
     }
-    cout<<ThisTask<<" finished import "<<MyGetTime()-time1<<endl;
+    LOG(info) << "Finished import in "<< import_timer;
     return ompimport;
 }
 
@@ -206,13 +209,13 @@ void OpenMPLinkAcross(Options &opt,
     Int_t nt, orgIndex, curIndex, *nn=new Int_t[nbodies], pfofcomp;
     int curTask;
     Coordinate x;
-    double time1=MyGetTime();
     Particle *Pval;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
 
-    cout<<ThisTask<<": Starting linking across OpenMP domains"<<endl;
+    LOG(info) << "Linking across OpenMP domains";
+    vr::Timer linking_timer;
     numloops = 0;
     do {
         omp_links_across_total = 0;
@@ -277,10 +280,11 @@ void OpenMPLinkAcross(Options &opt,
         }
         }
         numloops++;
-        if (opt.iverbose>1) cout<<ThisTask<<" linking across at loop "<<numloops<<" having found "<<omp_links_across_total<<" links"<<endl;
+        LOG(debug) << "Linking across at loop " << numloops << " having found "
+                   << omp_links_across_total << " links";
     }while(omp_links_across_total>0);
     delete[] nn;
-    cout<<ThisTask<<" finished linking "<<MyGetTime()-time1<<endl;
+    LOG(info) << "Finished linking in " << linking_timer;
 }
 
 Int_t OpenMPResortParticleandGroups(Int_t nbodies, vector<Particle> &Part, Int_t *&pfof, Int_t minsize)
