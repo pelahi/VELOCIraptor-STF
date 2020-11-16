@@ -22,6 +22,7 @@ set(VR_SOURCES
     io.cxx
     localbgcomp.cxx
     localfield.cxx
+    logging.cxx
     mpigadgetio.cxx
     mpihdfio.cxx
     mpinchiladaio.cxx

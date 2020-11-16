@@ -87,6 +87,7 @@ vr_option(STRUCTURE_DEN "Calculate local density dist. only for particles in fie
 vr_option(HALO_DEN      "Like STRUCTURE_DEN, but se particles inside field objects" OFF)
 vr_option(ZOOM_SIM      "Used to run against simulations with a high resolution region" OFF)
 vr_option(USE_SWIFT_INTERFACE "Used to compile the code with hooks for being called from the SWIFT Hydro nbody code" OFF)
+vr_option(LOG_SOURCE_LOCATION "Append source code location to all logging statements" ON)
 
 
 # Let's true to our word
@@ -179,6 +180,7 @@ vr_option_defines(ZOOM_SIM                  HIGHRES)
 vr_option_defines(USE_LARGE_KDTREE          LARGETREE)
 
 vr_option_defines(USE_SWIFT_INTERFACE       SWIFTINTERFACE)
+vr_option_defines(LOG_SOURCE_LOCATION       VR_LOG_SOURCE_LOCATION)
 
 #
 # How we find GSL and set it up
@@ -385,7 +387,8 @@ vr_report("Simulation-specifics"
 	      "Build library for integration into SWIFT Sim code " USE_SWIFT_INTERFACE)
 vr_report("Others"
           "Calculate local density dist. only for particles in field objects" STRUCTURE_DEN
-	      "Like above, but use particles inside field objects only for calclation" HALO_DEN)
+	      "Like above, but use particles inside field objects only for calclation" HALO_DEN
+	      "Append source code location to all log statements" LOG_SOURCE_LOCATION)
 
 message("")
 message("Compilation")
