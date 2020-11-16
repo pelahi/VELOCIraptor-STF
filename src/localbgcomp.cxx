@@ -86,6 +86,9 @@ if (nbodies > ompsubsearchnum)
 #endif
     for (i=0;i<nbodies;i++)
     {
+        if (!(Part[i].GetDensity() > 0)) {
+            throw std::runtime_error("Particle density not positive, cannot continue");
+        }
         tempdenv=Part[i].GetDensity()/opt.Nsearch;
 #ifdef USEOPENMP
         tid=omp_get_thread_num();
