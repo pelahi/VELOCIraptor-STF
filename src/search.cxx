@@ -9,6 +9,7 @@
 #include "stf.h"
 
 #include "swiftinterface.h"
+#include "logging.h"
 #include "timer.h"
 
 /// \name Searches full system
@@ -82,16 +83,16 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
 
     time1=MyGetTime();
     time2=MyGetTime();
-    cout<<"Begin FOF search  of entire particle data set ... "<<endl;
+    LOG(info) << "Starting FOF search of entire particle data set";
     param[0]=tree->TPHYS;
     param[1]=(opt.ellxscale*opt.ellxscale)*(opt.ellphys*opt.ellphys)*(opt.ellhalophysfac*opt.ellhalophysfac);
     param[6]=param[1];
-    cout<<"First build tree ... "<<endl;
+    LOG(info) << "Building trees";
 #ifdef USEOPENMP
     //if using openmp produce tree with large buckets as a decomposition of the local mpi domain
     //to then run local fof searches on each domain before stitching
     if (runompfof) {
-        time3=MyGetTime();
+        vr::Timer t;
         Double_t rdist = sqrt(param[1]);
         //determine the omp regions;
         tree = new KDTree(Part.data(),nbodies,opt.openmpfofsize,tree->TPHYS,tree->KEPAN,100);
@@ -102,7 +103,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         for (i=0;i<nbodies;i++) storeorgIndex[i]=Part[i].GetID();
         //build local trees
         tree3dfofomp = OpenMPBuildLocalTrees(opt, numompregions, Part, ompdomain, period);
-        if (opt.iverbose) cout<<ThisTask<<": finished building "<<numompregions<<" domains and trees "<<MyGetTime()-time3<<endl;
+        LOG(info) << "Finished building " << numompregions << " domains and trees in " << t;
     }
     else
 #endif
@@ -110,8 +111,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         vr::Timer t;
         tree = new KDTree(Part.data(),nbodies,opt.Bsize,tree->TPHYS,tree->KEPAN,1000,0,0,0,period);
         tree->OverWriteInputOrder();
-        if (opt.iverbose)
-            std::cout << ThisTask << ": finished building single tree in " << t << '\n';
+        LOG(info) << "Finished building single trees in " << t;
     }
 
     cout<<ThisTask<<" Search particles using 3DFOF in physical space"<<endl;
@@ -135,7 +135,6 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     //then link across omp domains
     Int_t ompminsize = 2;
     if (runompfof){
-        time3=MyGetTime();
         Int_t orgIndex, omp_import_total;
         int omptask;
         Double_t rdist = sqrt(param[1]);
@@ -150,12 +149,15 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         OMP_ImportInfo *ompimport;
 
         //get fof in each region
+        vr::Timer local_search_timer;
         numgroups = OpenMPLocalSearch(opt,
             nbodies, Part, pfof, storeorgIndex,
             Head, Next,
             tree3dfofomp, param, rdist, ompminsize, fofcmp,
             numompregions, ompdomain);
-        if (opt.iverbose) cout<<ThisTask<<": finished omp local search of "<<numompregions<<" containing total of "<<numgroups<<" groups "<<MyGetTime()-time3<<endl;
+        LOG(info) << "Finished OpenMP local FOF search of " << numompregions
+                  << " containing total of " << numgroups << " groups in "
+                  << local_search_timer;
         if (numgroups > 0) {
 
         //then for each omp region determine the particles to "import" from other omp regions
@@ -222,7 +224,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         else {
             pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,iorder,Head,Next);
         }
-        std::cout << ThisTask << ": Finished FOF in " << t << '\n';
+        LOG(info) << "Finished FOF in " << t;
     }
 
     //get memory usage
