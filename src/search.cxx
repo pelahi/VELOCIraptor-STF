@@ -9,6 +9,7 @@
 #include "stf.h"
 
 #include "swiftinterface.h"
+#include "timer.h"
 
 /// \name Searches full system
 //@{
@@ -103,18 +104,16 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         tree3dfofomp = OpenMPBuildLocalTrees(opt, numompregions, Part, ompdomain, period);
         if (opt.iverbose) cout<<ThisTask<<": finished building "<<numompregions<<" domains and trees "<<MyGetTime()-time3<<endl;
     }
-    else {
-        time3=MyGetTime();
+    else
+#endif
+    {
+        vr::Timer t;
         tree = new KDTree(Part.data(),nbodies,opt.Bsize,tree->TPHYS,tree->KEPAN,1000,0,0,0,period);
         tree->OverWriteInputOrder();
-        if (opt.iverbose) cout<<ThisTask<<": finished building single tree with single OpenMP "<<MyGetTime()-time3<<endl;
+        if (opt.iverbose)
+            std::cout << ThisTask << ": finished building single tree in " << t << '\n';
     }
 
-#else
-    tree=new KDTree(Part.data(),nbodies,opt.Bsize,tree->TPHYS,tree->KEPAN,1000,0,0,0,period);
-    tree->OverWriteInputOrder();
-#endif
-    cout<<"Done"<<endl;
     cout<<ThisTask<<" Search particles using 3DFOF in physical space"<<endl;
     cout<<ThisTask<<" Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits (ell^2="<<param[6]<<" and likely "<<sqrt(param[6])/opt.ellxscale<<" in interparticle spacing"<<endl;
     if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) {fofcmp=&FOF3dDM;param[7]=DARKTYPE;fofcheck=FOFchecktype;}
@@ -211,7 +210,10 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
 #endif
 
     }
-    else {
+    else
+#endif // USEOPENMP
+    {
+        vr::Timer t;
         //posible alteration for all particle search
         if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) {
             pfof=tree->FOFCriterionSetBasisForLinks(fofcmp,param,numgroups,minsize,
@@ -220,17 +222,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         else {
             pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,iorder,Head,Next);
         }
+        std::cout << ThisTask << ": Finished FOF in " << t << '\n';
     }
-#else
-    //posible alteration for all particle search
-    if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) {
-        pfof=tree->FOFCriterionSetBasisForLinks(fofcmp,param,numgroups,minsize,
-            iorder,0,FOFchecktype,Head,Next);
-    }
-    else {
-        pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,iorder,Head,Next);
-    }
-#endif
 
     //get memory usage
     GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
