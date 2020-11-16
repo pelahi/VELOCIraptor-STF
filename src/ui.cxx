@@ -2,7 +2,19 @@
  *  \brief user interface
  */
 
+#include "logging.h"
 #include "stf.h"
+
+static void configure_logging(const Options &opt)
+{
+	// VR's verbosity goes from 0 (less verbose) to at least 2 (very verbose)
+	// We thus consider 2 as "trace", 1 as "debug" and so forth
+	constexpr int NUM_LOG_LEVELS = 5;
+	constexpr int VR_MIN_LOG_LEVEL = 2;
+	int as_log_level = -opt.iverbose + VR_MIN_LOG_LEVEL;
+	vr::LogLevel level = static_cast<vr::LogLevel>(std::min(std::max(as_log_level, 0), NUM_LOG_LEVELS - 1));
+	vr::init_logging(level);
+}
 
 ///routine to get arguments from command line
 /// \todo alter interface as now need to be able to specify only smdata file (no grid, res, normalized res) and functionality to specify eps, background fof search, etc
@@ -1710,6 +1722,7 @@ void GetParamFile(Options &opt)
         paramfile.close();
         //cfgfile.close();
     }
+    configure_logging(opt);
 }
 
 void NOMASSCheck(Options &opt)

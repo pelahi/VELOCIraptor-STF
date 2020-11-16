@@ -12,6 +12,7 @@
 */
 
 #include "stf.h"
+#include "logging.h"
 #include "timer.h"
 
 using namespace std;
