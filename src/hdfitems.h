@@ -1530,7 +1530,7 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
         //Open the specified file and the specified dataset in the file.
         //Fhdf.openFile(buf, H5F_ACC_RDONLY);
         Fhdf = H5Fopen(buf, H5F_ACC_RDONLY, H5P_DEFAULT);
-        cout<<"Loading HDF header info in header group: "<<hdf_gnames.Header_name<<endl;
+        LOG(info) << "Loading HDF header info in header group: " << hdf_gnames.Header_name;
 
         if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES) {
 

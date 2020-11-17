@@ -184,9 +184,9 @@ int main(int argc,char **argv)
     if (opt.iBaryonSearch>0) MPI_Bcast(&nbaryons,1, MPI_Int_t,0,MPI_COMM_WORLD);
     //initial estimate need for memory allocation assuming that work balance is not greatly off
 #endif
-    if (ThisTask==0) {
-        cout<<"There are "<<nbodies<<" particles in total that require "<<nbodies*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
-        if (opt.iBaryonSearch>0) cout<<"There are "<<nbaryons<<" baryon particles in total that require "<<nbaryons*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
+    LOG_RANK0(info) << "There are " << nbodies << " particles in total that require " << vr::memory_amount(nbodies * sizeof(Particle));
+    if (opt.iBaryonSearch > 0) {
+        LOG_RANK0(info) << "There are " << nbaryons << " baryon particles in total that require " << vr::memory_amount(nbaryons * sizeof(Particle));
     }
 
     //note that for nonmpi particle array is a contiguous block of memory regardless of whether a separate baryon search is required
@@ -242,7 +242,6 @@ int main(int argc,char **argv)
 #endif
 
     //now read particle data
-    if (ThisTask==0) cout<<"Loading ... "<<endl;
     ReadData(opt, Part, nbodies, Pbaryons, nbaryons);
 #ifdef USEMPI
     //if mpi and want separate baryon search then once particles are loaded into contigous block of memory and sorted according to type order,

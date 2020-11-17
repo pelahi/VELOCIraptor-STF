@@ -66,14 +66,8 @@ std::string GetMemUsage(Options &opt, string file, int line, string function)
         iflag = false;
     }
 
-    // get file basename
-    auto last_sep = file.rfind('/');
-    if (last_sep != std::string::npos) {
-        file = file.substr(last_sep + 1);
-    }
-
     std::ostringstream memreport;
-    memreport << "Memory report at " << file << ':' << line << '@' << function << ": ";
+    memreport << "Memory report at " << vr::basename(file) << ':' << line << '@' << function << ": ";
 
     //having scanned data for memory footprint in pages, report
     //memory footprint in GB

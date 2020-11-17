@@ -19,6 +19,7 @@
 #ifdef USEADIOS
 #include "adios.h"
 #endif
+#include "ioutils.h"
 #include "logging.h"
 #include "timer.h"
 
@@ -94,12 +95,12 @@ void ReadData(Options &opt, vector<Particle> &Part, const Int_t nbodies, Particl
     Int_t Nlocal = nbodies;
 #endif
     if (ThisTask==0) {
-        cout<<"Reading input ... "<<endl;
+        LOG(info) << "Reading input ...";
 #ifdef USEMPI
-        cout<<"Each MPI read thread, of which there are "<<opt.nsnapread<<", will allocate ";
-        cout<<opt.mpiparticlebufsize*NProcs*sizeof(Particle)/1024.0/1024.0/1024.0<<" of memory to store particle data"<<endl;
-        cout<<"Sending information to non-read threads in chunks of "<<opt.mpiparticlebufsize<<" particles "<<endl;
-        cout<<"This requires approximately "<<(int)(Nlocal/(double)opt.mpiparticlebufsize)<<" receives"<<endl;
+        LOG(info) << "Each MPI read thread, of which there are " << opt.nsnapread << ", will allocate "
+                  << vr::memory_amount(opt.mpiparticlebufsize * NProcs * sizeof(Particle)) << " to store particle data";
+        LOG(info) << "Sending information to non-read threads in chunks of " << opt.mpiparticlebufsize << " particles";
+        LOG(info) << "This requires approximately " << (int)(Nlocal/(double)opt.mpiparticlebufsize)<<" receive operations";
 #endif
     }
 
@@ -121,7 +122,7 @@ void ReadData(Options &opt, vector<Particle> &Part, const Int_t nbodies, Particl
 #ifdef USEMPI
     MPIAdjustDomain(opt);
 #endif
-    if (ThisTask==0) cout<<"Done loading input data"<<endl;
+    LOG_RANK0(info) << "Done loading input data";
     MEMORY_USAGE_REPORT(debug, opt);
 }
 
@@ -3738,20 +3739,19 @@ void WriteUnitInfoToHDF(Options &opt, H5OutputFile &Fhdf){
 ///\name output simulation state
 //@{
 void PrintCosmology(Options &opt){
-    if (opt.iverbose) {
-        cout<<"Cosmology (h, Omega_m, Omega_cdm, Omega_b, Omega_L, Omega_r, Omega_nu, Omega_k, Omega_de, w_de) =";
-        cout<<"("<<opt.h<<", ";
-        cout<<opt.Omega_m<<", ";
-        cout<<opt.Omega_cdm<<", ";
-        cout<<opt.Omega_b<<", ";
-        cout<<opt.Omega_Lambda<<", ";
-        cout<<opt.Omega_r<<", ";
-        cout<<opt.Omega_nu<<", ";
-        cout<<opt.Omega_k<<", ";
-        cout<<opt.Omega_de<<", ";
-        cout<<opt.w_de<<", ";
-        cout<<")"<<endl;
-    }
+    LOG(debug)
+        << "Cosmology (h, Omega_m, Omega_cdm, Omega_b, Omega_L, Omega_r, Omega_nu, Omega_k, Omega_de, w_de) = ("
+        << opt.h << ", "
+        << opt.Omega_m << ", "
+        << opt.Omega_cdm << ", "
+        << opt.Omega_b << ", "
+        << opt.Omega_Lambda << ", "
+        << opt.Omega_r << ", "
+        << opt.Omega_nu << ", "
+        << opt.Omega_k << ", "
+        << opt.Omega_de << ", "
+        << opt.w_de
+        << ')';
 }
 
 void PrintSimulationState(Options &opt){

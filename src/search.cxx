@@ -113,8 +113,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         LOG(info) << "Finished building single trees in " << t;
     }
 
-    cout<<ThisTask<<" Search particles using 3DFOF in physical space"<<endl;
-    cout<<ThisTask<<" Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits (ell^2="<<param[6]<<" and likely "<<sqrt(param[6])/opt.ellxscale<<" in interparticle spacing"<<endl;
+    LOG(info) << "Search particles using 3DFOF in physical space";
+    LOG(info) << "Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits (ell^2="<<param[6]<<" and likely "<<sqrt(param[6])/opt.ellxscale<<" in interparticle spacing";
     if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) {fofcmp=&FOF3dDM;param[7]=DARKTYPE;fofcheck=FOFchecktype;}
     else fofcmp=&FOF3d;
 
