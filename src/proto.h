@@ -848,6 +848,12 @@ void GetMemUsage(string callingfunction, bool printreport);
 void InitMemUsageLog(Options &opt);
 ///get a time
 double MyGetTime();
+
+namespace vr {
+	/// Get the basename of `filename`
+	std::string basename(const std::string &filename);
+}
+
 //@}
 
 /// \name Compilation functions
