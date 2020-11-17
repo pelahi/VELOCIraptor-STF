@@ -7,6 +7,7 @@
 #include "allvars.h"
 
 #include "fofalgo.h"
+#include "logging.h"
 #include "stf-fitting.h"
 
 #ifndef STFPROTO_H
@@ -841,9 +842,8 @@ void ReorderGroupIDsAndHaloDatabyValue(const Int_t numgroups, const Int_t newnum
 
 int CompareInt(const void *, const void *);
 ///Get memory use
-void GetMemUsage(Options &opt, string callingfunction, bool printreport);
-///Get memory use
-void GetMemUsage(string callingfunction, bool printreport);
+std::string GetMemUsage(Options &opt, string file, int line, string function);
+#define MEMORY_USAGE_REPORT(lvl, opt) { if(LOG_ENABLED(lvl)) LOG(lvl) << GetMemUsage(opt, __FILE__, __LINE__, __PRETTY_FUNCTION__); }
 ///Init memory log
 void InitMemUsageLog(Options &opt);
 ///get a time

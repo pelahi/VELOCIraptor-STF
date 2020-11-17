@@ -20,6 +20,20 @@ using namespace Math;
 using namespace NBody;
 using namespace velociraptor;
 
+void finish_vr(Options &opt)
+{
+    //get memory useage
+    LOG(info) << "Finished running VR";
+    MEMORY_USAGE_REPORT(info, opt);
+
+#ifdef USEMPI
+#ifdef USEADIOS
+    adios_finalize(ThisTask);
+#endif
+    MPI_Finalize();
+#endif
+}
+
 int main(int argc,char **argv)
 {
 #ifdef USEMPI
@@ -118,8 +132,7 @@ int main(int argc,char **argv)
     PropData *pdata=NULL,*pdatahalos=NULL;
 
     //to store time and output time taken
-    double time1,tottime;
-    tottime=MyGetTime();
+    vr::Timer total_timer;
 
     Coordinate cm,cmvel;
     Double_t Mtot;
@@ -140,7 +153,7 @@ int main(int argc,char **argv)
 #endif
 
     //read particle information and allocate memory
-    time1=MyGetTime();
+    vr::Timer loading_timer;
     //for MPI determine total number of particles AND the number of particles assigned to each processor
     if (ThisTask==0) {
         cout<<"Read header ... "<<endl;
@@ -243,7 +256,6 @@ int main(int argc,char **argv)
     }
 #endif
 
-    time1=MyGetTime()-time1;
 #ifdef USEMPI
     Ntotal=nbodies;
     nbodies=Nlocal;
@@ -251,9 +263,9 @@ int main(int argc,char **argv)
     mpi_period=opt.p;
     MPI_Allgather(&nbodies, 1, MPI_Int_t, mpi_nlocal, 1, MPI_Int_t, MPI_COMM_WORLD);
     MPI_Allreduce(&nbodies, &Ntotal, 1, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
-    cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to load "<<Nlocal<<" of "<<Ntotal<<endl;
+    LOG(info) << Nlocal << '/' << Ntotal << " particles loaded in " << loading_timer;
 #else
-    cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to load "<<nbodies<<endl;
+    LOG(info) << nbodies << " particles loaded in " << loading_timer;
 #endif
 
     //write out the configuration used by velociraptor having read in the data (as input data can contain cosmological information)
@@ -274,14 +286,14 @@ int main(int argc,char **argv)
 #if defined (STRUCDEN) || defined (HALOONLYDEN)
 #else
     if (opt.iSubSearch==1) {
-        time1=MyGetTime();
+        vr::Timer timer;
         if(FileExists(fname4)) ReadLocalVelocityDensity(opt, nbodies,Part);
         else  {
             GetVelocityDensity(opt, nbodies, Part.data());
             WriteLocalVelocityDensity(opt, nbodies,Part);
         }
-        time1=MyGetTime()-time1;
-        cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to analyze/read local velocity density for "<<Nlocal<<" with "<<nthreads<<endl;
+        LOG(info) << "Local velocity density read/analised for " << Nlocal << " particles with "
+                  << nthreads << " threads in " << timer;
     }
 #endif
 
@@ -290,11 +302,10 @@ int main(int argc,char **argv)
 
     //From here can either search entire particle array for "Halos" or if a single halo is loaded, then can just search for substructure
     if (!opt.iSingleHalo) {
+        vr::Timer timer;
 #ifndef USEMPI
-        time1=MyGetTime();
         pfof=SearchFullSet(opt,nbodies,Part,ngroup);
         nhalos=ngroup;
-        cout<<"TIME:: took "<<time1<<" to search "<<nbodies<<" with "<<nthreads<<endl;
 #else
         //nbodies=Ntotal;
         ///\todo Communication Buffer size determination and allocation. For example, eventually need something like FoFDataIn = (struct fofdata_in *) CommBuffer;
@@ -303,14 +314,11 @@ int main(int argc,char **argv)
         //Now when MPI invoked this returns pfof after local linking and linking across and also reorders groups
         //according to size and localizes the particles belong to the same group to the same mpi thread.
         //after this is called Nlocal is adjusted to the local subset where groups are localized to a given mpi thread.
-        time1=MyGetTime();
-
         pfof=SearchFullSet(opt,Nlocal,Part,ngroup);
-        time1=MyGetTime()-time1;
-        cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to search "<<Nlocal<<" with "<<nthreads<<endl;
         nbodies=Nlocal;
         nhalos=ngroup;
 #endif
+        LOG(info) << "Search over " << nbodies << " with " << nthreads << " took " << timer;
         //if compiled to determine inclusive halo masses, then for simplicity, I assume halo id order NOT rearranged!
         //this is not necessarily true if baryons are searched for separately.
         if (opt.iInclusiveHalo > 0 && opt.iInclusiveHalo < 3) {
@@ -383,12 +391,12 @@ int main(int argc,char **argv)
 #endif
     }
     if (opt.iSubSearch) {
-        cout<<"Searching subset"<<endl;
-        time1=MyGetTime();
+        LOG(info) << "Searching subset";
+        vr::Timer timer;
         //if groups have been found (and localized to single MPI thread) then proceed to search for subsubstructures
         SearchSubSub(opt, nbodies, Part, pfof,ngroup,nhalos, pdatahalos);
-        time1=MyGetTime()-time1;
-        cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to search for substructures "<<Nlocal<<" with "<<nthreads<<endl;
+        LOG(info) << "Search for substructures " << Nlocal << " with " << nthreads
+                  << " threads finished in " << timer;
     }
     pdata=new PropData[ngroup+1];
     //if inclusive halo mass required
@@ -399,7 +407,7 @@ int main(int argc,char **argv)
 
     //if only searching initially for dark matter groups, once found, search for associated baryonic structures if requried
     if (opt.iBaryonSearch>0) {
-        time1=MyGetTime();
+        vr::Timer timer;
         if (opt.partsearchtype==PSTDARK) {
             pfofall=SearchBaryons(opt, nbaryons, Pbaryons, nbodies, Part, pfof, ngroup,nhalos,opt.iseparatefiles,opt.iInclusiveHalo,pdata);
             pfofbaryons=&pfofall[nbodies];
@@ -416,8 +424,7 @@ int main(int argc,char **argv)
             Pbaryons=NULL;
             SearchBaryons(opt, nbaryons, Pbaryons, ndark, Part, pfof, ngroup,nhalos,opt.iseparatefiles,opt.iInclusiveHalo,pdata);
         }
-        time1=MyGetTime()-time1;
-        cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to search baryons  with "<<nthreads<<endl;
+        LOG(info) << "Baryon search with " << nthreads << " threads finished in " << timer;
     }
 
     //get mpi local hierarchy
@@ -449,17 +456,7 @@ int main(int argc,char **argv)
         delete[] numingroup;
         delete[] pdata;
 
-        //get memory useage
-        cout<<ThisTask<<" : finished running VR "<<endl;
-        GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=0));
-
-#ifdef USEMPI
-#ifdef USEADIOS
-        adios_finalize(ThisTask);
-#endif
-        MPI_Finalize();
-#endif
-        return 0;
+        finish_vr(opt);
     }
 
     //if want a simple tipsy still array listing particles group ids in input order
@@ -560,19 +557,8 @@ int main(int argc,char **argv)
     delete[] uparentgid;
     delete[] stype;
 
-    tottime=MyGetTime()-tottime;
-    cout<<"TIME::"<<ThisTask<<" took "<<tottime<<" in all"<<endl;
+    LOG(info) << "VELOCIraptor finished in " << total_timer;
 
-    //get memory useage
-    cout<<ThisTask<<" : finished running VR "<<endl;
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=0));
-
-#ifdef USEMPI
-#ifdef USEADIOS
-    adios_finalize(ThisTask);
-#endif
-    MPI_Finalize();
-#endif
-
+    finish_vr(opt);
     return 0;
 }

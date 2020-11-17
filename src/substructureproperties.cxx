@@ -4656,8 +4656,7 @@ Int_t **SortAccordingtoBindingEnergy(Options &opt, const Int_t nbodies, Particle
         for (i=1;i<=ngroup;i++) pdata[i].num=numingroup[i];
     }
 
-    //get memory usage
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    MEMORY_USAGE_REPORT(debug, opt);
 
     GetCM(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
     GetFOFMass(opt, ngroup, numingroup, pdata);
@@ -4715,8 +4714,7 @@ private(i,j)
         }
     }
 
-    //get memory useage
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    MEMORY_USAGE_REPORT(debug, opt);
 
     delete[] noffset;
     //reset particles back to id order
@@ -4771,8 +4769,7 @@ void CalculateHaloProperties(Options &opt, const Int_t nbodies, Particle *Part, 
     for (i=1;i<=ngroup;i++) pdata[i].ibound=Part[noffset[i]].GetPID();
     for (i=1;i<=ngroup;i++) pdata[i].iunbound=Part[noffset[i]+numingroup[i]-1].GetPID();
 
-    //get memory useage
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    MEMORY_USAGE_REPORT(debug, opt);
     delete[] noffset;
 }
 

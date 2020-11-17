@@ -606,8 +606,7 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
     if (libvelociraptorOpt.iBaryonSearch>0) cout<<ThisTask<<"There are "<<Nlocalbaryon[0]<<" baryon particles and have allocated enough memory for "<<Nmemlocalbaryon<<" requiring "<<Nmemlocalbaryon*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
     cout<<ThisTask<<" will also require additional memory for FOF algorithms and substructure search. Largest mem needed for preliminary FOF search. Rough estimate is "<<Nlocal*(sizeof(Int_tree_t)*8)/1024./1024./1024.<<"GB of memory"<<endl;
 
-    //get memory usage
-    GetMemUsage(libvelociraptorOpt, __func__+string("--line--")+to_string(__LINE__), true);
+    MEMORY_USAGE_REPORT(info, libvelociraptorOpt);
 
     //
     // Perform FOF search.
@@ -733,8 +732,7 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
     delete[] stype;
     delete psldata;
 
-    //get memory usage
-    GetMemUsage(libvelociraptorOpt, __func__+string("--line--")+to_string(__LINE__), true);
+    MEMORY_USAGE_REPORT(info, libvelociraptorOpt);
 
     // Make array of most bound particle indexes if we have groups and it was requested
     Int_t num_most_bound = 0;

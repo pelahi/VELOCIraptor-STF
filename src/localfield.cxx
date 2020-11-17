@@ -4,6 +4,7 @@
 
 //--  Local Velocity density routines
 
+#include "logging.h"
 #include "stf.h"
 #include "swiftinterface.h"
 
@@ -453,7 +454,7 @@ void GetVelocityDensityHaloOnlyDen(Options &opt, const Int_t nbodies, Particle *
     }
 
     //get memory useage
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    MEMORY_USAGE_REPORT(debug, opt);
 
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
@@ -517,8 +518,7 @@ void GetVelocityDensityExact(Options &opt, const Int_t nbodies, Particle *Part, 
 #endif
 
     time2=MyGetTime();
-    //get memory useage
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    MEMORY_USAGE_REPORT(debug, opt);
 
     //In loop determine if particles NN search radius overlaps another mpi threads domain.
     //If not, then proceed as usually to determine velocity density.
@@ -609,8 +609,7 @@ private(i,j,k,id,v2,nnids,nnr2,weight,pqv)
     KDTree *treeneighbours=NULL;
     if (nimport>0) treeneighbours=new KDTree(PartDataGet,nimport,1,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
 
-    //get memory useage
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    MEMORY_USAGE_REPORT(debug, opt);
 
     //then run search
 #ifdef USEOPENMP
@@ -792,8 +791,7 @@ void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle
     }
     node=NULL;
 
-    //get memory useage
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    MEMORY_USAGE_REPORT(debug, opt);
 
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)
@@ -946,8 +944,7 @@ reduction(+:nprocessed,ntot)
         nprocessed=0;
     }
 
-    //get memory useage
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    MEMORY_USAGE_REPORT(debug, opt);
 
     if (nimport>0) {
 #ifdef USEOPENMP

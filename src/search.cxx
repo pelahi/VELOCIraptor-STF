@@ -78,8 +78,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     }
 #endif
 
-    //get memory usage
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    MEMORY_USAGE_REPORT(debug, opt);
 
     time1=MyGetTime();
     time2=MyGetTime();
@@ -127,8 +126,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     Head=NULL;Next=NULL;
 #endif
 
-    //get memory usage
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    MEMORY_USAGE_REPORT(debug, opt);
 
 #ifdef USEOPENMP
     //if enough regions then search each individually
@@ -227,8 +225,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         LOG(info) << "Finished FOF in " << t;
     }
 
-    //get memory usage
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    MEMORY_USAGE_REPORT(debug, opt);
 
 #ifndef USEMPI
     totalgroups=numgroups;
@@ -341,8 +338,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
 
     Int_t links_across,links_across_total;
 
-    //get memory usage
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    MEMORY_USAGE_REPORT(debug, opt);
 
     cout<<ThisTask<<": Starting to linking across MPI domains"<<endl;
     do {
@@ -954,8 +950,8 @@ private(i,tid,xscaling,vscaling)
     }
 
     //get memory usage
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
-    if (opt.iverbose) cout<<ThisTask<<" Done storing halo substructre level data"<<endl;
+    MEMORY_USAGE_REPORT(debug, opt);
+    LOG(info) << "Done storing halo substructure level data";
     return pfof;
 }
 
@@ -970,7 +966,7 @@ void AdjustStructureForPeriod(Options &opt, const Int_t nbodies, vector<Particle
 #endif
     vector<Coordinate> refpos(numgroups+1);
     vector<Int_t> irefpos(numgroups+1);
-    if (opt.iverbose) cout<<ThisTask<<" Adjusting for period "<<opt.p<<endl;
+    LOG(info) << "Adjusting for period " << opt.p;
     for (i=1;i<=numgroups;i++) irefpos[i]=-1;
     for (i=0;i<nbodies;i++) {
         if (pfof[i]==0) continue;
@@ -2900,9 +2896,8 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
-    cout<<ThisTask<<" Beginning substructure search "<<endl;
-    //get memory usage
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    LOG(info) << "Beginning substructure search";
+    MEMORY_USAGE_REPORT(debug, opt);
     if (ngroup>0) {
     //point to current structure level
     pcsld=psldata;
@@ -2975,7 +2970,8 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
         //enough to be searched fully in parallel.
         ompactivesubgroups.resize(0);
 #endif
-        GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__)+string("--subelvel--")+to_string(sublevel), (opt.iverbose>=1));
+        LOG(debug) << "Going through sublevel " << sublevel;
+        MEMORY_USAGE_REPORT(debug, opt);
 
         for (Int_t i=1;i<=oldnsubsearch;i++) {
             // try running loop over largest objects in serial with parallel inside calls
@@ -3315,9 +3311,8 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
     MPI_Allgather(&ngroup, 1, MPI_Int_t, mpi_ngroups, 1, MPI_Int_t, MPI_COMM_WORLD);
 #endif
 
-    //get memory usage
-    cout<<ThisTask<<" has found a total of "<<ngroup<<endl;
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    LOG(info) << "Found a total of " << ngroup;
+    MEMORY_USAGE_REPORT(debug, opt);
 }
 
 /*!
@@ -3489,9 +3484,8 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
         return pfofall;
     }
 
-    cout<<ThisTask<<" search baryons "<<nparts<<" "<<ndark<<endl;
-    //get memory usage
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    LOG(info) << "Search baryons " << nparts << " " << ndark;
+    MEMORY_USAGE_REPORT(debug, opt);
 
     //if searched all particles in FOF, reorder particles and also the pfof group id array
     if (opt.partsearchtype==PSTALL) {
@@ -3564,7 +3558,7 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
     }
 
     //sort dark matter particles so that particles belonging to a group are first, then all other dm particles
-    if (opt.iverbose) cout<<"sort particles so that tree only uses particles in groups "<<npartingroups<<endl;
+    LOG(info) << "Sort particles so that tree only uses particles in groups " << npartingroups;
 
     //search all dm particles in structures
     for (i=0;i<ndark;i++) Part[i].SetPotential(2*(pfofdark[i]==0)+(pfofdark[i]>1));
@@ -3602,11 +3596,12 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
 
     //Set fof type
     fofcmp=&FOF6d;
-    if (opt.iverbose) {
-        cout<<"Baryon search "<<nbaryons<<endl;
-        cout<<"FOF6D uses ellphys and ellvel.\n";
-        cout<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, ellvel="<<sqrt(param[7])<<" Vunits.\n";
-        cout<<"Building tree to search dm containing "<<npartingroups<<endl;
+    if (LOG_ENABLED(debug)) {
+        LOG(debug) << "Baryon search " << nbaryons;
+        LOG(debug) << "FOF6D uses ellphys and ellvel";
+        LOG(debug) << "Parameters used are: ellphys=" << std::sqrt(param[6])
+                   <<" Lunits, ellvel=" << std::sqrt(param[7]) << " Vunits.";
+        LOG(debug) << "Building tree to search dm containing " << npartingroups;
     }
     //build tree of baryon particles (in groups if a full particle search was done, otherwise npartingroups=nbaryons
     tree=new KDTree(Part.data(),npartingroups,nsearch/2,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
@@ -3981,7 +3976,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
     }
 
     //get memory usage
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    MEMORY_USAGE_REPORT(debug, opt);
 
 #ifdef USEMPI
     //if number of groups has changed then update

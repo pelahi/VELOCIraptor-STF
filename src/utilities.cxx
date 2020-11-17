@@ -2,6 +2,8 @@
  *  \brief this file contains an assortment of utilities
  */
 
+#include "ioutils.h"
+#include "logging.h"
 #include "stf.h"
 
 namespace vr {
@@ -25,10 +27,8 @@ int CompareInt(const void *p1, const void *p2) {
 }
 
 /// get the memory use looking at the task
-void GetMemUsage(Options &opt, string funcname, bool printreport){
-#ifndef USEMPI
-    int ThisTask=0;
-#endif
+std::string GetMemUsage(Options &opt, string file, int line, string function)
+{
     // if (!opt.memuse_log) return;
     ifstream f;
     size_t pos1, pos2;
@@ -36,7 +36,7 @@ void GetMemUsage(Options &opt, string funcname, bool printreport){
     map<string,float> memuse;
     bool iflag = true;
     char buffer[2500];
-    string memreport, temp, delimiter1("VmPeak:"), delimiter2("kB");
+    std::string delimiter1("VmPeak:"), delimiter2("kB");
     ofstream Fmem;
     // Open the file storing memory information associated with the process;
     f.open("/proc/self/statm");
@@ -52,7 +52,7 @@ void GetMemUsage(Options &opt, string funcname, bool printreport){
     f.open("/proc/self/status");
     if (f.is_open()) {
         while (f.getline(buffer, 2500)){
-            temp = string(buffer);
+            std::string temp(buffer);
             if ((pos1 = temp.find(delimiter1)) != string::npos) {
                 pos2 = temp.find(delimiter2);
                 temp = temp.substr(pos1+delimiter1.size(), pos2);
@@ -66,7 +66,14 @@ void GetMemUsage(Options &opt, string funcname, bool printreport){
         iflag = false;
     }
 
-    memreport += string("Memory report, func = ")+funcname+string(" task = ")+to_string(ThisTask)+ string(" : ");
+    // get file basename
+    auto last_sep = file.rfind('/');
+    if (last_sep != std::string::npos) {
+        file = file.substr(last_sep + 1);
+    }
+
+    std::ostringstream memreport;
+    memreport << "Memory report at " << file << ':' << line << '@' << function << ": ";
 
     //having scanned data for memory footprint in pages, report
     //memory footprint in GB
@@ -81,112 +88,27 @@ void GetMemUsage(Options &opt, string funcname, bool printreport){
         library *= sz ;
         data *=  sz ;
         dirty *= sz ;
-        float bytestoGB;
-        bytestoGB = 1.0/(1024.0*1024.*1024.);
-        // bytestoGB = 1.0;
         if (opt.memuse_peak < peak) opt.memuse_peak = peak;
         opt.memuse_nsamples++;
         opt.memuse_ave += size;
-        memuse["Size"] = size*bytestoGB;
-        memuse["Resident"] = resident*bytestoGB;
-        memuse["Shared"] = shared*bytestoGB;
-        memuse["Text"] = text*bytestoGB;
-        memuse["Library"] = library*bytestoGB;
-        memuse["Data"] = data*bytestoGB;
-        memuse["Dirty"] = dirty*bytestoGB;
-        memuse["Peak"] = opt.memuse_peak*bytestoGB;
-        memuse["Average"] = opt.memuse_ave/(float)opt.memuse_nsamples*bytestoGB;
+        memuse["Size"] = size;
+        memuse["Resident"] = resident;
+        memuse["Shared"] = shared;
+        memuse["Text"] = text;
+        memuse["Library"] = library;
+        memuse["Data"] = data;
+        memuse["Dirty"] = dirty;
+        memuse["Peak"] = opt.memuse_peak;
+        memuse["Average"] = opt.memuse_ave/(float)opt.memuse_nsamples;
 
-        for (map<string,float>::iterator it=memuse.begin(); it!=memuse.end(); ++it) {
-            memreport += it->first + string(" = ") + to_string(it->second) + string(" GB, ");
+        for (auto &entry: memuse) {
+            memreport << entry.first << ": " << vr::memory_amount(entry.second) << " ";
         }
     }
     else{
-        memreport+= string(" unable to open or scane system file storing memory use");
+        memreport << " unable to open or scan system file storing memory use";
     }
-    // sprintf(buffer,"%s.memlog.%d",opt.outname,ThisTask);
-    // Fmem.open(buffer,ios::app);
-    // Fmem<<memreport<<endl;
-    // Fmem.close();
-    if (printreport) cout<<memreport<<endl;
-}
-
-/// get the memory use looking at the task
-void GetMemUsage(string funcname, bool printreport){
-#ifndef USEMPI
-    int ThisTask=0;
-#endif
-    ifstream f;
-    size_t pos1, pos2;
-    unsigned long long size, resident, shared, text, data, library, dirty, peak;
-    map<string,float> memuse;
-    bool iflag = true;
-    char buffer[2500];
-    string memreport, temp, delimiter1("VmPeak:"), delimiter2("kB");
-    ofstream Fmem;
-    // Open the file storing memory information associated with the process;
-    f.open("/proc/self/statm");
-    if (f.is_open()) {
-        f >> size >> resident >> shared >> text >> library >> data >>dirty;
-        // nscan = fscanf(file, "%lld %lld %lld %lld %lld %lld %lld",
-        //     &size, &resident, &shared, &text, &library, &data, &dirty);
-        f.close();
-    }
-    else {
-        iflag = false;
-    }
-    f.open("/proc/self/status");
-    if (f.is_open()) {
-        while (f.getline(buffer, 2500)){
-            temp = string(buffer);
-            if ((pos1 = temp.find(delimiter1)) != string::npos) {
-                pos2 = temp.find(delimiter2);
-                temp = temp.substr(pos1+delimiter1.size(), pos2);
-                peak = stol(temp)*1024;
-                break;
-            }
-        }
-        f.close();
-    }
-    else {
-        iflag = false;
-    }
-
-    memreport += string("Memory report, func = ")+funcname+string(" task = ")+to_string(ThisTask)+ string(" : ");
-
-    //having scanned data for memory footprint in pages, report
-    //memory footprint in GB
-    if (iflag) {
-        // Convert pages into bytes. Usually 4096, but could be 512 on some
-        // systems so take care in conversion to KB. */
-        uint64_t sz = sysconf(_SC_PAGESIZE);
-        size *= sz ;
-        resident *= sz ;
-        shared *= sz ;
-        text *= sz ;
-        library *= sz ;
-        data *=  sz ;
-        dirty *= sz ;
-        float bytestoGB;
-        bytestoGB = 1.0/(1024.0*1024.*1024.);
-        // float bytestoGB = 1.0;
-        // if (opt.memuse_peak < peak) opt.memuse_peak = peak;
-        // opt.memuse_nsamples++;
-        // opt.memuse_ave += size;
-        memuse["Size"] = size*bytestoGB;
-        memuse["Resident"] = resident*bytestoGB;
-        memuse["Shared"] = shared*bytestoGB;
-        memuse["Text"] = text*bytestoGB;
-        memuse["Data"] = data*bytestoGB;
-        memuse["Peak"] = peak*bytestoGB;
-        for (map<string,float>::iterator it=memuse.begin(); it!=memuse.end(); ++it) {
-            memreport += it->first + string(" = ") + to_string(it->second) + string(" GB, ");
-        }
-    }
-    else{
-        memreport+= string(" unable to open or scane system file storing memory use");
-    }
-    if (printreport) cout<<memreport<<endl;
+    return memreport.str();
 }
 
 void InitMemUsageLog(Options &opt){

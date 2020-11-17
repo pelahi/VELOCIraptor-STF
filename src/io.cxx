@@ -19,6 +19,7 @@
 #ifdef USEADIOS
 #include "adios.h"
 #endif
+#include "logging.h"
 #include "timer.h"
 
 ///write the information stored in a unit struct as meta data into a HDF5 file
@@ -121,7 +122,7 @@ void ReadData(Options &opt, vector<Particle> &Part, const Int_t nbodies, Particl
     MPIAdjustDomain(opt);
 #endif
     if (ThisTask==0) cout<<"Done loading input data"<<endl;
-    GetMemUsage(opt,__func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    MEMORY_USAGE_REPORT(debug, opt);
 }
 
 
