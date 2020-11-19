@@ -156,7 +156,7 @@ int main(int argc,char **argv)
     vr::Timer loading_timer;
     //for MPI determine total number of particles AND the number of particles assigned to each processor
     if (ThisTask==0) {
-        cout<<"Read header ... "<<endl;
+        LOG(info) << "Reading header";
         nbodies=ReadHeader(opt);
         if (opt.iBaryonSearch>0) {
             for (int i=0;i<NBARYONTYPES;i++) Ntotalbaryon[i]=Nlocalbaryon[i]=0;
@@ -213,8 +213,12 @@ int main(int argc,char **argv)
         //if allocating reasonable amounts of memory, use MPIREDUCEMEM
         //this determines number of particles in the mpi domains
         MPINumInDomain(opt);
-        cout<<ThisTask<<" There are "<<Nlocal<<" particles and have allocated enough memory for "<<Nmemlocal<<" requiring "<<Nmemlocal*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
-        if (opt.iBaryonSearch>0) cout<<ThisTask<<"There are "<<Nlocalbaryon[0]<<" baryon particles and have allocated enough memory for "<<Nmemlocalbaryon<<" requiring "<<Nmemlocalbaryon*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
+        LOG(info) << "There are " << Nlocal << " particles and have allocated enough memory for "
+                  << Nmemlocal << " requiring " << vr::memory_amount(Nmemlocal * sizeof(Particle));
+        if (opt.iBaryonSearch > 0) {
+            LOG(info) << "There are " << Nlocalbaryon[0] << " baryon particles and have allocated enough memory for "
+                      << Nmemlocalbaryon << " requiring " << vr::memory_amount(Nmemlocalbaryon * sizeof(Particle));
+        }
 #else
         //otherwise just base on total number of particles * some factor and initialise the domains
         MPIDomainExtent(opt);
@@ -224,11 +228,16 @@ int main(int argc,char **argv)
         Nlocalbaryon[0]=nbaryons/NProcs*MPIProcFac;
         Nmemlocalbaryon=Nlocalbaryon[0];
         NExport=NImport=Nlocal*MPIExportFac;
-        cout<<ThisTask<<" Have allocated enough memory for "<<Nmemlocal<<" requiring "<<Nmemlocal*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
-        if (opt.iBaryonSearch>0) cout<<" Have allocated enough memory for "<<Nmemlocalbaryon<<" baryons particles requiring "<<Nmemlocalbaryon*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
+        LOG(info) << "Have allocated enough memory for " << Nmemlocal << " requiring "
+                  << vr::memory_amount(Nmemlocal * sizeof(Particle));
+        if (opt.iBaryonSearch > 0) {
+            LOG(info) << "Have allocated enough memory for " << Nmemlocalbaryon << " baryons particles requiring "
+                      << vr::memory_amount(Nmemlocalbaryon * sizeof(Particle));
+        }
 #endif
     }
-    cout<<ThisTask<<" will also require additional memory for FOF algorithms and substructure search. Largest mem needed for preliminary FOF search. Rough estimate is "<<Nlocal*(sizeof(Int_tree_t)*8)/1024./1024./1024.<<"GB of memory"<<endl;
+    LOG(info) << "Will also require additional memory for FOF algorithms and substructure search. "
+              << "Largest mem needed for preliminary FOF search. Rough estimate is " << vr::memory_amount(Nlocal * sizeof(Int_tree_t) * 8);
     if (opt.iBaryonSearch>0 && opt.partsearchtype!=PSTALL) {
         Part.resize(Nmemlocal+Nmemlocalbaryon);
         Pbaryons=&(Part.data()[Nlocal]);
@@ -349,7 +358,9 @@ int main(int argc,char **argv)
         //build grid using leaf nodes of tree (which is guaranteed to be adaptive and have maximum number of particles in cell of tree bucket size)
         tree=InitializeTreeGrid(opt,nbodies,Part.data());
         ngrid=tree->GetNumLeafNodes();
-        cout<<"Given "<<nbodies<<" particles, and max cell size of "<<opt.Ncell<<" there are "<<ngrid<<" leaf nodes or grid cells, with each node containing ~"<<nbodies/ngrid<<" particles"<<endl;
+        LOG(info) << "Given " << nbodies << " particles, and max cell size of " << opt.Ncell
+                  << " there are " << ngrid << " leaf nodes or grid cells, with each node containing ~"
+                  << nbodies / ngrid << " particles";
         grid=new GridCell[ngrid];
         //note that after this system is back in original order as tree has been deleted.
         FillTreeGrid(opt, nbodies, ngrid, tree, Part.data(), grid);
@@ -368,11 +379,13 @@ int main(int argc,char **argv)
         //nsubset=WriteOutlierValues(opt, nbodies,Part);
         //Now check if any particles are above the threshold
         if (nsubset==0) {
-            cout<<"no particles found above threshold of "<<opt.ellthreshold<<endl;
-            cout<<"Exiting"<<endl;
+            LOG(info) << "No particles found above threshold of " << opt.ellthreshold;
+            LOG(info) << "Exiting";
             return 0;
         }
-        else cout<<nsubset<< " above threshold of "<<opt.ellthreshold<<" to be searched"<<endl;
+        else {
+            LOG(info) << nsubset << " particles above threshold of " << opt.ellthreshold << " to be searched";
+        }
 #ifndef USEMPI
         pfof=SearchSubset(opt,nbodies,nbodies,Part.data(),ngroup);
 #else

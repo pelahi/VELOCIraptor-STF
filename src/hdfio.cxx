@@ -819,7 +819,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     readtaskID=new int[opt.nsnapread];
     MPIDistributeReadTasks(opt,ireadtask,readtaskID);
     MPI_Comm_split(MPI_COMM_WORLD, (ireadtask[ThisTask]>=0), ThisTask, &mpi_comm_read);
-    if (ThisTask==0) cout<<"There are "<<opt.nsnapread<<" threads reading "<<opt.num_files<<" files "<<endl;
+    LOG_RANK0(info) << "There are " << opt.nsnapread << " threads reading " << opt.num_files << " files ";
     if (ireadtask[ThisTask]>=0)
     {
         //to temporarily store data from gadget file
@@ -1077,7 +1077,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
       opt.a=1.0;
       aadjust=opt.a;
       Hubbleflow=0.;
-      cout<<"Non-cosmological input, using h = "<< opt.h<<endl;
+      LOG(info) << "Non-cosmological input, using h = " << opt.h;
     }
 
     // SWIFT snapshots already include the 1/h factor factor,
@@ -1179,12 +1179,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
               /* If we have baryon search on, but ask to only search the dark matter, we'll segfault here.
                * Better to gracefully exit here with some helpful information. */
 
-              cout << "\n";
-              cout << "You have ran with the particle search type (=2) as Dark Matter but have \n";
-              cout << "left the baryon search type as something nonzero. You should  set the \n";
-              cout << "Baryon_searchflag to 0 in your parameter file.\n";
-
-              cerr << "Incompatible choice of parameter values. See stdout for more information.\n";
+              LOG(error) << "You have ran with the particle search type (=2) as Dark Matter but have "
+                         << "left the baryon search type as something nonzero. You should  set the "
+                         << "Baryon_searchflag to 0 in your parameter file";
 
 #ifdef USE_MPI
               MPI_Abort(MPI_COMM_WORLD, 1);
