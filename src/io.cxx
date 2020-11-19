@@ -2323,6 +2323,27 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     Fhdf.write_dataset(opt, head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
     for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Z_mean_gas_highT;
     Fhdf.write_dataset(opt, head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
+
+    int sonum_hotgas = opt.aperture_hotgas_normalised_to_overdensity.size();
+    if (sonum_hotgas>0){
+        for (auto j=0;j<sonum_hotgas;j++) {
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_totalmass_highT[j];
+            Fhdf.write_dataset(opt, head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
+        }
+        for (auto j=0;j<sonum_hotgas;j++) {
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_mass_highT[j];
+            Fhdf.write_dataset(opt, head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
+        }
+        for (auto j=0;j<sonum_hotgas;j++) {
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_Temp_mean_gas_highT[j];
+            Fhdf.write_dataset(opt, head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
+        }
+        for (auto j=0;j<sonum_hotgas;j++) {
+            for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].SO_Z_mean_gas_highT[j];
+            Fhdf.write_dataset(opt, head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
+        }
+    }
+
 #endif
         //output extra hydro/star/bh props
 #ifdef GASON

@@ -732,6 +732,7 @@ struct Options
     vector<string> aperture_names_kpc;
     vector<Double_t> aperture_proj_values_kpc;
     vector<string> aperture_proj_names_kpc;
+
     int iprofilecalc, iprofilenorm, iprofilebintype;
     int profilenbins;
     int iprofilecumulative;
@@ -752,6 +753,16 @@ struct Options
     float temp_max_cut;
     //@}
 
+    /// \name spherical overdensity used for normalisation of radial profiles of hot gas.
+    //@{
+    float hot_gas_overdensity_normalisation;
+    //@}
+
+    /// \name radial apertures values in units of the hot_gas_overdensity_normalisation.
+    //@{
+    vector<float> aperture_hotgas_normalised_to_overdensity;
+    //@}
+    
     /// \name options related to calculating star forming gas quantities
     //@{
     Double_t gas_sfr_threshold;
@@ -822,6 +833,7 @@ struct Options
     vector<float> star_chemproduction_input_output_unit_conversion_factors;
     vector<float> bh_chemproduction_input_output_unit_conversion_factors;
     vector<float> extra_dm_internalprop_input_output_unit_conversion_factors;
+    float temp_input_output_unit_conversion_factor=1; //assume one if nothing is provided
 
     ///store output units
     vector<string> gas_internalprop_output_units;
@@ -1670,6 +1682,10 @@ struct PropData
     Double_t M_gas_highT;
     Double_t Temp_mean_gas_highT;
     Double_t Z_mean_gas_highT;
+    vector<float> SO_mass_highT;
+    vector<float> SO_Temp_mean_gas_highT;
+    vector<float> SO_Z_mean_gas_highT;
+    vector<Double_t> SO_radius_highT, SO_totalmass_highT;
 #endif
 #ifdef STARON
     ///\name star specific quantities
@@ -2118,6 +2134,7 @@ struct PropData
         AllocateApertures(opt);
         AllocateProfiles(opt);
         AllocateSOs(opt);
+	AllocateSOs_HotGas(opt);
     }
     void AllocateApertures(Options &opt)
     {
@@ -2385,6 +2402,28 @@ struct PropData
             }
         }
     }
+
+#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+    void AllocateSOs_HotGas(Options &opt)
+    {
+        int sonum_hotgas = opt.aperture_hotgas_normalised_to_overdensity.size();
+	
+	if(sonum_hotgas > 0){
+		SO_totalmass_highT.resize(sonum_hotgas);
+		SO_mass_highT.resize(sonum_hotgas);
+		SO_Temp_mean_gas_highT.resize(sonum_hotgas);
+		SO_Z_mean_gas_highT.resize(sonum_hotgas);
+		SO_radius_highT.resize(sonum_hotgas);
+		for (auto &x:SO_totalmass_highT) x=0;
+		for (auto &x:SO_mass_highT) x=0;
+		for (auto &x:SO_Temp_mean_gas_highT) x=0;
+		for (auto &x:SO_Z_mean_gas_highT) x=0;
+		for (auto &x:SO_radius_highT) x=0;
+	}
+
+    }
+#endif
+
     void CopyProfileToInclusive(Options &opt) {
         for (auto i=0;i<opt.profilenbins;i++) {
             profile_npart_inclusive[i]=profile_npart[i];
@@ -2525,6 +2564,12 @@ struct PropData
 #endif
 #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
 	M_gas_highT*=opt.h;
+        if(opt.aperture_hotgas_normalised_to_overdensity.size() > 0){
+		for (auto i=0;i<opt.aperture_hotgas_normalised_to_overdensity.size();i++) {
+			SO_mass_highT[i]*=opt.h;
+                	SO_radius_highT[i] *= opt.h/opt.a;
+		}
+	}
 #endif
 #ifdef STARON
         M_star*=opt.h;
@@ -2548,6 +2593,7 @@ struct PropData
                 aperture_mass[i]*=opt.h;
 #ifdef GASON
                 aperture_mass_gas[i]*=opt.h;
+		aperture_M_gas_highT[i]*=opt.h;
 #ifdef STARON
                 aperture_mass_gas_sf[i]*=opt.h;
                 aperture_mass_gas_nsf[i]*=opt.h;
@@ -2622,13 +2668,14 @@ struct PropData
 
 //for storing the units of known fields
 struct HeaderUnitInfo{
-    float massdim, lengthdim, velocitydim, timedim, energydim;
+    float massdim, lengthdim, velocitydim, timedim, tempdim, energydim;
     string extrainfo;
-    HeaderUnitInfo(float md = 0, float ld = 0, float vd = 0, float td = 0, string s = ""){
+    HeaderUnitInfo(float md = 0, float ld = 0, float vd = 0, float td = 0, float tempd = 0, string s = ""){
         massdim = md;
         lengthdim = ld;
         velocitydim = vd;
         timedim = td;
+	tempdim = tempd;
         extrainfo = s;
     };
     //Parse the string in the format massdim:lengthdim:velocitydim:timedim:energydim if only a string is passed

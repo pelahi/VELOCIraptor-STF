@@ -1067,6 +1067,23 @@ void GetParamFile(Options &opt)
 		    else if (strcmp(tbuff, "Tcut_halogas")==0) {
                          opt.temp_max_cut = atof(vbuff);
 		    }
+		    else if (strcmp(tbuff, "Gas_temperature_input_unit_conversion_to_output_unit")==0) {
+                         opt.temp_input_output_unit_conversion_factor = atof(vbuff);
+		    }
+		    else if (strcmp(tbuff, "Gas_hot_overdensity_normalisation")==0) {
+                         opt.hot_gas_overdensity_normalisation = atof(vbuff);
+		    }
+                    else if (strcmp(tbuff, "Aperture_values_normalised_to_overdensity")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        vector<float> tempvec;
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            tempvec.push_back(stof(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                        opt.aperture_hotgas_normalised_to_overdensity = tempvec;
+                    }
                     else if (strcmp(tbuff, "Star_internal_property_names")==0) {
                         pos=0;
                         dataline=string(vbuff);
@@ -2515,9 +2532,13 @@ ConfigInfo::ConfigInfo(Options &opt){
     AddEntry("Extra_DM_internal_property_index", opt.extra_dm_internalprop_index, opt.extra_dm_internalprop_index_aperture);
 
     AddEntry("Gas_internal_property_output_units", opt.gas_internalprop_output_units, opt.gas_internalprop_output_units_aperture);
-    AddEntry("Tcut_halogas", opt.temp_max_cut);
     AddEntry("Gas_chemistry_output_units", opt.gas_chem_output_units, opt.gas_chem_output_units_aperture);
     AddEntry("Gas_chemistry_production_output_units", opt.gas_chemproduction_output_units, opt.gas_chemproduction_output_units_aperture);
+    AddEntry("Tcut_halogas", opt.temp_max_cut);
+    AddEntry("Gas_temperature_input_unit_conversion_to_output_unit", opt.temp_input_output_unit_conversion_factor);
+    AddEntry("Gas_hot_overdensity_normalisation", opt.hot_gas_overdensity_normalisation);
+    AddEntry("Aperture_values_normalised_to_overdensity", opt.aperture_hotgas_normalised_to_overdensity);
+
     AddEntry("Star_internal_property_output_units", opt.star_internalprop_output_units, opt.star_internalprop_output_units_aperture);
     AddEntry("Star_chemistry_output_units", opt.star_chem_output_units, opt.star_chem_output_units_aperture);
     AddEntry("Star_chemistry_production_output_units", opt.star_chemproduction_output_units, opt.star_chemproduction_output_units_aperture);

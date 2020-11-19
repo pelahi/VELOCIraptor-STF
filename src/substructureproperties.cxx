@@ -325,6 +325,7 @@ void GetProperties(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngro
     Double_t Tsum,Tmeansum,tsum,tmeansum,Zsum,Zmeansum,sfrsum,sfrmeansum;
     Double_t Tsum_sf,Tmeansum_sf,Zsum_sf,Zmeansum_sf;
     Double_t Tsum_nsf,Tmeansum_nsf,Zsum_nsf,Zmeansum_nsf;
+    Double_t Tsum_hot,Zsum_hot;
     Double_t sigV_gas_sf,sigV_gas_nsf;
     Coordinate jval;
     Double_t change=MAXVALUE,tol=1e-2;
@@ -338,7 +339,9 @@ void GetProperties(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngro
     Double_t m500val=log(opt.rhocrit*500.0);
     //find the lowest rho value and set minim threshold to half that
     Double_t minlgrhoval = min({virval, m200val, mBN98val, m200mval})-(Double_t)log(2.0);
+
     vector<Double_t> SOlgrhovals;
+
     int iSOfound;
     if (opt.SOnum >0) {
         SOlgrhovals.resize(opt.SOnum);
@@ -347,6 +350,18 @@ void GetProperties(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngro
             minlgrhoval = min(minlgrhoval,SOlgrhovals[i]-(Double_t)log(2.0));
         }
     }
+
+#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+    vector<Double_t> SOlgrhovals_highT;
+    int sonum_hotgas = opt.aperture_hotgas_normalised_to_overdensity.size();
+
+    if (sonum_hotgas >0) {
+        SOlgrhovals_highT.resize(sonum_hotgas);
+        for (auto i=0;i<opt.SOnum;i++) {
+            SOlgrhovals_highT[i]=log(opt.rhocrit * opt.hot_gas_overdensity_normalisation * opt.aperture_hotgas_normalised_to_overdensity[i]);
+        }
+    }
+#endif    
 
     for (i=1;i<=ngroup;i++) {
         pdata[i].num=numingroup[i];
@@ -400,13 +415,17 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
         //HERE MASSES ARE EXCLUSIVE!
         EncMass=pdata[i].gmass;
         if (CheckForSOSubCalc(opt,pdata[i])) {
-            CalculateSphericalOverdensitySubhalo(opt, pdata[i], numingroup[i], &Part[noffset[i]], m200val, m200mval, mBN98val, virval, m500val, SOlgrhovals);
+            CalculateSphericalOverdensitySubhalo(opt, pdata[i], numingroup[i], &Part[noffset[i]], m200val, m200mval, mBN98val, virval, m500val, SOlgrhovals, opt.SOnum, true);
             SetSphericalOverdensityMasstoTotalMass(opt, pdata[i]);
         }
         if (CheckForSOExclCalc(opt,pdata[i])){
             CalculateSphericalOverdensityExclusive(opt, pdata[i], numingroup[i], &Part[noffset[i]], m200val, m200mval, mBN98val, virval, m500val, SOlgrhovals);
             SetSphericalOverdensityMasstoTotalMassExclusive(opt, pdata[i]);
         }
+
+#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+        CalculateSphericalOverdensitySubhalo(opt, pdata[i], numingroup[i], &Part[noffset[i]], m200val, m200mval, mBN98val, virval, m500val, SOlgrhovals_highT, opt.aperture_hotgas_normalised_to_overdensity.size(), false);
+#endif
 
         //determine properties like maximum circular velocity, velocity dispersion, angular momentum, etc
         pdata[i].gmaxvel=0.;
@@ -619,7 +638,7 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
 		}
 		/*select hot gas particles and add up their mass and compute mass-weighted quantities*/
 		if (temp > opt.temp_max_cut && SFR <= 0) {
-		    pdata[i].M_gas_highT+=mval;
+   		    pdata[i].M_gas_highT+=mval;
 		    pdata[i].Temp_mean_gas_highT+=mval*temp;
 		    pdata[i].Z_mean_gas_highT+=mval*Pval->GetZmet();
 		}
@@ -683,14 +702,14 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                 pdata[i].Temp_mean_gas_nsf/=pdata[i].M_gas_nsf;
                 pdata[i].Z_mean_gas_nsf/=pdata[i].M_gas_nsf;
             }
-	    #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
-	    if(pdata[i].M_gas_highT>0){
-		pdata[i].Temp_mean_gas_highT/=pdata[i].M_gas_highT;
-		pdata[i].Z_mean_gas_highT/=pdata[i].M_gas_highT;
-	    }
-	    #endif
 #endif
         }
+	#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+	if(pdata[i].M_gas_highT>0){
+	    pdata[i].Temp_mean_gas_highT/=pdata[i].M_gas_highT;
+	    pdata[i].Z_mean_gas_highT/=pdata[i].M_gas_highT;
+	}
+	#endif
 
         //iterate for better cm if group large enough
         cmold=pdata[i].cm_gas;
@@ -1025,7 +1044,7 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                     if (r2<=opt.lengthtokpc30pow2) pdata[i].M_star_30kpc+=mval;
                     if (r2<=opt.lengthtokpc50pow2) pdata[i].M_star_50kpc+=mval;
                     if (r2<=pdata[i].gR500c*pdata[i].gR500c) pdata[i].M_star_500c+=mval;
-                    if (EncMass>0.5*pdata[i].M_star && pdata[i].Rhalfmass_star==0) pdata[i].Rhalfmass_star=sqrt(x*x+y*y+z*z);
+                    if (EncMass>0.5*pdata[i].M_star && pdata[i].Rhalfmass_star==0) pdata[i].Rhalfmass_star=rc;
                     if (Rdist>0)pdata[i].Krot_star+=mval*(jzval*jzval/(Rdist*Rdist));
                     Ekin+=mval*(vx*vx+vy*vy+vz*vz);
                     if (opt.iextrastaroutput) {
@@ -1131,13 +1150,17 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
         //HERE MASSES ARE EXCLUSIVE!
         EncMass=pdata[i].gmass;
         if (CheckForSOSubCalc(opt,pdata[i])) {
-            CalculateSphericalOverdensitySubhalo(opt, pdata[i], numingroup[i], &Part[noffset[i]], m200val, m200mval, mBN98val, virval, m500val, SOlgrhovals);
+            CalculateSphericalOverdensitySubhalo(opt, pdata[i], numingroup[i], &Part[noffset[i]], m200val, m200mval, mBN98val, virval, m500val, SOlgrhovals, opt.SOnum, true);
             SetSphericalOverdensityMasstoTotalMass(opt, pdata[i]);
         }
         if (CheckForSOExclCalc(opt,pdata[i])) {
             CalculateSphericalOverdensityExclusive(opt, pdata[i], numingroup[i], &Part[noffset[i]], m200val, m200mval, mBN98val, virval, m500val, SOlgrhovals);
             SetSphericalOverdensityMasstoTotalMassExclusive(opt, pdata[i]);
         }
+
+#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+	CalculateSphericalOverdensitySubhalo(opt, pdata[i], numingroup[i], &Part[noffset[i]], m200val, m200mval, mBN98val, virval, m500val, SOlgrhovals_highT, sonum_hotgas, false);
+#endif
 
         EncMass=0;
         Double_t Jx,Jy,Jz,sxx,sxy,sxz,syy,syz,szz;
@@ -1386,9 +1409,15 @@ private(j,Pval,mval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
                 if (SFR>opt.gas_sfr_threshold) pdata[i].M_gas_sf+=mval;
                 else pdata[i].M_gas_nsf+=mval;
                 #endif
+                #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+		temp=Pval->GetTemperature();
+                if (temp > opt.temp_max_cut && SFR <= 0) {
+  			pdata[i].M_gas_highT+=mval;
+		}
+		#endif
             }
         }
-        //calculate properties of there are gas particles
+        //calculate properties if there are gas particles
         if (pdata[i].n_gas>0) {
         Ekin=Krot=Jx=Jy=Jz=sxx=sxy=sxz=syy=syz=szz=0.;
         Tsum=tsum=Zsum=sfrsum=0.;
@@ -1396,6 +1425,7 @@ private(j,Pval,mval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
         Tsum_sf=tsum=Zsum_sf=0.;
         Tmeansum_sf=Zmeansum_sf=0.;
         Tsum_nsf=tsum=Zsum_nsf=0.;
+	Tsum_hot=Zsum_hot=0.;
         Tmeansum_nsf=Zmeansum_nsf=0.;
         cmx=cmy=cmz=cmvx=cmvy=cmvz=0.;
         sigV_gas_sf=sigV_gas_nsf=0;
@@ -1403,7 +1433,7 @@ private(j,Pval,mval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
 #pragma omp parallel default(shared) \
 private(j,Pval,x,y,z,vx,vy,vz,J,mval,SFR)
 {
-    #pragma omp for reduction(+:Jx,Jy,Jz,sxx,sxy,sxz,syy,syz,szz,cmx,cmy,cmz,cmvx,cmvy,cmvz,Tsum,tsum,Zsum,sfrsum,Tmeansum,tmeansum,Zmeansum,sfrmeansum, Tsum_sf,Zsum_sf,Tmeansum_sf,Zmeansum_sf,Tsum_nsf,Zsum_nsf,Tmeansum_nsf,Zmeansum_nsf,sigV_gas_sf,sigV_gas_nsf)
+    #pragma omp for reduction(+:Jx,Jy,Jz,sxx,sxy,sxz,syy,syz,szz,cmx,cmy,cmz,cmvx,cmvy,cmvz,Tsum,tsum,Zsum,sfrsum,Tmeansum,tmeansum,Zmeansum,sfrmeansum, Tsum_sf,Zsum_sf,Tmeansum_sf,Zmeansum_sf,Tsum_nsf,Zsum_nsf,Tmeansum_nsf,Zmeansum_nsf,sigV_gas_sf,sigV_gas_nsf,Tsum_hot,Zsum_hot)
 #endif
         for (j=0;j<numingroup[i];j++) {
             Pval=&Part[j+noffset[i]];
@@ -1463,6 +1493,15 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval,SFR)
                     Zmeansum_nsf+=mval*Pval->GetZmet();
                     sigV_gas_nsf+=(vx*vx+vy*vy*vz*vz)*mval;
                 }
+
+		#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+		/*select hot gas particles and add up their mass and compute mass-weighted quantities*/
+		if (temp > opt.temp_max_cut && SFR <= 0) {
+		    Tsum_hot+=mval*temp;
+		    Zsum_hot+=mval*Pval->GetZmet();
+		}
+		#endif
+
 #endif
             }
         }
@@ -1490,6 +1529,10 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval,SFR)
         pdata[i].Temp_mean_gas_nsf=Tmeansum_nsf;
         pdata[i].Z_gas_nsf=Zsum_nsf;
         pdata[i].Z_mean_gas_nsf=Zmeansum_nsf;
+#endif
+#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+	pdata[i].Temp_mean_gas_highT=Tsum_hot;
+	pdata[i].Z_mean_gas_highT=Zsum_hot;
 #endif
         pdata[i].cm_gas[0]=cmx;pdata[i].cm_gas[1]=cmy;pdata[i].cm_gas[2]=cmz;
         pdata[i].cmvel_gas[0]=cmvx;pdata[i].cmvel_gas[1]=cmvy;pdata[i].cmvel_gas[2]=cmvz;
@@ -1527,6 +1570,13 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval,SFR)
             }
 #endif
         }
+        #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+        if(pdata[i].M_gas_highT>0){
+            pdata[i].Temp_mean_gas_highT/=pdata[i].M_gas_highT;
+            pdata[i].Z_mean_gas_highT/=pdata[i].M_gas_highT;
+        }
+        #endif
+
         //iterate for better cm if group large enough
         cmold=pdata[i].cm_gas;
         change=MAXVALUE;tol=1e-2;
@@ -2238,6 +2288,19 @@ void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t
             minlgrhoval = min(minlgrhoval,SOlgrhovals[i]-(Double_t)log(2.0));
         }
     }
+
+#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+    vector<Double_t> SOlgrhovals_highT;
+    int sonum_hotgas = opt.aperture_hotgas_normalised_to_overdensity.size();
+
+    if (sonum_hotgas >0) {
+        SOlgrhovals_highT.resize(sonum_hotgas);
+        for (auto i=0;i<opt.SOnum;i++) {
+            SOlgrhovals_highT[i]=log(opt.rhocrit * opt.hot_gas_overdensity_normalisation * opt.aperture_hotgas_normalised_to_overdensity[i]);
+        }
+    }
+#endif
+
     Double_t time1=MyGetTime(),time2;
     int nthreads=1,tid;
 #ifndef USEMPI
@@ -2490,6 +2553,10 @@ firstprivate(virval,m200val,m200mval,mBN98val,iSOfound)
         CalculateSphericalOverdensity(opt, pdata[i], numingroup[i], &Part[noffset[i]], m200val, m200mval, mBN98val, virval, m500val, SOlgrhovals);
         //if overdensity never drops below thresholds then masses are equal to FOF mass or total mass.
         SetSphericalOverdensityMasstoTotalMass(opt, pdata[i]);
+
+#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+        CalculateSphericalOverdensitySubhalo(opt, pdata[i], numingroup[i], &Part[noffset[i]], m200val, m200mval, mBN98val, virval, m500val, SOlgrhovals_highT, opt.aperture_hotgas_normalised_to_overdensity.size(), false);
+#endif
 
         //calculate angular momentum if necessary
         if (opt.iextrahalooutput) {
@@ -3035,6 +3102,7 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
             minlgrhoval = min(minlgrhoval,SOlgrhovals[i]-(Double_t)log(2.0));
         }
     }
+
     Double_t fac,rhoval,rhoval2;
     Double_t time1=MyGetTime(),time2;
     int nthreads=1,tid;
@@ -3229,6 +3297,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
             }
         }
 #endif
+
         //get incides
         indices.resize(radii.size());
         n=0;generate(indices.begin(), indices.end(), [&]{ return n++; });
@@ -5054,7 +5123,6 @@ inline void InitApertureExtraProperties(bool &calc,
     for (auto &s:names1) data[s]=0;
 }
 
-
 void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, PropData &pdata)
 {
 
@@ -5137,7 +5205,7 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
         SFR = Pval->GetSFR();
         Zmet = Pval->GetZmet()*mass;
 	#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
-	temp = Pval->GetTemperature()*mass;
+	temp = Pval->GetTemperature();
 	#endif
 #endif
         veldisp = 0; for (auto k=0;k<3;k++) veldisp += pow(Pval->GetVelocity(k)-pdata.gcmvel[k],2.0); veldisp *= mass;
@@ -5264,7 +5332,7 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
 	    // compute aperture quantities related to hot gas.
 	    if(temp > opt.temp_max_cut && SFR <= 0){
                EncMassGasHot += mass;
-               EncTGasHot += temp;
+               EncTGasHot += temp * mass;
                EncZGasHot += Zmet;
 	    }
 	    #endif
@@ -6840,7 +6908,7 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
 void CalculateSphericalOverdensitySubhalo(Options &opt, PropData &pdata,
     Int_t &numingroup, Particle *Part,
     Double_t &m200val, Double_t &m200mval, Double_t &mBN98val, Double_t &virval, Double_t &m500val,
-    vector<Double_t> &SOlgrhovals)
+    vector<Double_t> &SOlgrhovals, int SOnum, bool compute_standard_so)
 {
     Double_t EncMass, rc, oldrc, rhoval, fac, massval, gamma1, MinMass;
     Particle *Pval;
@@ -6851,25 +6919,122 @@ void CalculateSphericalOverdensitySubhalo(Options &opt, PropData &pdata,
 #ifdef NOMASS
     MinMass = opt.MassValue;
 #endif
-    for (auto j=numingroup-1;j>=0;j--) {
+
+
+    vector<Double_t> radius;
+    vector<Double_t> mass;
+
+    radius.resize(SOnum);
+    mass.resize(SOnum);
+    for (auto &x:radius) x = 0;
+    for (auto &x:mass) x = 0;
+
+    Loop_over_spherical_overdensities(opt, pdata, numingroup, Part, m200val, m200mval, mBN98val, virval, m500val,
+    SOlgrhovals, SOnum, EncMass, radius, mass, compute_standard_so);
+    if(compute_standard_so)
+    {
+	pdata.SO_radius = radius;
+	pdata.SO_mass = mass;
+    }
+    else{
+	pdata.SO_radius_highT = radius;
+	pdata.SO_totalmass_highT = mass;
+    }
+
+
+
+    if(compute_standard_so)
+    {
+       if (pdata.gM200c<MinMass) {pdata.gM200c=pdata.gR200c=0.0;}
+       if (pdata.gM200m<MinMass) {pdata.gM200m=pdata.gR200m=0.0;}
+       if (pdata.gMvir<MinMass) {pdata.gMvir=pdata.gRvir=0.0;}
+       if (pdata.gM500c<MinMass) {pdata.gM500c=pdata.gR500c=0.0;}
+       if (pdata.gMBN98<MinMass) {pdata.gMBN98=pdata.gRBN98=0.0;}
+       for (auto iso=0;iso<SOnum;iso++) if (pdata.SO_mass[iso]<MinMass) {pdata.SO_mass[iso]=pdata.SO_radius[iso]=0.0;}
+   
+       // now that overdensity masses have been found, find half mass radii
+#ifdef NOMASS
+       massval = opt.MassValue;
+#else
+       massval = Part[0].GetMass();
+#endif
+       EncMass = massval;
+       oldrc = Part[0].Radius();
+       for (auto j=1;j<numingroup;j++) {
+           Pval=&Part[j];
+           rc = Pval->Radius();
+#ifndef NOMASS
+           massval = Pval->GetMass();
+#endif
+           EncMass += massval;
+           gamma1 = (rc - oldrc)/massval;
+           if (EncMass > 0.5*pdata.gM200c && pdata.gM200c > 0 && pdata.gRhalf200c == 0 ) {
+               pdata.gRhalf200c = rc - gamma1*(EncMass - 0.5*pdata.gM200c);
+               if (pdata.gRhalf200c <=0) pdata.gRhalf200c = rc;
+           }
+           if (EncMass > 0.5*pdata.gM200m && pdata.gM200m > 0 && pdata.gRhalf200m == 0 ) {
+               pdata.gRhalf200m = rc - gamma1*(EncMass - 0.5*pdata.gM200m);
+               if (pdata.gRhalf200m <=0) pdata.gRhalf200m = rc;
+           }
+           if (EncMass > 0.5*pdata.gMBN98 && pdata.gMBN98 > 0 && pdata.gRhalfBN98 == 0 ) {
+               pdata.gRhalfBN98 = rc - gamma1*(EncMass - 0.5*pdata.gMBN98);
+               if (pdata.gRhalfBN98 <=0) pdata.gRhalfBN98 = rc;
+           }
+           oldrc = rc;
+           if (pdata.gRhalf200c > 0 && pdata.gRhalf200m > 0 && pdata.gRhalfBN98 > 0) break;
+       }
+    }
+}
+
+void Loop_over_spherical_overdensities(Options &opt, PropData &pdata, Int_t &num_parts, Particle *Part, 
+    Double_t &m200val, Double_t &m200mval, Double_t &mBN98val, Double_t &virval, Double_t &m500val,
+    vector<Double_t> &rhovals, int SOnum, Double_t &enclosed_mass, std::vector<Double_t> &radius, 
+    std::vector<Double_t> &mass, bool compute_standard_so)
+{
+    int found = 0;
+    float fac = 4.0 * M_PI / 3.;
+    Particle *Pval;
+    Double_t EncMass, rc, rhoval;
+
+
+    for (auto j = num_parts - 1; j >= 0; j--) {
         Pval=&Part[j];
-        rc=Pval->Radius();
-        rhoval = log(EncMass)-3.0*log(rc)+fac;
-        if (pdata.gRvir==0 && rhoval>virval) {pdata.gMvir=EncMass;pdata.gRvir=rc;}
-        if (pdata.gR200c==0 && rhoval>m200val) {pdata.gM200c=EncMass;pdata.gR200c=rc;}
-        if (pdata.gR200m==0 && rhoval>m200mval) {pdata.gM200m=EncMass;pdata.gR200m=rc;}
-        if (pdata.gR500c==0 && rhoval>m500val) {pdata.gM500c=EncMass;pdata.gR500c=rc;}
-        if (pdata.gRBN98==0 && rhoval>mBN98val) {pdata.gMBN98=EncMass;pdata.gRBN98=rc;}
-        for (auto iso=0;iso<opt.SOnum;iso++) {
-            if (pdata.SO_radius[iso]==0 && rhoval>SOlgrhovals[iso])
+        rc = Pval->Radius();
+        rhoval = std::log(enclosed_mass / (fac * std::pow(rc, 3.0)));
+	if(compute_standard_so){
+             if (pdata.gRvir==0 && rhoval>virval) {pdata.gMvir=EncMass;pdata.gRvir=rc;}
+             if (pdata.gR200c==0 && rhoval>m200val) {pdata.gM200c=EncMass;pdata.gR200c=rc;}
+             if (pdata.gR200m==0 && rhoval>m200mval) {pdata.gM200m=EncMass;pdata.gR200m=rc;}
+             if (pdata.gR500c==0 && rhoval>m500val) {pdata.gM500c=EncMass;pdata.gR500c=rc;}
+             if (pdata.gRBN98==0 && rhoval>mBN98val) {pdata.gMBN98=EncMass;pdata.gRBN98=rc;}
+	}
+
+        for (auto iso=0;iso<SOnum;iso++) {
+            if (radius[iso]==0 && rhoval>rhovals[iso])
             {
-                pdata.SO_radius[iso]=rc;
-                pdata.SO_mass[iso]=EncMass;
-                iSOfound++;
+                radius[iso]=rc;
+                found++;
             }
+            #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+	    else{
+		mass[iso] += Pval->GetMass();
+		if(compute_standard_so == false && Pval->GetType()==GASTYPE){
+        	    auto mval = Pval->GetMass();
+   	            auto temp = Pval->GetTemperature();
+   	   	    auto z = Pval->GetZmet(); 
+   	       	    auto sfr = Pval->GetSFR();
+	   	    if(temp > opt.temp_max_cut && sfr <= 0){
+   		         pdata.SO_mass_highT[iso] += mval;
+    	                 pdata.SO_Temp_mean_gas_highT[iso] += mval * temp;
+   	                 pdata.SO_Z_mean_gas_highT[iso] += mval * z;
+   	            }
+ 	        }
+	     }
+ 	     #endif
+
         }
         //if all overdensity thresholds found, store index and exit
-        if (pdata.gR200m!=0&& pdata.gR200c!=0&&pdata.gRvir!=0&&pdata.gR500c!=0&&pdata.gRBN98!=0&&iSOfound==opt.SOnum) {
+        if (found==SOnum) {
             break;
         }
 #ifdef NOMASS
@@ -6879,44 +7044,15 @@ void CalculateSphericalOverdensitySubhalo(Options &opt, PropData &pdata,
 #endif
     }
 
-    if (pdata.gM200c<MinMass) {pdata.gM200c=pdata.gR200c=0.0;}
-    if (pdata.gM200m<MinMass) {pdata.gM200m=pdata.gR200m=0.0;}
-    if (pdata.gMvir<MinMass) {pdata.gMvir=pdata.gRvir=0.0;}
-    if (pdata.gM500c<MinMass) {pdata.gM500c=pdata.gR500c=0.0;}
-    if (pdata.gMBN98<MinMass) {pdata.gMBN98=pdata.gRBN98=0.0;}
-    for (auto iso=0;iso<opt.SOnum;iso++) if (pdata.SO_mass[iso]<MinMass) {pdata.SO_mass[iso]=pdata.SO_radius[iso]=0.0;}
-
-    // now that overdensity masses have been found, find half mass radii
-#ifdef NOMASS
-    massval = opt.MassValue;
-#else
-    massval = Part[0].GetMass();
-#endif
-    EncMass = massval;
-    oldrc = Part[0].Radius();
-    for (auto j=1;j<numingroup;j++) {
-        Pval=&Part[j];
-        rc = Pval->Radius();
-#ifndef NOMASS
-        massval = Pval->GetMass();
-#endif
-        EncMass += massval;
-        gamma1 = (rc - oldrc)/massval;
-        if (EncMass > 0.5*pdata.gM200c && pdata.gM200c > 0 && pdata.gRhalf200c == 0 ) {
-            pdata.gRhalf200c = rc - gamma1*(EncMass - 0.5*pdata.gM200c);
-            if (pdata.gRhalf200c <=0) pdata.gRhalf200c = rc;
-        }
-        if (EncMass > 0.5*pdata.gM200m && pdata.gM200m > 0 && pdata.gRhalf200m == 0 ) {
-            pdata.gRhalf200m = rc - gamma1*(EncMass - 0.5*pdata.gM200m);
-            if (pdata.gRhalf200m <=0) pdata.gRhalf200m = rc;
-        }
-        if (EncMass > 0.5*pdata.gMBN98 && pdata.gMBN98 > 0 && pdata.gRhalfBN98 == 0 ) {
-            pdata.gRhalfBN98 = rc - gamma1*(EncMass - 0.5*pdata.gMBN98);
-            if (pdata.gRhalfBN98 <=0) pdata.gRhalfBN98 = rc;
-        }
-        oldrc = rc;
-        if (pdata.gRhalf200c > 0 && pdata.gRhalf200m > 0 && pdata.gRhalfBN98 > 0) break;
+#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+    for (auto iso=0;iso<SOnum;iso++) {
+	if(pdata.SO_mass_highT[iso] > 0){
+		pdata.SO_Temp_mean_gas_highT[iso] /= pdata.SO_mass_highT[iso];
+		pdata.SO_Z_mean_gas_highT[iso] /= pdata.SO_mass_highT[iso];
+	}
     }
+#endif
+
 }
 
 void CalculateSphericalOverdensityExclusive(Options &opt, PropData &pdata,

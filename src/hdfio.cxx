@@ -1606,7 +1606,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                   {
                     if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                     HDF5ReadHyperSlabReal(doublebuff,partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 1, nchunk, n);
-                    for (int nn=0;nn<nchunk;nn++) Part[count++].SetTemperature(doublebuff[nn]);
+                    for (int nn=0;nn<nchunk;nn++) Part[count++].SetTemperature(doublebuff[nn] * opt.temp_input_output_unit_conversion_factor);
                   }
                 }
                 else {
@@ -1624,7 +1624,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                     {
                       if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                       HDF5ReadHyperSlabReal(doublebuff,partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 1, nchunk, n);
-                      for (int nn=0;nn<nchunk;nn++) Pbaryons[bcount++].SetTemperature(doublebuff[nn]);
+                      for (int nn=0;nn<nchunk;nn++) Pbaryons[bcount++].SetTemperature(doublebuff[nn] * opt.temp_input_output_unit_conversion_factor);
                     }
                   }
                   else {
@@ -2811,7 +2811,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 #ifdef STARON
                         Pbuf[ibufindex].SetSFR(SFRdoublebuff[nn] > 0. ? SFRdoublebuff[nn]: 0.);
                         Pbuf[ibufindex].SetZmet(Zdoublebuff[nn]);
-                        Pbuf[ibufindex].SetTemperature(Tgasdoublebuff[nn]);
+                        Pbuf[ibufindex].SetTemperature(Tgasdoublebuff[nn] * opt.temp_input_output_unit_conversion_factor);
 #endif
                     }
 #endif
@@ -3079,7 +3079,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 #ifdef STARON
                           Pbuf[ibufindex].SetSFR(SFRdoublebuff[nn] > 0. ? SFRdoublebuff[nn] : 0.);
                           Pbuf[ibufindex].SetZmet(Zdoublebuff[nn]);
-                          Pbuf[ibufindex].SetTemperature(Tgasdoublebuff[nn]);
+                          Pbuf[ibufindex].SetTemperature(Tgasdoublebuff[nn] * opt.temp_input_output_unit_conversion_factor);
 #endif
                         }
 #endif

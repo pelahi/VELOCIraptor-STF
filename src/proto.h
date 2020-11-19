@@ -421,11 +421,15 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
 void CalculateSphericalOverdensitySubhalo(Options &opt, PropData &pdata,
     Int_t &numingroup, Particle *Part,
     Double_t &m200val, Double_t &m200mval, Double_t &mBN98val, Double_t &virval, Double_t &m500val,
-    vector<Double_t> &SOlgrhovals);
+    vector<Double_t> &SOlgrhovals, int SOnum, bool compute_standard_so);
 void CalculateSphericalOverdensityExclusive(Options &opt, PropData &pdata,
     Int_t &numingroup, Particle *Part,
     Double_t &m200val, Double_t &m200mval, Double_t &mBN98val, Double_t &virval, Double_t &m500val,
     vector<Double_t> &SOlgrhovals);
+void Loop_over_spherical_overdensities(Options &opt, PropData &pdata, Int_t &num_parts, Particle *Part, 
+    Double_t &m200val, Double_t &m200mval, Double_t &mBN98val, Double_t &virval, Double_t &m500val,
+    vector<Double_t> &rhovals, int SOnum, Double_t &enclosed_mass, std::vector<Double_t> &radius, 
+    std::vector<Double_t> &mass, bool compute_standard_so);
 
 void SetSphericalOverdensityMasstoFlagValue(Options &opt, PropData &pdata);
 void SetSphericalOverdensityMasstoTotalMass(Options &opt, PropData &pdata);

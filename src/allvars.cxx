@@ -20,11 +20,12 @@ HeaderUnitInfo::HeaderUnitInfo(string s)
         units.push_back(token);
         s.erase(0, pos + delimiter.length());
     }
-    if (units.size()==4) {
+    if (units.size()==5) {
         massdim = stof(units[0]);
         lengthdim = stof(units[1]);
         velocitydim = stof(units[2]);
         timedim = stof(units[3]);
+	tempdim = stof(units[4]);
         extrainfo = string("");
     }
     else {
@@ -32,6 +33,7 @@ HeaderUnitInfo::HeaderUnitInfo(string s)
         lengthdim = 0;
         velocitydim = 0;
         timedim = 0;
+	tempdim = 0;
         extrainfo = s;
     }
 }
@@ -46,6 +48,8 @@ void PropData::WriteBinary(fstream &Fout, Options&opt){
     unsigned int ival;
     double val, val3[3],val9[9];
     float fval;
+    int sonum_hotgas;
+
     idval=haloid;
     Fout.write((char*)&idval,sizeof(idval));
     lval=ibound;
@@ -462,6 +466,22 @@ if (opt.iextragasoutput) {
     val=Z_mean_gas_highT;
     Fout.write((char*)&val,sizeof(val));
 
+    sonum_hotgas = opt.aperture_hotgas_normalised_to_overdensity.size();
+    if (sonum_hotgas>0){
+        for (auto j=0;j<sonum_hotgas;j++) {
+            Fout.write((char*)&SO_totalmass_highT[j],sizeof(int));
+        }
+        for (auto j=0;j<sonum_hotgas;j++) {
+            Fout.write((char*)&SO_mass_highT[j],sizeof(int));
+        }
+        for (auto j=0;j<sonum_hotgas;j++) {
+            Fout.write((char*)&SO_Temp_mean_gas_highT[j],sizeof(int));
+        }
+        for (auto j=0;j<sonum_hotgas;j++) {
+            Fout.write((char*)&SO_Z_mean_gas_highT[j],sizeof(int));
+        }
+    }
+
 #endif
 #ifdef GASON
     if (opt.gas_internalprop_names.size()+ opt.gas_chem_names.size()+opt.gas_chemproduction_names.size()>0) {
@@ -652,6 +672,26 @@ if (opt.iextragasoutput) {
         for (auto j=0;j<opt.aperturenum;j++) {
             Fout.write((char*)&aperture_Z_mean_gas_highT[j],sizeof(val));
         }
+
+        if (opt.SOnum>0){
+            for (auto j=0;j<opt.SOnum;j++) {
+                Fout<<SO_mass[j]<<" ";
+            }
+            for (auto j=0;j<opt.SOnum;j++) {
+                Fout<<SO_radius[j]<<" ";
+            }
+            for (auto j=0;j<opt.SOnum;j++) {
+                Fout<<SO_mass_gas[j]<<" ";
+            }
+            for (auto j=0;j<opt.SOnum;j++) {
+                Fout<<SO_mass_star[j]<<" ";
+            }
+	    #ifdef HIGHRES
+            for (auto j=0;j<opt.SOnum;j++) {
+                Fout<<SO_mass_interloper[j]<<" ";
+            }
+	    #endif
+        }
 	#endif
 #endif
 #ifdef GASON
@@ -841,6 +881,7 @@ if (opt.iextragasoutput) {
 
 void PropData::WriteAscii(fstream &Fout, Options&opt){
     double val;
+    int sonum_hotgas;
     Fout<<haloid<<" ";
     Fout<<ibound<<" ";
     Fout<<iminpot<<" ";
@@ -1065,6 +1106,23 @@ if (opt.iextragasoutput) {
     Fout<<M_gas_highT<<" ";
     Fout<<Temp_mean_gas_highT<<" ";
     Fout<<Z_mean_gas_highT<<" ";
+
+    sonum_hotgas = opt.aperture_hotgas_normalised_to_overdensity.size();
+    if (sonum_hotgas>0){
+        for (auto j=0;j<sonum_hotgas;j++) {
+            Fout.write((char*)&SO_totalmass_highT[j],sizeof(int));
+        }
+        for (auto j=0;j<sonum_hotgas;j++) {
+            Fout.write((char*)&SO_mass_highT[j],sizeof(int));
+        }
+        for (auto j=0;j<sonum_hotgas;j++) {
+            Fout.write((char*)&SO_Temp_mean_gas_highT[j],sizeof(int));
+        }
+        for (auto j=0;j<sonum_hotgas;j++) {
+            Fout.write((char*)&SO_Z_mean_gas_highT[j],sizeof(int));
+        }
+    }
+
 #endif
 #ifdef GASON
     if (opt.gas_internalprop_names.size()+opt.gas_chem_names.size()+opt.gas_chemproduction_names.size()>0) {
@@ -1711,7 +1769,7 @@ PropDataHeader::PropDataHeader(Options&opt){
     headerdatainfo.push_back("Krot_gas");
     sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
     headerdatainfo.push_back("T_gas");
-    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1,0,2,0));
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(4));
 #ifdef STARON
     headerdatainfo.push_back("Zmet_gas");
     sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
@@ -1936,7 +1994,7 @@ if (opt.iextragasoutput) {
     headerdatainfo.push_back("Krot_gas_sf");
     sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
     headerdatainfo.push_back("T_gas_sf");
-    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1,0,2,0));
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(4));
     headerdatainfo.push_back("Zmet_gas_sf");
     sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
     if (opt.iextragasoutput) {
@@ -1984,7 +2042,7 @@ if (opt.iextragasoutput) {
     headerdatainfo.push_back("Krot_gas_nsf");
     sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
     headerdatainfo.push_back("T_gas_nsf");
-    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1,0,2,0));
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(4));
     headerdatainfo.push_back("Zmet_gas_nsf");
     sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
 
@@ -2022,8 +2080,61 @@ if (opt.iextragasoutput) {
         }
 	#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
         headerdatainfo.push_back("Mass_gas_highT");
+        sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
         headerdatainfo.push_back("T_gas_highT");
+        sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(4));
         headerdatainfo.push_back("Zmet_gas_highT");
+	sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
+
+	int sonum_hotgas = opt.aperture_hotgas_normalised_to_overdensity.size();
+
+	if(sonum_hotgas > 0){
+		for (auto i=0; i<sonum_hotgas;i++) {
+			headerdatainfo.push_back((string("SO_Mass_highT_") + std::to_string(opt.aperture_hotgas_normalised_to_overdensity[i]) + string("_times_") + std::to_string(opt.hot_gas_overdensity_normalisation) + string("_rhocrit")));
+			#ifdef USEHDF
+                        hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
+			#endif
+			#ifdef USEADIOS
+                        adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
+			#endif
+		}
+	        //add total mass
+	        sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
+
+		for (auto i=0; i<sonum_hotgas;i++) {
+			headerdatainfo.push_back((string("SO_Mass_gas_highT_") + std::to_string(opt.aperture_hotgas_normalised_to_overdensity[i]) + string("_times_") + std::to_string(opt.hot_gas_overdensity_normalisation) + string("_rhocrit")));
+			#ifdef USEHDF
+                        hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
+			#endif
+			#ifdef USEADIOS
+                        adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
+			#endif
+		}
+	        //add mass
+	        sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
+		for (auto i=0; i<sonum_hotgas;i++) {
+			headerdatainfo.push_back((string("SO_T_gas_highT_") + std::to_string(opt.aperture_hotgas_normalised_to_overdensity[i]) + string("_times_") + std::to_string(opt.hot_gas_overdensity_normalisation) + string("_rhocrit")));
+			#ifdef USEHDF
+                        hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
+			#endif
+			#ifdef USEADIOS
+                        adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
+			#endif
+		}
+	        //add temperature
+	        sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(4));
+		for (auto i=0; i<sonum_hotgas;i++) {
+			headerdatainfo.push_back((string("SO_Zmet_gas_highT_") + std::to_string(opt.aperture_hotgas_normalised_to_overdensity[i]) + string("_times_") + std::to_string(opt.hot_gas_overdensity_normalisation) + string("_rhocrit")));
+			#ifdef USEHDF
+                        hdfpredtypeinfo.push_back(hdfdesiredproprealtype[0]);
+			#endif
+			#ifdef USEADIOS
+                        adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
+			#endif
+		}
+	        //add metallicity
+	        sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
+	}
 	#endif
     }
 #ifdef USEHDF
@@ -2210,16 +2321,22 @@ if (opt.iextragasoutput) {
             headerdatainfo.push_back((string("Aperture_Zmet_gas_nsf_")+opt.aperture_names_kpc[i]+string("_kpc")));
         for (auto i=0; i<opt.aperturenum;i++)
             headerdatainfo.push_back((string("Aperture_Zmet_star_")+opt.aperture_names_kpc[i]+string("_kpc")));
+        //add metallicity
+        sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
         #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
         for (auto i=0; i<opt.aperturenum;i++)
             headerdatainfo.push_back((string("Aperture_mass_hotgas_")+opt.aperture_names_kpc[i]+string("_kpc")));
+        //add mass
+        sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
         for (auto i=0; i<opt.aperturenum;i++)
             headerdatainfo.push_back((string("Aperture_T_hotgas_")+opt.aperture_names_kpc[i]+string("_kpc")));
+        //add temperature
+        sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(4));
         for (auto i=0; i<opt.aperturenum;i++)
             headerdatainfo.push_back((string("Aperture_Zmet_hotgas_")+opt.aperture_names_kpc[i]+string("_kpc")));
-        #endif
         //add metallicity
         sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
+        #endif
 #endif
 
 #ifdef USEHDF
