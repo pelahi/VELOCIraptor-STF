@@ -3,6 +3,7 @@
  */
 
 #include "ioutils.h"
+#include "logging.h"
 #include "swiftinterface.h"
 
 #ifdef SWIFTINTERFACE
@@ -24,46 +25,43 @@ Options libvelociraptorOptextra[10];
 ///check configuration options with swift
 inline int ConfigCheckSwift(Options &opt, Swift::siminfo &s)
 {
-#ifndef USEMPI
-    int ThisTask=0;
-#endif
     if (opt.iBaryonSearch && !(opt.partsearchtype==PSTALL || opt.partsearchtype==PSTDARK)) {
-        if (ThisTask==0) cerr<<"Conflict in config file: both gas/star/etc particle type search AND the separate baryonic (gas,star,etc) search flag are on. Check config\n";
+        LOG_RANK0(error) << "Conflict in config file: both gas/star/etc particle type search AND the separate baryonic (gas,star,etc) search flag are on. Check config";
         return SWIFTCONFIGOPTCONFLICT;
     }
     if (opt.iBoundHalos && opt.iKeepFOF) {
-        if (ThisTask==0) cerr<<"Conflict in config file: Asking for Bound Field objects but also asking to keep the 3DFOF/then run 6DFOF. This is incompatible. Check config\n";
+        LOG_RANK0(error) << "Conflict in config file: Asking for Bound Field objects but also asking to keep the 3DFOF/then run 6DFOF. This is incompatible. Check config";
         return SWIFTCONFIGOPTCONFLICT;
     }
     if (opt.HaloMinSize==-1) opt.HaloMinSize=opt.MinSize;
 
     if (s.idarkmatter == false && opt.partsearchtype==PSTDARK) {
-        if (ThisTask==0) cerr<<"Conflict in config file: simulation contains no dark matter but searching only dark matter. This is incompatible. Check config\n";
+        LOG_RANK0(error) << "Conflict in config file: simulation contains no dark matter but searching only dark matter. This is incompatible. Check config";
         return SWIFTCONFIGOPTCONFLICT;
     }
     if (s.idarkmatter == false && opt.partsearchtype==PSTALL && opt.iBaryonSearch) {
-        if (ThisTask==0) cerr<<"Conflict in config file: simulation contains no dark matter but using dark matter to define links when searching all particles . This is incompatible. Check config\n";
+        LOG_RANK0(error) << "Conflict in config file: simulation contains no dark matter but using dark matter to define links when searching all particles . This is incompatible. Check config";
         return SWIFTCONFIGOPTCONFLICT;
     }
     if (s.igas == false && opt.partsearchtype==PSTGAS) {
-        if (ThisTask==0) cerr<<"Conflict in config file: simulation contains no gas but searching only gas. This is incompatible. Check config\n";
+        LOG_RANK0(error) << "Conflict in config file: simulation contains no gas but searching only gas. This is incompatible. Check config";
         return SWIFTCONFIGOPTCONFLICT;
     }
     if ((s.istar == false && opt.partsearchtype==PSTSTAR)) {
-        if (ThisTask==0) cerr<<"Conflict in config file: simulation contains no gas but searching only stars or using stars as basis for links. This is incompatible. Check config\n";
+        LOG_RANK0(error) << "Conflict in config file: simulation contains no gas but searching only stars or using stars as basis for links. This is incompatible. Check config";
         return SWIFTCONFIGOPTCONFLICT;
     }
 
 #ifndef USEHDF
     if (opt.ibinaryout==OUTHDF){
-        if (ThisTask==0) cerr<<"Code not compiled with HDF output enabled. Recompile with this enabled or change Binary_output.\n";
+        LOG_RANK0(error) << "Code not compiled with HDF output enabled. Recompile with this enabled or change Binary_output";
         return SWIFTCONFIGOPTERROR;
     }
 #endif
 
 #ifndef USEADIOS
     if (opt.ibinaryout==OUTADIOS){
-        if (ThisTask==0) cerr<<"Code not compiled with ADIOS output enabled. Recompile with this enabled or change Binary_output.\n";
+        LOG_RANK0(error) << "Code not compiled with ADIOS output enabled. Recompile with this enabled or change Binary_output";
         return SWIFTCONFIGOPTERROR;
     }
 #endif
@@ -154,14 +152,15 @@ int InitVelociraptor(Options &opt, char* configname, unitinfo u, siminfo s, cons
     omp_set_num_threads(numthreads);
 #endif
 
-    //set the gsl handler
+    // logging level is reset correctly later after reading the user configuration
+    vr::init_logging(vr::LogLevel::trace);
     gsl_set_error_handler_off();
 
     int iconfigflag;
     ///read the parameter file
     opt.pname = configname;
-    if (ThisTask == 0) cout<<"Initialising VELOCIraptor git revision "<<velociraptor::git_sha1()<<" ..."<< endl;
-    if (ThisTask == 0) cout<<"Reading VELOCIraptor config file..."<< endl;
+    LOG_RANK0(info) << "Initialising VELOCIraptor git revision " << velociraptor::git_sha1();
+    LOG_RANK0(info) << "Reading VELOCIraptor config file...";
     GetParamFile(opt);
     //on the fly finding and using swift's mesh mpi decomposition
     opt.iontheflyfinding = true;
@@ -170,7 +169,7 @@ int InitVelociraptor(Options &opt, char* configname, unitinfo u, siminfo s, cons
     iconfigflag = ConfigCheckSwift(opt, s);
     if (iconfigflag != 1) return iconfigflag;
 
-    if (ThisTask == 0) cout<<"Setting cosmology, units, sim stuff "<<endl;
+    LOG_RANK0(info) << "Setting cosmology, units, sim stuff";
     ///set units, here idea is to convert internal units so that have kpc, km/s, solar mass
     ///\todo switch this so run in reasonable swift units and store conversion
     opt.lengthtokpc=u.lengthtokpc;
@@ -213,7 +212,7 @@ int InitVelociraptor(Options &opt, char* configname, unitinfo u, siminfo s, cons
     MPIInitWriteComm();
 #endif
 
-    if (ThisTask == 0) cout<<"Finished initialising VELOCIraptor"<<endl;
+    LOG_RANK0(info) << "Finished initialising VELOCIraptor";
 
     //return the configuration flag value
     return iconfigflag;
@@ -344,7 +343,7 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
 )
 {
 #ifdef USEMPI
-    if (ThisTask==0) cout<<"VELOCIraptor/STF running with MPI. Number of mpi threads: "<<NProcs<<endl;
+    LOG_RANK0(info) << "VELOCIraptor/STF running with MPI. Number of mpi threads: "<< NProcs;
 #else
     int ThisTask=0;
     int NProcs=1;
@@ -358,7 +357,7 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
 {
     if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
 }
-    if (ThisTask==0) cout<<"VELOCIraptor/STF running with OpenMP. Number of openmp threads: "<<nthreads<<endl;
+    LOG_RANK0(info) << "VELOCIraptor/STF running with OpenMP. Number of openmp threads: " << nthreads;
 #else
     nthreads=1;
 #endif
@@ -409,7 +408,7 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
 #endif
     parts.resize(Nmemlocal);
 
-    cout<<"Copying particle data..."<< endl;
+    LOG(info) << "Copying particle data...";
 
     vr::Timer copy_timer;
     ndark = num_gravity_parts - num_hydro_parts - num_star_parts - num_bh_parts;
@@ -426,7 +425,7 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
     if (libvelociraptorOpt.iBaryonSearch>0 && libvelociraptorOpt.partsearchtype!=PSTALL) {
         size_t dmOffset = 0, baryonOffset = 0, gasOffset = 0, starOffset = 0, bhOffset = 0, otherparttype = 0;
         pbaryons=&(parts.data()[ndark]);
-        cout<<"There are "<<nbaryons<<" gas particles and "<<ndark<<" DM particles."<<endl;
+        LOG(info) << "There are " << nbaryons << " gas particles and " << ndark << " DM particles";
         for(auto i=0; i<Nlocal; i++)
         {
             for (auto j=0;j<3;j++) swift_parts[i].x[j]*=libvelociraptorOpt.a;
@@ -462,7 +461,9 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
                     bhOffset++;
                 }
                 else {
-                    cout<<"Unknown particle type found: index="<<i<<" type="<<swift_parts[i].type<<" while treating baryons differently. Exiting..."<<endl;
+                    LOG(warning) << "Unknown particle type found: index=" << i
+                                 << " type=" << swift_parts[i].type
+                                 << " while treating baryons differently. Exiting...";
                     return return_data;
                 }
             }
@@ -471,7 +472,9 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
     else {
         for(auto i=0; i<Nlocal; i++) {
             if (CheckSwiftPartType(swift_parts[i].type)){
-                cout<<ThisTask<< "Unknown particle type found: index="<<i<<" type="<<swift_parts[i].type<<" when loading particles. Exiting..."<<endl;
+                LOG(warning) << "Unknown particle type found: index=" << i
+                             << " type=" << swift_parts[i].type
+                             << " when loading particles. Exiting...";
                 return return_data;
             }
             for (auto j=0;j<3;j++) swift_parts[i].x[j]*=libvelociraptorOpt.a;
@@ -798,17 +801,18 @@ void CheckSwiftTasks(string message, const Int_t n, Particle *p){
     int ThisTask=0,NProcs=1;
     #endif
     int numbad = 0, numnonlocal=0;
-    cout<<"Checking swift tasks:"<<message<<endl;
+    LOG(info) << "Checking swift tasks:" << message;
     for (auto i=0;i<n;i++) {
         int task=p[i].GetSwiftTask();
         int index = p[i].GetSwiftIndex();
         if (task<0 || task>NProcs) {
-            cerr<<ThisTask<<" has odd swift particle with nonsensical swift task (cur index, swift index, swift task)=("<<i<<","<<index<<","<<task<<")"<<endl;
+            LOG(error) << " has odd swift particle with nonsensical swift task (cur index, swift index, swift task)=("
+                       << i << "," << index << "," << task << ")";
             numbad++;
         }
         if (task!=ThisTask) numnonlocal++;
     }
-    cout<<ThisTask<<" has "<<numnonlocal<<" swift particles "<<endl;
+    LOG(info) << numnonlocal << " Swift particles found";
     if (numbad>0) {
 #ifdef USEMPI
         MPI_Abort(MPI_COMM_WORLD,9);
