@@ -5510,18 +5510,18 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
     //go through each projection
     for (auto k=0;k<3;k++) {
         if (k==0) {
-            sort(proj.begin(), proj.end(), [](projectedmass &a, projectedmass &b){
+            sort(proj.begin(), proj.end(), [](const projectedmass &a, const projectedmass &b){
             return a.rproj[0] < b.rproj[0];
             });
 
         }
         if (k==1) {
-            sort(proj.begin(), proj.end(), [](projectedmass &a, projectedmass &b){
+            sort(proj.begin(), proj.end(), [](const projectedmass &a, const projectedmass &b){
             return a.rproj[1] < b.rproj[1];
             });
         }
         if (k==2) {
-            sort(proj.begin(), proj.end(), [](projectedmass &a, projectedmass &b){
+            sort(proj.begin(), proj.end(), [](const projectedmass &a, const projectedmass &b){
             return a.rproj[2] < b.rproj[2];
             });
         }

@@ -212,7 +212,7 @@ void MPIInitialDomainDecompositionWithMesh(Options &opt){
             }
         }
         //then sort index array based on the zcurvearray value
-        sort(zcurve.begin(), zcurve.end(), [](zcurvestruct &a, zcurvestruct &b){
+        sort(zcurve.begin(), zcurve.end(), [](const zcurvestruct &a, const zcurvestruct &b){
             return a.zcurvevalue.to_ullong() < b.zcurvevalue.to_ullong();
         });
         //finally assign cells to tasks

@@ -2328,7 +2328,7 @@ void MergeSubstructuresCoresPhase(Options &opt, const Int_t nsubset, Particle *&
         for (auto k=0;k<6;k++) x.SetPhase(k,x.GetPhase(k)/x.GetPotential());
     }
     //sort indices by fof value
-    sort(indexing.begin(), indexing.end(), [](indexfof &a, indexfof &b){
+    sort(indexing.begin(), indexing.end(), [](const indexfof &a, const indexfof &b){
     return a.fofval < b.fofval;
     });
     //get the dispersions
@@ -2499,7 +2499,7 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
     }
 
     //sort indices by original fof value
-    sort(indexing.begin(), indexing.end(), [](indexfof &a, indexfof &b){
+    sort(indexing.begin(), indexing.end(), [](const indexfof &a, const indexfof &b){
     return a.fofval < b.fofval;
     });
 
@@ -2592,7 +2592,7 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
     //otherwise start merging groups
     LOG(trace) << "Merging phase-space structures which overlap significantly. Number of mergers " << nummerged << " of " << numgroups;
     //sort merger info by type, which would be (background if present), subs, cores, individually arranged by size, keeping original order if possible
-    sort(minfo.begin(), minfo.end(), [](mergeinfo &a, mergeinfo &b){
+    sort(minfo.begin(), minfo.end(), [](const mergeinfo &a, const mergeinfo &b){
         if (a.type<b.type) return true;
         else if (a.type==b.type) {
             if (a.numingroup > b.numingroup) return true;
