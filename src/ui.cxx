@@ -2,6 +2,7 @@
  *  \brief user interface
  */
 
+#include "ioutils.h"
 #include "logging.h"
 #include "stf.h"
 
@@ -14,6 +15,148 @@ static void configure_logging(const Options &opt)
 	int as_log_level = -opt.iverbose + VR_MIN_LOG_LEVEL;
 	vr::LogLevel level = static_cast<vr::LogLevel>(std::min(std::max(as_log_level, 0), NUM_LOG_LEVELS - 1));
 	vr::init_logging(level);
+}
+
+static void log_options_summary(const Options &opt)
+{
+    LOG(info) << "CONFIG INFO SUMMARY --------------------------";
+    const char *search_type;
+    switch(opt.partsearchtype)
+    {
+            case PSTALL:
+                search_type = "Searching all particles regardless of type";
+                break;
+            case PSTDARK:
+                search_type = "Searching dark matter particles";
+                break;
+            case PSTGAS:
+                search_type = "Searching gas particles";
+                break;
+            case PSTSTAR:
+                search_type = "Searching star particles";
+                break;
+            case PSTBH:
+                search_type = "Searching BH particles?! Really? Are there enough?";
+                break;
+            default:
+                search_type = "Unknown search type";
+    }
+    LOG(info) << search_type;
+
+    if (opt.fofbgtype == FOF6D) {
+        LOG(info) << "Field objects found with 3d FOF";
+    }
+    else if (opt.fofbgtype == FOF6D) {
+        LOG(info) <<"Field objects found with initial 3d FOF then use single dispersion to find 6d FOFs";
+    }
+    else if (opt.fofbgtype == FOF6DADAPTIVE) {
+        LOG(info) << "Field objects found with initial 3d FOF then use adaptive dispersion to find 6d FOFs";
+    }
+    else if (opt.fofbgtype == FOFSTNOSUBSET) {
+        LOG(info) << "Field objects found with initial 3d FOF then use phase-space stream finding algorithm";
+    }
+    if (opt.fofbgtype <= FOF6D && opt.iKeepFOF) {
+        LOG(info) << "Field objects found with initial 3d FOF then use dispersion to find 6d FOFs and 3dFOF objects kept as base objects (consider them inter halo stellar mass or ICL for stellar only searches) ";
+    }
+    if (opt.iBaryonSearch == 1) {
+        LOG(info) << "Baryons treated separately for substructure search";
+    }
+    else if (opt.iBaryonSearch == 2) {
+        LOG(info) << "Baryons treated separately for substructure search and also FOF field search";
+    }
+    if (opt.iSingleHalo) {
+        LOG(info) << "Field objects NOT searched for, assuming single Halo and subsearch using mean field first step";
+    }
+    LOG(info) << "Allowed potential to kinetic ratio when unbinding particles: " << opt.uinfo.Eratio;
+    if (opt.HaloMinSize != opt.MinSize) {
+        LOG(info) << "Field objects (aka Halos) have different minimum required size than substructures: " << opt.HaloMinSize << " vs " << opt.MinSize;
+    }
+    LOG(info) << "Units: L=" << opt.lengthinputconversion << ", M=" << opt.massinputconversion << ", V=" << opt.velocityinputconversion << ", G=" << opt.G;
+    if (opt.ibinaryout) {
+        LOG(info) << "Binary output";
+    }
+    if (opt.iseparatefiles) {
+        LOG(info) << "Separate files output";
+    }
+    if (opt.icomoveunit) {
+        LOG(info) << "Converting properties into comoving, little h units";
+    }
+    if (opt.iextrahalooutput) {
+        LOG(info) << "Calculating extra halo properties";
+    }
+    if (opt.iextragasoutput) {
+        LOG(info) << "Calculating extra gas properties";
+    }
+    if (opt.iextrastaroutput) {
+        LOG(info) << "Calculating extra star properties";
+    }
+    if (opt.iaperturecalc) {
+        std::ostringstream os;
+        os << "Calculating quantities in apertures: ";
+        for (auto apname: opt.aperture_names_kpc) {
+            os << apname << ",";
+        }
+        LOG(info) << os.str();
+    }
+    if (opt.iprofilecalc) {
+        std::ostringstream os;
+        os << "Calculating radial profiles: ";
+        for (auto binedge: opt.profile_bin_edges) {
+            os << binedge << ",";
+        }
+        LOG(info) << os.str();
+    }
+
+    if (opt.iextendedoutput) {
+        LOG(info) << "Writing extended output for particle extraction from input files";
+    }
+    if (opt.iSphericalOverdensityPartList) {
+        LOG(info) << "Writing list of particles in SO regions of halos. ";
+    }
+
+    if (opt.iHaloCoreSearch) {
+        LOG(info) << "Searching for 6dfof cores so as to disentangle mergers";
+    }
+    if (opt.iHaloCoreSearch && opt.iAdaptiveCoreLinking) {
+        LOG(info) << "With adaptive linking lengths";
+    }
+    if (opt.iHaloCoreSearch && opt.iPhaseCoreGrowth) {
+        LOG(info) << "With with phase-space tensor core assignment";
+    }
+
+    const char *input_type;
+    switch (opt.inputtype)
+    {
+        case IOGADGET:
+            input_type = "Gadget";
+            break;
+        case IOTIPSY:
+            input_type = "Tipsy";
+            break;
+        case IORAMSES:
+            input_type = "RAMSES";
+            break;
+#ifdef USEHDF
+        case IOHDF:
+            input_type = "HDF";
+            break;
+#endif
+#ifdef USEXDR
+        case IONCHILADA:
+            input_type = "NCHILADA";
+            break;
+#endif
+        default:
+            input_type = "Unknown";
+            break;
+    }
+    LOG(info) << input_type << " file particle input";
+
+#ifdef USEMPI
+    LOG(info) << "MPI input communication requires allocation of temporary particle buffer of size "
+              << vr::memory_amount(opt.mpiparticletotbufsize);
+#endif
+    LOG(info) << "----------------------------------------------";
 }
 
 ///routine to get arguments from command line
@@ -80,11 +223,11 @@ void GetArgs(int argc, char *argv[], Options &opt)
     }
     if(configflag){
         if (ThisTask==0)
-        cout<<"Reading config file"<<endl;
+        LOG(info) << "Reading config file";
         GetParamFile(opt);
     }
     else {
-        cout<<"NO CONFIG FILE PASSED! Using default values"<<endl;
+        LOG(warning) << "No configuration file passed, using default values";
     }
 #ifdef USEMPI
     MPI_Barrier(MPI_COMM_WORLD);
@@ -312,18 +455,14 @@ inline void ConfigMessage(char *c) {
     if (ThisTask==0) cerr<<c<<endl;
 }
 
-inline void errormessage(string message) {
-#ifndef USEMPI
-    int ThisTask =0;
-#endif
-    if (ThisTask==0)  cerr<<message<<endl;
-}
-
-inline void ConfigExit() {
+inline void ConfigExit(const char *error=nullptr) {
+    if (error) {
+        LOG_RANK0(error) << error;
+    }
 #ifdef USEMPI
-            MPI_Abort(MPI_COMM_WORLD,8);
+    MPI_Abort(MPI_COMM_WORLD,8);
 #else
-            exit(8);
+    exit(8);
 #endif
 }
 
@@ -443,19 +582,19 @@ inline void ExtraFieldCheck(string configentryname,
         scalctype = calcinttostring[calctype];
         outputfieldname = names[i]+ExtraFieldIndexName(entryindex)+string("_")+scalctype;
         if (calctype == 0) {
-            errormessage("Unknown calculation requested for "+configentryname);
-            errormessage("This is entry " + to_string(i)+" config options " + names[i] + "," + to_string(entryindex) + "," + scalctype);
-            errormessage("Please refer to documentation for list of calculations. Currently allowed:");
-            errormessage(list);
+            LOG_RANK0(error) << "Unknown calculation requested for " << configentryname;
+            LOG_RANK0(error) << "This is entry "  << i << " config options " << names[i] << "," << entryindex << "," << scalctype;
+            LOG_RANK0(error) << "Please refer to documentation for list of calculations. Currently allowed:";
+            LOG_RANK0(error) << list;
             ConfigExit();
         }
         if (outputset.count(outputfieldname) == 0) {
             outputset.insert(outputfieldname);
         }
         else{
-            errormessage("Duplicate entry found for "+configentryname);
-            errormessage("This is entry " +to_string(i)+" config options " + names[i]+","+ to_string(entryindex)+","+to_string(calctype));
-            errormessage("This will be removed");
+            LOG_RANK0(warning) << "Duplicate entry found for " << configentryname;
+            LOG_RANK0(warning) << "This is entry " << i << " config options " << names[i] << "," << entryindex << "," << calctype;
+            LOG_RANK0(warning) << "This will be removed";
         }
     }
 
@@ -564,8 +703,8 @@ inline void ListDuplicateEntryCheck(string configentryname, int &num,
     int iduplicates = 0;
     for (auto &val:names) {
         if(unique.count(val)) {
-            errormessage("Dupplicate entry(ies) found in "+configentryname);
-            errormessage("Removing duplicate entries");
+            LOG_RANK0(warning) << "Duplicate entry(ies) found in " << configentryname;
+            LOG_RANK0(warning) << "Removing duplicate entries";
             iduplicates += 1;
         }
         else unique.insert(val);
@@ -613,7 +752,7 @@ void GetParamFile(Options &opt)
     map<int, string> calcinttostring = ExtraFieldCalculationsIntFlagToString();
     if (!FileExists(opt.pname)){
         if (ThisTask==0)
-            cerr<<"Config file: "<<opt.pname <<" does not exist or can't be read, terminating"<<endl;
+            LOG(error) << "Config file: " << opt.pname << " does not exist or can't be read, terminating";
 #ifdef USEMPI
             MPI_Abort(MPI_COMM_WORLD,9);
 #else
@@ -1729,9 +1868,9 @@ void NOMASSCheck(Options &opt)
 {
 #ifdef NOMASS
     if (opt.MassValue<=0) {
-        errormessage("Code compiled to not store mass per particle.");
-        errormessage("Valid value of particle mass must be extracted from input (HDF5, Gadget) or set in the config file through  Mass_value");
-        errormessage("Currently value <=0. Either input did not contain a valid value and update to config file needed");
+        LOG_RANK0(error) << "Code compiled to not store mass per particle";
+        LOG_RANK0(error) << "Valid value of particle mass must be extracted from input (HDF5, Gadget) or set in the config file through  Mass_value";
+        LOG_RANK0(error) << "Currently value <=0. Either input did not contain a valid value and update to config file needed";
         ConfigExit();
     }
 #endif
@@ -1746,62 +1885,50 @@ void ConfigCheck(Options &opt)
     // input type, number of input files, etc
     if (opt.iontheflyfinding == false) {
     if (opt.fname==NULL||opt.outname==NULL){
-        errormessage("Must provide input and output file names");
-        ConfigExit();
+        ConfigExit("Must provide input and output file names");
     }
     if (opt.inputtype == IOHDF && opt.ihdfnameconvention == -1) {
-        errormessage("HDF input passed but the naming convention is not set in the config file. Please set HDF_name_convetion.");
-        ConfigExit();
+        ConfigExit("HDF input passed but the naming convention is not set in the config file. Please set HDF_name_convetion");
     }
     if (opt.num_files<1){
-        errormessage("Invalid number of input files (<1)");
-        ConfigExit();
+        ConfigExit("Invalid number of input files (<1)");
     }
     if (opt.inputbufsize<1){
-        errormessage("Invalid read buf size (<1)");
-        ConfigExit();
+        ConfigExit("Invalid read buf size (<1)");
     }
     }
 
     if (opt.iBaryonSearch && !(opt.partsearchtype==PSTALL || opt.partsearchtype==PSTDARK))
     {
-        errormessage("Conflict in config file: both gas/star/etc particle type search AND the separate baryonic (gas,star,etc) search flag are on. Check config");
-        ConfigExit();
+        ConfigExit("Conflict in config file: both gas/star/etc particle type search AND the separate baryonic (gas,star,etc) search flag are on. Check config");
     }
     if (opt.iBoundHalos && opt.iKeepFOF)
     {
-        errormessage("Conflict in config file: Asking for Bound Field objects but also asking to keep the 3DFOF/then run 6DFOF. This is incompatible. Check config");
-        ConfigExit();
+        ConfigExit("Conflict in config file: Asking for Bound Field objects but also asking to keep the 3DFOF/then run 6DFOF. This is incompatible. Check config");
     }
     if (opt.HaloMinSize==-1) opt.HaloMinSize=opt.MinSize;
 
     if (opt.lengthtokpc<=0){
-        errormessage("Invalid unit conversion, length unit to kpc is <=0 or was not set. Update config file");
-        ConfigExit();
+        ConfigExit("Invalid unit conversion, length unit to kpc is <=0 or was not set. Update config file");
     }
     //convert reference apertures
     opt.lengthtokpc30pow2 /= opt.lengthtokpc*opt.lengthtokpc;
     opt.lengthtokpc50pow2 /= opt.lengthtokpc*opt.lengthtokpc;
     if (opt.velocitytokms<=0){
-        errormessage("Invalid unit conversion, velocity unit to km/s is <=0 or was not set. Update config file");
-        ConfigExit();
+        ConfigExit("Invalid unit conversion, velocity unit to km/s is <=0 or was not set. Update config file");
     }
     if (opt.masstosolarmass<=0){
-        errormessage("Invalid unit conversion, mass unit to solar mass is <=0 or was not set. Update config file");
-        ConfigExit();
+        ConfigExit("Invalid unit conversion, mass unit to solar mass is <=0 or was not set. Update config file");
     }
 #if defined(GASON) || defined(STARON) || defined(BHON)
     if (opt.SFRtosolarmassperyear<=0){
-        errormessage("Invalid unit conversion, SFR unit to solar mass per year is <=0 or was not set. Update config file");
-        ConfigExit();
+        ConfigExit("Invalid unit conversion, SFR unit to solar mass per year is <=0 or was not set. Update config file");
     }
     if (opt.metallicitytosolar<=0){
-        errormessage("Invalid unit conversion, metallicity unit to solar is <=0 or was not set. Update config file");
-        ConfigExit();
+        ConfigExit("Invalid unit conversion, metallicity unit to solar is <=0 or was not set. Update config file");
     }
     if (opt.stellaragetoyrs<=0){
-        errormessage("Invalid unit conversion, stellar age unit to year is <=0 or was not set. Update config file");
-        ConfigExit();
+        ConfigExit("Invalid unit conversion, stellar age unit to year is <=0 or was not set. Update config file");
     }
 #endif
 #ifndef NOMASS
@@ -1816,28 +1943,30 @@ void ConfigCheck(Options &opt)
     else {
         auto diff = fabs(gravity-opt.G)/opt.G;
         if (diff>1e-2) {
-            errormessage("WARNING: Configuration provides gravitational constant that differs from the default by more than 1%.");
-            errormessage("Expecation: "+to_string(gravity));
-            errormessage("Value passed: "+to_string(opt.G));
+            LOG_RANK0(warning) << "Configuration provides gravitational constant that differs from the default by more than 1%";
+            LOG_RANK0(warning) << "Expecation: " << gravity;
+            LOG_RANK0(warning) << "Value passed: " << opt.G;
         }
     }
     if (opt.H<=0) opt.H = hubunit;
     else {
         auto diff = fabs(hubunit-opt.H)/opt.H;
         if (diff>1e-2) {
-            errormessage("WARNING: Configuration provides hubble units that differs from the default by more than 1%.");
-            errormessage("Expecation: "+to_string(hubunit));
-            errormessage("Value passed: "+to_string(opt.H));
+            LOG_RANK0(warning) << "Configuration provides hubble units that differs from the default by more than 1%";
+            LOG_RANK0(warning) << "Expecation: " << hubunit;
+            LOG_RANK0(warning) << "Value passed: " << opt.H;
         }
     }
 
 #ifdef USEMPI
     if (opt.minnumcellperdim<8){
-        errormessage("MPI mesh too coarse, minimum number of cells per dimension from which to produce z-curve decomposition is 8. Resetting to 8.");
+        LOG_RANK0(warning) << "MPI mesh too coarse, minimum number of cells per dimension from which to produce z-curve decomposition is 8. Resetting to 8";
         opt.minnumcellperdim = 8;
     }
     if (opt.mpiparticletotbufsize<(long int)(sizeof(Particle)*NProcs) && opt.mpiparticletotbufsize!=-1){
-        errormessage("Invalid input particle buffer send size, mininmum input buffer size given paritcle byte size "+to_string(sizeof(Particle))+" and have "+to_string(NProcs)+" mpi processes is "+to_string(sizeof(Particle)*NProcs));
+        LOG_RANK0(error) << "Invalid input particle buffer send size, minimum input buffer size given particle byte size "
+                         << vr::memory_amount(sizeof(Particle)) << " and have " << NProcs << " MPI processes is "
+                         << vr::memory_amount(sizeof(Particle) * NProcs);
         ConfigExit();
     }
     //if total buffer size is -1 then calculate individual buffer size based on default mpi size
@@ -1849,21 +1978,20 @@ void ConfigCheck(Options &opt)
         opt.mpiparticlebufsize=opt.mpiparticletotbufsize/NProcs/sizeof(Particle);
     }
     if (opt.mpipartfac<0){
-        errormessage("Invalid MPI particle allocation factor, must be >0.");
-        ConfigExit();
+        ConfigExit("Invalid MPI particle allocation factor, must be >0");
     }
     else if (opt.mpipartfac>1){
-        errormessage("WARNING: MPI Particle allocation factor is high (>1).");
+        LOG_RANK0(warning) << "MPI Particle allocation factor is high (>1)";
     }
     if (opt.mpinprocswritesize<1){
 #ifdef USEPARALLELHDF
-        errormessage("WARNING: Number of MPI task writing collectively < 1. Setting to 1 .");
+        LOG_RANK0(warning) << "Number of MPI task writing collectively < 1. Setting to 1";
         opt.mpinprocswritesize = 1;
 #endif
     }
     if (opt.mpinprocswritesize>NProcs){
 #ifdef USEPARALLELHDF
-        errormessage("WARNING: Number of MPI task writing collectively > NProcs. Setting to NProcs.");
+        LOG_RANK0(warning) << "Number of MPI task writing collectively > NProcs. Setting to NProcs";
         opt.mpinprocswritesize = NProcs;
 #endif
     }
@@ -1871,68 +1999,60 @@ void ConfigCheck(Options &opt)
 
 #ifdef USEOPENMP
     if (opt.iopenmpfof == 1 && opt.openmpfofsize < ompfofsearchnum){
-        errormessage("WARNING: OpenMP FOF search region is small, resetting to minimum of ");
+        LOG_RANK0(warning) << "OpenMP FOF search region is small, resetting to minimum of " << ompfofsearchnum;
         opt.openmpfofsize = ompfofsearchnum;
     }
 #endif
 
 #ifndef USEHDF
     if (opt.ibinaryout==OUTHDF){
-        errormessage("Code not compiled with HDF output enabled. Recompile with this enabled or change Binary_output.");
-        ConfigExit();
+        ConfigExit("Code not compiled with HDF output enabled. Recompile with this enabled or change Binary_output");
     }
     if (opt.isubfindoutput) {
-        errormessage("Code not compiled with HDF output enabled. Recompile with this enabled to produce subfind like output or turn off subfind like output.");
-        ConfigExit();
+        ConfigExit("Code not compiled with HDF output enabled. Recompile with this enabled to produce subfind like output or turn off subfind like output");
     }
 #endif
 
 #ifndef USEADIOS
     if (opt.ibinaryout==OUTADIOS){
-        errormessage("Code not compiled with ADIOS output enabled. Recompile with this enabled or change Binary_output.");
-        ConfigExit();
+        ConfigExit("Code not compiled with ADIOS output enabled. Recompile with this enabled or change Binary_output");
     }
 #endif
     if (opt.iaperturecalc>0) {
         if (opt.aperturenum != opt.aperture_values_kpc.size()) {
-            errormessage("Aperture calculations requested but mismatch between number stated and values provided. Check config.");
-            ConfigExit();
+            ConfigExit("Aperture calculations requested but mismatch between number stated and values provided. Check config");
         }
         if (opt.aperturenum == 0) {
-            errormessage("WARNING: Aperture calculations requested but number of apertures is zero. ");
+            LOG_RANK0(warning) << "Aperture calculations requested but number of apertures is zero";
         }
         if (opt.apertureprojnum != opt.aperture_proj_values_kpc.size()) {
-            errormessage("Projected aperture calculations requested but mismatch between number stated and values provided. Check config.");
-            ConfigExit();
+            ConfigExit("Projected aperture calculations requested but mismatch between number stated and values provided. Check config");
         }
         if (opt.apertureprojnum == 0) {
-            errormessage("WARNING: Aperture calculations requested but number of projected apertures is zero. ");
+            LOG_RANK0(warning) << "Aperture calculations requested but number of projected apertures is zero";
         }
         if (opt.aperturenum>0) for (auto &x:opt.aperture_values_kpc) x/=opt.lengthtokpc;
         if (opt.apertureprojnum>0) for (auto &x:opt.aperture_proj_values_kpc) x/=opt.lengthtokpc;
     }
     if (opt.SOnum>0) {
         if (opt.SOnum != opt.SOthresholds_values_crit.size()) {
-            errormessage("SO calculations requested but mismatch between number stated and values provided. Check config.");
-            ConfigExit();
+            ConfigExit("SO calculations requested but mismatch between number stated and values provided. Check config");
         }
     }
     if (opt.iprofilecalc>0) {
         if (opt.profileminsize < 0) {
-            errormessage("Radial profile calculations limited to objects of < 0 size! Ignoring and setting to 0. ");
+            LOG_RANK0(warning) << "Radial profile calculations limited to objects of < 0 size! Ignoring and setting to 0";
             opt.profileminsize = 0;
         }
         if (opt.profileminFOFsize < 0) {
-            errormessage("Radial profile calculations limited to FOF objects of < 0 size! Ignoring and setting to 0. ");
+            LOG_RANK0(warning) << "Radial profile calculations limited to FOF objects of < 0 size! Ignoring and setting to 0";
             opt.profileminFOFsize = 0;
         }
         if (opt.profilenbins != opt.profile_bin_edges.size()) {
-            errormessage("Radial profile calculations requested but mismatch between number of edges stated and number provided. Check config.");
-            ConfigExit();
+            ConfigExit("Radial profile calculations requested but mismatch between number of edges stated and number provided. Check config");
         }
         if (opt.profilenbins == 0) {
-            errormessage("Radial profile calculations requested but number of bin edges is zero. Check config.");
-            ConfigExit();
+            ConfigExit("Radial profile calculations requested but number of bin edges is zero. Check config");
         }
         if (opt.iprofilebintype == PROFILERBINTYPELOG) {
             for (auto i=0;i<opt.profilenbins;i++) opt.profile_bin_edges[i]=pow(10.0,opt.profile_bin_edges[i]);
@@ -1942,100 +2062,77 @@ void ConfigCheck(Options &opt)
     }
 
     if (opt.gas_internalprop_names.size() != opt.gas_internalprop_function.size()){
-        errormessage("GAS: # of Internal Property does not the # of function type entries. Check config.");
-        ConfigExit();
+        ConfigExit("GAS: # of Internal Property does not the # of function type entries. Check config");
     }
     if (opt.gas_internalprop_names.size() != opt.gas_internalprop_index.size()){
-        errormessage("GAS: # of Internal Property names does not the # of index in file entries. Check config.");
-        ConfigExit();
+        ConfigExit("GAS: # of Internal Property names does not the # of index in file entries. Check config");
     }
     if (opt.gas_chem_names.size() != opt.gas_chem_function.size()){
-        errormessage("GAS: # of Chemistry names does not the # of function type entries. Check config.");
-        ConfigExit();
+        ConfigExit("GAS: # of Chemistry names does not the # of function type entries. Check config");
     }
     if (opt.gas_chem_names.size() != opt.gas_chem_index.size()){
-        errormessage("GAS: # of Chemistry Production names does not the # of index in file entries. Check config.");
-        ConfigExit();
+        ConfigExit("GAS: # of Chemistry Production names does not the # of index in file entries. Check config");
     }
     if (opt.gas_chemproduction_names.size() != opt.gas_chemproduction_function.size()){
-        errormessage("GAS: # of Chemistry Production names does not the # of function type entries. Check config.");
-        ConfigExit();
+        ConfigExit("GAS: # of Chemistry Production names does not the # of function type entries. Check config");
     }
     if (opt.gas_chemproduction_names.size() != opt.gas_chemproduction_index.size()){
-        errormessage("GAS: # of Chemistry Production names does not the # of index in file entries. Check config.");
-        ConfigExit();
+        ConfigExit("GAS: # of Chemistry Production names does not the # of index in file entries. Check config");
     }
 
     if (opt.star_internalprop_names.size() != opt.star_internalprop_function.size()){
-        errormessage("STAR: # of Internal Property does not the # of function type entries. Check config.");
-        ConfigExit();
+        ConfigExit("STAR: # of Internal Property does not the # of function type entries. Check config.");
     }
     if (opt.star_internalprop_names.size() != opt.star_internalprop_index.size()){
-        errormessage("STAR: # of Internal Property names does not the # of index in file entries. Check config.");
-        ConfigExit();
+        ConfigExit("STAR: # of Internal Property names does not the # of index in file entries. Check config.");
     }
     if (opt.star_chem_names.size() != opt.star_chem_function.size()){
-        errormessage("STAR: # of Chemistry names does not the # of function type entries. Check config.");
-        ConfigExit();
+        ConfigExit("STAR: # of Chemistry names does not the # of function type entries. Check config.");
     }
     if (opt.star_chem_names.size() != opt.star_chem_index.size()){
-        errormessage("STAR: # of Chemistry Production names does not the # of index in file entries. Check config.");
-        ConfigExit();
+        ConfigExit("STAR: # of Chemistry Production names does not the # of index in file entries. Check config.");
     }
     if (opt.star_chemproduction_names.size() != opt.star_chemproduction_function.size()){
-        errormessage("STAR: # of Chemistry Production names does not the # of function type entries. Check config.");
-        ConfigExit();
+        ConfigExit("STAR: # of Chemistry Production names does not the # of function type entries. Check config.");
     }
     if (opt.star_chemproduction_names.size() != opt.star_chemproduction_index.size()){
-        errormessage("STAR: # of Chemistry Production names does not the # of index in file entries. Check config.");
-        ConfigExit();
+        ConfigExit("STAR: # of Chemistry Production names does not the # of index in file entries. Check config.");
     }
 
     if (opt.bh_internalprop_names.size() != opt.bh_internalprop_function.size()){
-        errormessage("BH: # of Internal Property does not the # of function type entries. Check config.");
-        ConfigExit();
+        ConfigExit("BH: # of Internal Property does not the # of function type entries. Check config.");
     }
     if (opt.bh_internalprop_names.size() != opt.bh_internalprop_index.size()){
-        errormessage("BH: # of Internal Property names does not the # of index in file entries. Check config.");
-        ConfigExit();
+        ConfigExit("BH: # of Internal Property names does not the # of index in file entries. Check config.");
     }
     if (opt.bh_chem_names.size() != opt.bh_chem_function.size()){
-        errormessage("BH: # of Chemistry names does not the # of function type entries. Check config.");
-        ConfigExit();
+        ConfigExit("BH: # of Chemistry names does not the # of function type entries. Check config.");
     }
     if (opt.bh_chem_names.size() != opt.bh_chem_index.size()){
-        errormessage("BH: # of Chemistry Production names does not the # of index in file entries. Check config.");
-        ConfigExit();
+        ConfigExit("BH: # of Chemistry Production names does not the # of index in file entries. Check config.");
     }
     if (opt.bh_chemproduction_names.size() != opt.bh_chemproduction_function.size()){
-        errormessage("BH: # of Chemistry Production names does not the # of function type entries. Check config.");
-        ConfigExit();
+        ConfigExit("BH: # of Chemistry Production names does not the # of function type entries. Check config.");
     }
     if (opt.bh_chemproduction_names.size() != opt.bh_chemproduction_index.size()){
-        errormessage("BH: # of Chemistry Production names does not the # of index in file entries. Check config.");
-        ConfigExit();
+        ConfigExit("BH: # of Chemistry Production names does not the # of index in file entries. Check config.");
     }
 
     if (opt.extra_dm_internalprop_names.size() != opt.extra_dm_internalprop_function.size()){
-        errormessage("Extra_DM: # of Internal Property does not the # of function type entries. Check config.");
-        ConfigExit();
+        ConfigExit("Extra_DM: # of Internal Property does not the # of function type entries. Check config.");
     }
     if (opt.extra_dm_internalprop_names.size() != opt.extra_dm_internalprop_index.size()){
-        errormessage("Extra_DM: # of Internal Property names does not the # of index in file entries. Check config.");
-        ConfigExit();
+        ConfigExit("Extra_DM: # of Internal Property names does not the # of index in file entries. Check config.");
     }
     if (opt.uinfo.iapproxpot) {
         if (opt.uinfo.approxpotnumfrac <=0) {
-            errormessage("Calculating approximate potential but fraction of particles <=0. Check config.");
-            ConfigExit();
+            ConfigExit("Calculating approximate potential but fraction of particles <=0. Check config.");
         }
         if (opt.uinfo.approxpotminnum <=0) {
-            errormessage("Calculating approximate potential but min number of particles to use <=0. Check config.");
-            ConfigExit();
+            ConfigExit("Calculating approximate potential but min number of particles to use <=0. Check config.");
         }
         if (opt.uinfo.approxpotmethod < POTAPPROXMETHODTREE || opt.uinfo.approxpotmethod > POTAPPROXMETHODRAND) {
-            errormessage("In approximate potential but using invalid method for sampling particles. Use 0 for Tree and 1 for Rand. Check config.");
-            ConfigExit();
+            ConfigExit("In approximate potential but using invalid method for sampling particles. Use 0 for Tree and 1 for Rand. Check config.");
         }
     }
 
@@ -2168,23 +2265,23 @@ void ConfigCheck(Options &opt)
     opt.extra_dm_extraprop_aperture_calc = (opt.extra_dm_internalprop_names_aperture.size() >0);
 
     if (opt.gas_extraprop_aperture_calc && opt.iaperturecalc == 0){
-        errormessage("Requesting extra gas properties to be calculated in apertures but apertures not set");
-        errormessage("Enable aperture calculations and provide apertures or change the calculations requested for extra properties. Check config.");
+        LOG_RANK0(error) << "Requesting extra gas properties to be calculated in apertures but apertures not set";
+        LOG_RANK0(error) << "Enable aperture calculations and provide apertures or change the calculations requested for extra properties. Check config";
         ConfigExit();
     }
     if (opt.star_extraprop_aperture_calc && opt.iaperturecalc == 0){
-        errormessage("Requesting extra star properties to be calculated in apertures but apertures not set");
-        errormessage("Enable aperture calculations and provide apertures or change the calculations requested for extra properties. Check config.");
+        LOG_RANK0(error) << "Requesting extra star properties to be calculated in apertures but apertures not set";
+        LOG_RANK0(error) << "Enable aperture calculations and provide apertures or change the calculations requested for extra properties. Check config";
         ConfigExit();
     }
     if (opt.bh_extraprop_aperture_calc && opt.iaperturecalc == 0){
-        errormessage("Requesting extra BH properties to be calculated in apertures but apertures not set");
-        errormessage("Enable aperture calculations and provide apertures or change the calculations requested for extra properties. Check config.");
+        LOG_RANK0(error) << "Requesting extra BH properties to be calculated in apertures but apertures not set";
+        LOG_RANK0(error) << "Enable aperture calculations and provide apertures or change the calculations requested for extra properties. Check config";
         ConfigExit();
     }
     if (opt.extra_dm_extraprop_aperture_calc && opt.iaperturecalc == 0){
-        errormessage("Requesting extra dm properties to be calculated in apertures but apertures not set");
-        errormessage("Enable aperture calculations and provide apertures or change the calculations requested for extra properties. Check config.");
+        LOG_RANK0(error) << "Requesting extra dm properties to be calculated in apertures but apertures not set";
+        LOG_RANK0(error) << "Enable aperture calculations and provide apertures or change the calculations requested for extra properties. Check config";
         ConfigExit();
     }
 
@@ -2198,72 +2295,7 @@ void ConfigCheck(Options &opt)
     }
 
     if (ThisTask==0) {
-    cout<<"CONFIG INFO SUMMARY -------------------------- "<<endl;
-    switch(opt.partsearchtype)
-    {
-            case PSTALL:
-                cout<<"Searching all particles regardless of type"<<endl;
-                break;
-            case PSTDARK:
-                cout<<"Searching dark matter particles "<<endl;
-                break;
-            case PSTGAS:
-                cout<<"Searching gas particles "<<endl;
-                break;
-            case PSTSTAR:
-                cout<<"Searching star particles"<<endl;
-                break;
-            case PSTBH:
-                cout<<"Searching BH particles?! Really? Are there enough?"<<endl;
-                break;
-    }
-    if (opt.fofbgtype==FOF6D) cout<<"Field objects found with 3d FOF"<<endl;
-    else if (opt.fofbgtype==FOF6D) cout<<"Field objects found with initial 3d FOF then use single dispersion to find 6d FOFs"<<endl;
-    else if (opt.fofbgtype==FOF6DADAPTIVE) cout<<"Field objects found with initial 3d FOF then use adaptive dispersion to find 6d FOFs"<<endl;
-    else if (opt.fofbgtype==FOFSTNOSUBSET) cout<<"Field objects found with initial 3d FOF then use phase-space stream finding algorithm"<<endl;
-    if (opt.fofbgtype<=FOF6D && opt.iKeepFOF) cout<<"Field objects found with initial 3d FOF then use dispersion to find 6d FOFs and 3dFOF objects kept as base objects (consider them inter halo stellar mass or ICL for stellar only searches) "<<endl;
-    if (opt.iBaryonSearch==1) cout<<"Baryons treated separately for substructure search"<<endl;
-    else if (opt.iBaryonSearch==2) cout<<"Baryons treated separately for substructure search and also FOF field search"<<endl;
-    if (opt.iSingleHalo) cout<<"Field objects NOT searched for, assuming single Halo and subsearch using mean field first step"<<endl;
-    cout<<"Allowed potential to kinetic ratio when unbinding particles "<<opt.uinfo.Eratio<<endl;
-    if (opt.HaloMinSize!=opt.MinSize) cout<<"Field objects (aka Halos) have different minimum required size than substructures: "<<opt.HaloMinSize<<" vs "<<opt.MinSize<<endl;
-    cout<<"Units: L="<<opt.lengthinputconversion<<", M="<<opt.massinputconversion<<", V="<<opt.velocityinputconversion<<", G="<<opt.G<<endl;
-    if (opt.ibinaryout) cout<<"Binary output"<<endl;
-    if (opt.iseparatefiles) cout<<"Separate files output"<<endl;
-    if (opt.icomoveunit) cout<<"Converting properties into comoving, little h units. "<<endl;
-    if (opt.iextrahalooutput) cout<<"Calculating extra halo properties. "<<endl;
-    if (opt.iextragasoutput) cout<<"Calculating extra gas properties. "<<endl;
-    if (opt.iextrastaroutput) cout<<"Calculating extra star properties. "<<endl;
-    if (opt.iaperturecalc) {
-        cout<<"Calculating quantities in apertures: ";
-        for (auto apname: opt.aperture_names_kpc) cout<<apname<<",";
-        cout<<endl;
-    }
-    if (opt.iprofilecalc) {
-        cout<<"Calculating radial profiles: ";
-        for (auto binedge: opt.profile_bin_edges) cout<<binedge<<",";
-        cout<<endl;
-    }
-
-    if (opt.iextendedoutput) cout<<"Writing extended output for particle extraction from input files"<<endl;
-    if (opt.iSphericalOverdensityPartList) cout<<"Writing list of particles in SO regions of halos. "<<endl;
-
-    if (opt.iHaloCoreSearch) cout<<"Searching for 6dfof cores so as to disentangle mergers"<<endl;
-    if (opt.iHaloCoreSearch && opt.iAdaptiveCoreLinking) cout<<"With adaptive linking lengths"<<endl;
-    if (opt.iHaloCoreSearch && opt.iPhaseCoreGrowth) cout<<"With with phase-space tensor core assignment"<<endl;
-    if (opt.inputtype==IOGADGET) cout<<"Gadget file particle input "<<endl;
-    else if (opt.inputtype==IOTIPSY) cout<<"Tipsy file particle input "<<endl;
-    else if (opt.inputtype==IORAMSES) cout<<"RAMSES file particle input "<<endl;
-#ifdef USEHDF
-    else if (opt.inputtype==IOHDF) cout<<"HDF file particle input "<<endl;
-#endif
-#ifdef USEXDR
-    else if (opt.inputtype==IONCHILADA) cout<<"NCHILADA file particle input "<<endl;
-#endif
-#ifdef USEMPI
-    cout<<"MPI input communication requires allocation of temporary particle buffer of size "<<opt.mpiparticletotbufsize/1024./1024./1024.<<" GB."<<endl;
-#endif
-    cout<<" -------------------------- "<<endl;
+        log_options_summary(opt);
     }
 
     //store the git hash
