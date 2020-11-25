@@ -80,9 +80,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
 
     MEMORY_USAGE_REPORT(debug, opt);
 
-    time1=MyGetTime();
-    time2=MyGetTime();
     LOG(info) << "Starting FOF search of entire particle data set";
+    vr::Timer fof_timer;
     param[0]=tree->TPHYS;
     param[1]=(opt.ellxscale*opt.ellxscale)*(opt.ellphys*opt.ellphys)*(opt.ellhalophysfac*opt.ellhalophysfac);
     param[6]=param[1];
@@ -397,7 +396,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         LOG(info) << "Largest group of " << maxgroupsize;
     }
     LOG_RANK0(info) << "Total number of groups found is " << totalgroups;
-    LOG_RANK0(info) << "Finished FOF search in total time of " << MyGetTime() - time1;
+    LOG_RANK0(info) << "Finished FOF search in total time of " << fof_timer;
 
     //if calculating velocity density only of particles resident in field structures large enough for substructure search
 #if defined(STRUCDEN) && defined(USEMPI)
@@ -475,13 +474,12 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
 
     //have now 3dfof groups local to a MPI thread and particles are back in index order that will be used from now on
     //note that from on, use Nlocal, which is altered in mpi but set to nbodies in non-mpi
+    vr::Timer fof6d_timer;
     if (opt.fofbgtype<=FOF6D && totalgroups>0) {
     ///\todo In the 6DFOF, particles are sorted into group order but then resorted back into input index order
     ///this is not necessary if the tipsy still .grp array does not need to be constructed.
     ///we would removing storing the old ids alter how the local group lists are stiched together into the larger array
     ///and remove a slow sort back into original ID order
-    time1=MyGetTime();
-    time2=MyGetTime();
 
     //now if 6dfof search to overcome issues with 3DFOF by searching only particles that have been previously linked by the 3dfof
     //adjust physical linking length
@@ -824,7 +822,7 @@ private(i,tid,xscaling,vscaling)
             for (int j=0;j<NProcs;j++) totalgroups+=mpi_ngroups[j];
             LOG(info) << "Total number of groups found is " << totalgroups;
         }
-        LOG_RANK0(info) << "Finished 6d/phase-space fof search in " << MyGetTime() - time2;
+        LOG_RANK0(info) << "Finished 6d/phase-space fof search in " << fof6d_timer;
     }
     MPI_Allgather(&numgroups, 1, MPI_Int_t, mpi_nhalos, 1, MPI_Int_t, MPI_COMM_WORLD);
 #endif

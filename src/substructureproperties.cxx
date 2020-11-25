@@ -2223,7 +2223,6 @@ void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t
             minlgrhoval = min(minlgrhoval,SOlgrhovals[i]-(Double_t)log(2.0));
         }
     }
-    Double_t time2;
     vr::Timer timer;
     int nthreads=1,tid;
 #ifndef USEMPI
@@ -2689,7 +2688,6 @@ private(i,j,k,x,y,z,Pval)
         if (nimport>0) treeimport=new KDTree(PartDataGet,nimport,opt.HaloMinSize,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
         }
 #endif
-        time2=MyGetTime();
         //now loop over groups and search for particles. This is probably fast if we build a tree
         fac=-log(4.0*M_PI/3.0);
 #ifdef USEOPENMP
@@ -3108,7 +3106,6 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
         if (nimport>0) treeimport=new KDTree(PartDataGet,nimport,opt.HaloMinSize,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
     }
 #endif
-    time2=MyGetTime();
     //now loop over groups and search for particles. This is probably fast if we build a tree
     fac=-log(4.0*M_PI/3.0);
 
@@ -4228,8 +4225,6 @@ void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *Part, Int_t n
     //also if wish to use the deepest potential as a reference, then used to store original order
     Int_t *storepid;
 
-    double time2 = MyGetTime();
-
     if (opt.uinfo.icalculatepotential) {
     //if approximative calculations, run all calculations in parallel
     //as halos take less time individually.
@@ -4313,8 +4308,7 @@ private(i,j,k,storepid)
         for (i=1;i<=ngroup;i++) for (j=0;j<numingroup[i];j++) Part[j+noffset[i]].SetPotential(Part[j+noffset[i]].GetGravityPotential());
     }
 #endif
-    LOG(debug) << "Have calculated potentials in " << MyGetTime() - time2;
-    time2 = MyGetTime();
+    LOG(debug) << "Have calculated potentials in " << timer;
 
     //once potential is calculated, iff using velocity around deepest potential well NOT cm
     if (opt.uinfo.cmvelreftype==POTREF) {

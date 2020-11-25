@@ -45,7 +45,6 @@ Int_t i,j,k;
     int nthreads;
     int tid,id,pid,pid2,itreeflag=0;
     Double_t v2;
-    Double_t time1,time2;
     Double_t *period=NULL;
     ///\todo alter period so arbitrary dimensions
     if (opt.p>0) {
@@ -71,7 +70,7 @@ Int_t i,j,k;
     }
 #endif
 
-    time2=MyGetTime();
+    vr::Timer local_densities_timer;
     //In loop determine if particles NN search radius overlaps another mpi threads domain.
     //If not, then proceed as usually to determine velocity density.
     //If so, do not calculate local velocity density and set its velocity density to -1 as a flag
@@ -139,8 +138,9 @@ private(i,j,k,tid,id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv
 #ifdef USEOPENMP
 }
 #endif
-    LOG(debug) << "Dinished local calculation in " << MyGetTime() - time2;
-    time2=MyGetTime();
+    LOG(debug) << "Calculated local densities in " << local_densities_timer;
+
+    vr::Timer other_domain_search_timer;
 
     //determines export AND import numbers
 
@@ -261,7 +261,7 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
     delete[] PartDataGet;
     delete[] NNDataIn;
     delete[] NNDataGet;
-    LOG(debug) << "Finished other domain search " << MyGetTime() - time2;
+    LOG(debug) << "Finished other domain search " << other_domain_search_timer;
 #else
     //NO MPI invoked
 #ifndef USEOPENMP
@@ -492,7 +492,6 @@ void GetVelocityDensityExact(Options &opt, const Int_t nbodies, Particle *Part, 
     Int_t i,j,k;
     int id,pid2,itreeflag=0;
     Double_t v2;
-    Double_t time2;
     Double_t *period=NULL;
     ///\todo alter period so arbitrary dimensions
     if (opt.p>0) {
@@ -515,8 +514,8 @@ void GetVelocityDensityExact(Options &opt, const Int_t nbodies, Particle *Part, 
     for (i=0;i<nbodies;i++) maxrdist[i]=0;
 #endif
 
-    time2=MyGetTime();
     MEMORY_USAGE_REPORT(debug, opt);
+    vr::Timer local_densities_timer;
 
     //In loop determine if particles NN search radius overlaps another mpi threads domain.
     //If not, then proceed as usually to determine velocity density.
@@ -583,8 +582,9 @@ private(i,j,k,id,v2,nnids,nnr2,weight,pqv)
 #endif
 #ifdef USEMPI
     if (NProcs >1 && opt.iLocalVelDenApproxCalcFlag==0) {
-    LOG(debug) << "Finished local calculation in " << MyGetTime() - time2;
-    time2=MyGetTime();
+    LOG(debug) << "Finished local density calculation in " << local_densities_timer;
+
+    vr::Timer other_domain_search_timer;
     //determines export AND import numbers
     if (opt.impiusemesh) MPIGetNNExportNumUsingMesh(opt, nbodies, Part, maxrdist);
     else MPIGetNNExportNum(nbodies, Part, maxrdist);
@@ -725,7 +725,7 @@ private(i,j,k,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv)
     delete[] PartDataGet;
     delete[] NNDataIn;
     delete[] NNDataGet;
-    LOG(debug) << "Finished other domain search " << MyGetTime() - time2;
+    LOG(debug) << "Finished other domain search " << other_domain_search_timer;
     }
 #endif
     if (itreeflag) delete tree;
@@ -740,7 +740,6 @@ void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle
     LOG(debug) << "Calculating the local velocity density by finding APPROXIMATIVE nearest physical neighbour search for each particle ";
     int id,pid2,itreeflag=0;
     Double_t v2;
-    Double_t time2;
     Int_t nprocessed=0, ntot=0;
     ///\todo alter period so arbitrary dimensions
     Double_t *period=NULL;
@@ -759,7 +758,7 @@ void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle
     PriorityQueue *pqx, *pqv;
     Particle *Pval;
 
-    time2=MyGetTime();
+    vr::Timer local_densities_timer;
     //only build tree if necessary
     if (tree==NULL) {
         itreeflag=1;
@@ -900,9 +899,10 @@ reduction(+:nprocessed,ntot)
 #ifdef USEMPI
     //if search is fully approximative, then since particles have been localized to mpi domains in FOF groups, don't search neighbour mpi domains
     if (NProcs >1 && opt.iLocalVelDenApproxCalcFlag==1) {
-    LOG(debug) << "Finished local calculation in " << MyGetTime() - time2;
+    LOG(debug) << "Finished local calculation in " << local_densities_timer;
     LOG(debug) << "Fraction that is local: " << nprocessed / (float)ntot;
-    time2=MyGetTime();
+
+    vr::Timer other_domain_search_timer;
     maxrdist=new Double_t[nbodies];
     //double maxmaxr = 0;
     for (auto i=0;i<numleafnodes;i++)
@@ -1039,7 +1039,7 @@ reduction(+:nprocessed)
     delete[] PartDataGet;
     delete[] NNDataIn;
     delete[] NNDataGet;
-    LOG(debug) << "Finished other domain search " << MyGetTime() - time2;
+    LOG(debug) << "Finished other domain search " << other_domain_search_timer;
     LOG(debug) << "MPI processed fraction " << nprocessed / (float)ntot;
     }
 #endif

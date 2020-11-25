@@ -118,14 +118,6 @@ void InitMemUsageLog(Options &opt){
     Fmem.close();
 }
 
-double MyGetTime(){
-#ifdef USEOPENMP
-    return omp_get_wtime();
-#else
-    return (clock() /( (double)CLOCKS_PER_SEC));
-#endif
-}
-
 #ifdef NOMASS
 void VR_NOMASS(){};
 #endif
