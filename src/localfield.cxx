@@ -332,7 +332,12 @@ private(i,tid)
         }
 
         fracdone[tid]++;
-        if (opt.iverbose) if (fracdone[tid]>fraclim[tid]) {printf("Task %d done %e of its share \n",tid,fracdone[tid]/((double)nbodies/(double)nthreads));fraclim[tid]+=addamount;}
+        if (fracdone[tid] > fraclim[tid]) {
+            LOG(debug) << "Task " << tid << " has done " << std::scientific
+                       << fracdone[tid] / (double(nbodies) / nthreads)
+                       << " of its share";
+            fraclim[tid] += addamount;
+        }
 #ifdef STRUCDEN
         }
 #endif
@@ -397,7 +402,12 @@ private(i,tid)
 #endif
         Part[i].SetDensity(tree->CalcVelDensityParticle(i,opt.Nvel,opt.Nsearch,1,pqx[tid],pqv[tid],&nnids[tid*opt.Nsearch],&nnr2[tid*opt.Nsearch]));
         fracdone[tid]++;
-        if (opt.iverbose) if (fracdone[tid]>fraclim[tid]) {printf("Task %d done %e of its share \n",tid,fracdone[tid]/((double)nbodies/(double)nthreads));fraclim[tid]+=addamount;}
+        if (fracdone[tid] > fraclim[tid]) {
+            LOG(debug) << "Task " << tid << " has done " << std::scientific
+                       << fracdone[tid] / (double(nbodies) / nthreads)
+                       << " of its share";
+            fraclim[tid] += addamount;
+        }
     }
 #ifdef USEOPENMP
 }

@@ -7,7 +7,11 @@
 #ifndef HDFITEMS_H
 #define HDFITEMS_H
 
-#include "hdf5.h"
+#include <string>
+
+#include <hdf5.h>
+
+#include "logging.h"
 
 
 ///\name ILLUSTRIS specific constants
@@ -322,39 +326,6 @@ static inline hid_t HDF5OpenDataSet(const hid_t &id, string name){
 static inline hid_t HDF5OpenDataSpace(const hid_t &id){
     hid_t idval=H5Dget_space(id);
     return idval;
-}
-
-
-static inline int whatisopen(hid_t fid) {
-        ssize_t cnt;
-        int howmany;
-        int i;
-        H5I_type_t ot;
-        hid_t anobj;
-        hid_t *objs;
-        char name[1024];
-        herr_t status;
-
-        cnt = H5Fget_obj_count(fid, H5F_OBJ_ALL);
-
-        if (cnt <= 0) return cnt;
-
-        printf("%zd object(s) open\n", cnt);
-
-        objs = new hid_t[cnt];
-
-        howmany = H5Fget_obj_ids(fid, H5F_OBJ_ALL, cnt, objs);
-
-        printf("open objects:\n");
-
-        for (i = 0; i < howmany; i++ ) {
-             anobj = objs[i];
-             ot = H5Iget_type(anobj);
-             status = H5Iget_name(anobj, name, 1024);
-             printf(" %d: type %d, name %s\n",i,ot,name);
-        }
-	delete[] objs;
-        return howmany;
 }
 
 
@@ -1481,19 +1452,25 @@ inline void HDFSetUsedParticleTypes(Options &opt, int &nusetypes, int &nbusetype
 }
 //@}
 
+static std::string find_hdf5_file(const char *prefix)
+{
+    for (auto *suffix : {".0.hdf5", ".hdf5"}) {
+        std::string filename(prefix);
+        filename += suffix;
+        LOG(debug) << "Looking for " << filename;
+        if (FileExists(filename.c_str())) {
+            return filename;
+        }
+    }
+    LOG(error) << "Can't find HDF5 file with prefix " << prefix;
+    exit(9);
+}
+
 /// \name Get the number of particles in the hdf files
 //@{
 inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
 {
-    char buf[2000],buf1[2000],buf2[2000];
-    sprintf(buf1,"%s.0.hdf5",fname);
-    sprintf(buf2,"%s.hdf5",fname);
-    if (FileExists(buf1)) sprintf(buf,"%s",buf1);
-    else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
-    else {
-        printf("Error. Can't find snapshot!\nneither as `%s'\nnor as `%s'\n\n", buf1, buf2);
-        exit(9);
-    }
+    auto buf = find_hdf5_file(fname);
 
     //H5File Fhdf;
     hid_t Fhdf;
@@ -1529,7 +1506,7 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
 
         //Open the specified file and the specified dataset in the file.
         //Fhdf.openFile(buf, H5F_ACC_RDONLY);
-        Fhdf = H5Fopen(buf, H5F_ACC_RDONLY, H5P_DEFAULT);
+        Fhdf = H5Fopen(buf.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
         LOG(info) << "Loading HDF header info in header group: " << hdf_gnames.Header_name;
 
         if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES) {
@@ -1701,20 +1678,11 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
 //@}
 
 
-
 /// \name Get the number of hdf files per snapshot
 //@{
 inline Int_t HDF_get_nfiles(char *fname, int ptype)
 {
-    char buf[2000],buf1[2000],buf2[2000];
-    sprintf(buf1,"%s.0.hdf5",fname);
-    sprintf(buf2,"%s.hdf5",fname);
-    if (FileExists(buf1)) sprintf(buf,"%s",buf1);
-    else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
-    else {
-        printf("Error. Can't find snapshot!\nneither as `%s'\nnor as `%s'\n\n", buf1, buf2);
-        exit(9);
-    }
+    auto buf = find_hdf5_file(fname);
 
     //H5File Fhdf;
     hid_t Fhdf;
@@ -1739,7 +1707,7 @@ inline Int_t HDF_get_nfiles(char *fname, int ptype)
 
         //Open the specified file and the specified dataset in the file.
         //Fhdf.openFile(buf, H5F_ACC_RDONLY);
-        Fhdf = H5Fopen(buf, H5F_ACC_RDONLY, H5P_DEFAULT);
+        Fhdf = H5Fopen(buf.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
         //get header group
         hdf_header_info.num_files = read_attribute<int>(Fhdf, hdf_header_info.names[hdf_header_info.INumFiles]);
     }
