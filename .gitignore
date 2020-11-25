@@ -40,3 +40,8 @@ stf
 src/libvelociraptor.a
 
 buildswift/
+
+# Eclipse IDE
+.project
+.cproject
+/bin/
