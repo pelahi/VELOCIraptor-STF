@@ -3098,11 +3098,6 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
     vector<Int_t> taggedparts;
     vector<Double_t> radii;
     vector<Double_t> masses;
-#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
-    vector<Double_t> sfr;
-    vector<Double_t> temp;
-    vector<Double_t> Zgas;
-#endif
 
     vector<Int_t> indices;
     Coordinate posref;
@@ -3179,7 +3174,7 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
 
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typeparts,n,dx,EncMass,J,rc,rhoval,rhoval2,tid,SOpids,iSOfound,sfr, temp, Zgas)
+private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typeparts,n,dx,EncMass,J,rc,rhoval,rhoval2,tid,SOpids,iSOfound)
 {
 #pragma omp for schedule(dynamic) nowait
 #endif
@@ -3207,6 +3202,9 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
 #endif
 
 #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+        vector<Double_t> sfr;
+        vector<Double_t> temp;
+        vector<Double_t> Zgas;
         if (sonum_hotgas > 0) {
 	    sfr.resize(taggedparts.size());
 	    temp.resize(taggedparts.size());
