@@ -1072,6 +1072,23 @@ void GetParamFile(Options &opt)
 		    }
 		    else if (strcmp(tbuff, "Gas_hot_overdensity_normalisation")==0) {
                          opt.hot_gas_overdensity_normalisation = atof(vbuff);
+			 // if this is define, then make sure the SO calculations are check to contain this value, otherwise modify it to contain them.
+ 		         auto iter = std::find(opt.SOthresholds_values_crit.begin(), opt.SOthresholds_values_crit.end(), opt.hot_gas_overdensity_normalisation);
+			 if(iter == opt.SOthresholds_values_crit.end()){
+				opt.SOthresholds_values_crit.push_back(opt.hot_gas_overdensity_normalisation);
+				opt.SOnum = opt.SOnum + 1;
+			 }
+                    else if (strcmp(tbuff, "Overdensity_values_in_critical_density")==0) {
+                        pos=0;
+                        dataline=string(vbuff);
+                        while ((pos = dataline.find(delimiter)) != string::npos) {
+                            token = dataline.substr(0, pos);
+                            opt.SOthresholds_names_crit.push_back(token);
+                            opt.SOthresholds_values_crit.push_back(stof(token));
+                            dataline.erase(0, pos + delimiter.length());
+                        }
+                    }
+
 		    }
                     else if (strcmp(tbuff, "Aperture_values_normalised_to_overdensity")==0) {
                         pos=0;
