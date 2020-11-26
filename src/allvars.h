@@ -2134,7 +2134,9 @@ struct PropData
         AllocateApertures(opt);
         AllocateProfiles(opt);
         AllocateSOs(opt);
+#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
 	AllocateSOs_HotGas(opt);
+#endif
     }
     void AllocateApertures(Options &opt)
     {
