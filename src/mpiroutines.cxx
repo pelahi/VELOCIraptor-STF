@@ -154,10 +154,13 @@ void MPIInitialDomainDecomposition(Options &opt)
                 }
             }
         }
-        cout<<"Initial MPI Domains are: "<<endl;
+        LOG(info) << "Initial MPI Domains are:";
         for (int j=0;j<NProcs;j++) {
-            cout<<"ThisTask= "<<j<<" :: ";
-            cout.precision(10);for (int k=0;k<3;k++) cout<<k<<" "<<mpi_domain[j].bnd[k][0]<<" "<<mpi_domain[j].bnd[k][1]<<" | ";cout<<endl;
+            std::ostringstream os;
+            os << " ThisTask= " << j << " :: ";
+            for (int k=0;k<3;k++)
+                os << k << " " << mpi_domain[j].bnd[k][0] << " " << mpi_domain[j].bnd[k][1] << " | ";
+            LOG(info) << os.str();
         }
     }
     //broadcast data
@@ -209,7 +212,7 @@ void MPIInitialDomainDecompositionWithMesh(Options &opt){
             }
         }
         //then sort index array based on the zcurvearray value
-        sort(zcurve.begin(), zcurve.end(), [](zcurvestruct &a, zcurvestruct &b){
+        sort(zcurve.begin(), zcurve.end(), [](const zcurvestruct &a, const zcurvestruct &b){
             return a.zcurvevalue.to_ullong() < b.zcurvevalue.to_ullong();
         });
         //finally assign cells to tasks
@@ -231,11 +234,13 @@ void MPIInitialDomainDecompositionWithMesh(Options &opt){
             numcellspertask[itask]++;
             count++;
         }
-        cout<<"Z-curve Mesh MPI decomposition: "<<endl;
-        cout<<"Mesh has resolution of "<<opt.numcellsperdim<<" per spatial dim "<<endl;
-        cout<<"with each mesh spanning ("<<opt.cellwidth[0]<<", "<<opt.cellwidth[1]<<", "<<opt.cellwidth[2]<<")"<<endl;
-        cout<<"MPI tasks :"<<endl;
-        for (auto i=0; i<NProcs; i++) cout<<"Task "<<i<<" has "<<numcellspertask[i]/double(n3)<<" of the volume"<<endl;
+        LOG(info) << "Z-curve Mesh MPI decomposition:";
+        LOG(info) << " Mesh has resolution of " << opt.numcellsperdim << " per spatial dim";
+        LOG(info) << " with each mesh spanning (" << opt.cellwidth[0] << ", " << opt.cellwidth[1] << ", " << opt.cellwidth[2] << ")";
+        LOG(info) << "MPI tasks :";
+        for (auto i=0; i<NProcs; i++) {
+            LOG(info) << " Task "<< i << " has " << numcellspertask[i] / double(n3) << " of the volume";
+        }
     }
     //broadcast data
     MPI_Bcast(&opt.numcells, 1, MPI_INTEGER, 0, MPI_COMM_WORLD);
@@ -286,9 +291,9 @@ bool MPIRepartitionDomainDecompositionWithMesh(Options &opt){
     double optimalave = 0; for (auto i=0;i<opt.numcells;i++) optimalave += opt.cellnodenumparts[i];
     optimalave /= (double)NProcs;
     auto loadimbalance = MPILoadBalanceWithMesh(opt);
-    if (ThisTask == 0) cout<<"MPI imbalance of "<<loadimbalance<<endl;
+    LOG_RANK0(info) << "MPI imbalance of " << loadimbalance;
     if (loadimbalance > opt.mpimeshimbalancelimit) {
-        if (ThisTask == 0) cout<<"Imbalance too large, adjusting MPI domains ... "<<endl;
+        LOG_RANK0(info) << "Imbalance too large, adjusting MPI domains ...";
         int itask = 0;
         Int_t numparts = 0 ;
         vector<int> numcellspertask(NProcs,0);
@@ -308,19 +313,24 @@ bool MPIRepartitionDomainDecompositionWithMesh(Options &opt){
         mpinumparts[NProcs-1] = numparts;
         if (ThisTask == 0) {
             for (auto x:mpinumparts) if (x == 0) {
-                cerr<<"ERROR: MPI Process has zero particles associated with it, likely due to too many mpi tasks requested or too coarse a mesh used."<<endl;
-                cerr<<"Current number of tasks: "<<NProcs<<endl;
-                cerr<<"Current mesh resolution "<<opt.numcellsperdim<<"^3"<<endl;
-                Int_t sum = 0; for(auto x:opt.cellnodenumparts) sum +=x;
-                cerr<<"Total number of particles loaded "<<sum<<endl;
-                cerr<<"Suggested number of particles per mpi processes is > 1e7"<<endl;
-                cerr<<"Suggested number of mpi processes using 1e7 is "<<(int)ceil(sum/1e7)<<endl;
-                cerr<<"Increase mesh resolution or reduce MPI Processes "<<endl;
+                LOG(error) << "MPI Process has zero particles associated with it, likely due to too many mpi tasks requested or too coarse a mesh used.";
+                LOG(error) << "Current number of tasks: " << NProcs;
+                LOG(error) << "Current mesh resolution " << opt.numcellsperdim << "^3";
+                Int_t sum = 0;
+                for (auto x:opt.cellnodenumparts) {
+                    sum +=x;
+                }
+                LOG(error) << "Total number of particles loaded " << sum;
+                LOG(error) << "Suggested number of particles per mpi processes is > 1e7";
+                LOG(error) << "Suggested number of mpi processes using 1e7 is " << (int)ceil(sum / 1e7);
+                LOG(error) << "Increase mesh resolution or reduce MPI Processes ";
                 MPI_Abort(MPI_COMM_WORLD,8);
             }
-            cout<<"Now have MPI imbalance of "<<MPILoadBalanceWithMesh(opt)<<endl;
-            cout<<"MPI tasks :"<<endl;
-            for (auto i=0; i<NProcs; i++) cout<<" Task "<<i<<" has "<<numcellspertask[i]/double(opt.numcells)<<" of the volume"<<endl;
+            LOG(info) << "Now have MPI imbalance of " << MPILoadBalanceWithMesh(opt);
+            LOG(info) << "MPI tasks:";
+            for (auto i=0; i<NProcs; i++) {
+                LOG(info) << " Task " << i << " has " << numcellspertask[i] / double(opt.numcells) << " of the volume";
+            }
         }
         for (auto &x:opt.cellnodenumparts) x=0;
         Nlocal = mpinumparts[ThisTask];
@@ -351,9 +361,9 @@ void MPINumInDomain(Options &opt)
 #endif
     if (ThisTask == 0) {
         if (Ntotal/1e7 < NProcs) {
-            cout<<"WARNING: Suggested number of particles per mpi processes is roughly > 1e7"<<endl;
-            cout<<"Number of MPI tasks greater than this suggested number"<<endl;
-            cerr<<"May result in poor performance"<<endl;
+            LOG(warning) << "Suggested number of particles per mpi processes is roughly > 1e7";
+            LOG(warning) << "Number of MPI tasks greater than this suggested number";
+            LOG(warning) << "May result in poor performance";
         }
     }
     //if using mesh, check load imbalance and also repartition
@@ -447,7 +457,7 @@ int MPIGetParticlesProcessor(Options &opt, Double_t x, Double_t y, Double_t z){
                 return j;
         }
     }
-    cerr<<ThisTask<<" has particle outside the mpi domains of every process ("<<x<<","<<y<<","<<z<<")"<<endl;
+    LOG(error) << "Particle outside the mpi domains of every process (" << x << "," << y << "," << z << ")";
     MPI_Abort(MPI_COMM_WORLD,9);
 }
 
@@ -3100,7 +3110,7 @@ void MPIGetExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Part,
     ///which must be exported. Then its a much quicker follow up loop (no if statement) that stores the data
     for (j=0;j<NProcs;j++) nsend_local[j]=0;
 
-    cout<<"Finding number of particles to export to other MPI domains..."<<endl;
+    LOG(info) << "Finding number of particles to export to other MPI domains...";
 
     /// Get some constants
     const double dim_x = opt.spacedimension[0];
@@ -3274,7 +3284,7 @@ void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Part
     ///which must be exported. Then its a much quicker follow up loop (no if statement) that stores the data
     for (j=0;j<NProcs;j++) nsend_local[j]=0;
 
-    cout<<ThisTask<<" now building exported particle list for FOF search "<<endl;
+    LOG(info) << "Now building exported particle list for FOF search ";
     for (i=0;i<nbodies;i++) {
         for(int k=0; k<NProcs; k++) sent_mpi_domain[k] = 0;
         for(int k=0;k<3;k++) {xsearch[k][0]=Part[i].GetPosition(k)-rdist;xsearch[k][1]=Part[i].GetPosition(k)+rdist;}

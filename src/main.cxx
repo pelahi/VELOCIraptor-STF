@@ -12,11 +12,27 @@
 */
 
 #include "stf.h"
+#include "logging.h"
+#include "timer.h"
 
 using namespace std;
 using namespace Math;
 using namespace NBody;
 using namespace velociraptor;
+
+void finish_vr(Options &opt)
+{
+    //get memory useage
+    LOG(info) << "Finished running VR";
+    MEMORY_USAGE_REPORT(info, opt);
+
+#ifdef USEMPI
+#ifdef USEADIOS
+    adios_finalize(ThisTask);
+#endif
+    MPI_Finalize();
+#endif
+}
 
 int main(int argc,char **argv)
 {
@@ -116,8 +132,7 @@ int main(int argc,char **argv)
     PropData *pdata=NULL,*pdatahalos=NULL;
 
     //to store time and output time taken
-    double time1,tottime;
-    tottime=MyGetTime();
+    vr::Timer total_timer;
 
     Coordinate cm,cmvel;
     Double_t Mtot;
@@ -138,10 +153,10 @@ int main(int argc,char **argv)
 #endif
 
     //read particle information and allocate memory
-    time1=MyGetTime();
+    vr::Timer loading_timer;
     //for MPI determine total number of particles AND the number of particles assigned to each processor
     if (ThisTask==0) {
-        cout<<"Read header ... "<<endl;
+        LOG(info) << "Reading header";
         nbodies=ReadHeader(opt);
         if (opt.iBaryonSearch>0) {
             for (int i=0;i<NBARYONTYPES;i++) Ntotalbaryon[i]=Nlocalbaryon[i]=0;
@@ -169,9 +184,9 @@ int main(int argc,char **argv)
     if (opt.iBaryonSearch>0) MPI_Bcast(&nbaryons,1, MPI_Int_t,0,MPI_COMM_WORLD);
     //initial estimate need for memory allocation assuming that work balance is not greatly off
 #endif
-    if (ThisTask==0) {
-        cout<<"There are "<<nbodies<<" particles in total that require "<<nbodies*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
-        if (opt.iBaryonSearch>0) cout<<"There are "<<nbaryons<<" baryon particles in total that require "<<nbaryons*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
+    LOG_RANK0(info) << "There are " << nbodies << " particles in total that require " << vr::memory_amount(nbodies * sizeof(Particle));
+    if (opt.iBaryonSearch > 0) {
+        LOG_RANK0(info) << "There are " << nbaryons << " baryon particles in total that require " << vr::memory_amount(nbaryons * sizeof(Particle));
     }
 
     //note that for nonmpi particle array is a contiguous block of memory regardless of whether a separate baryon search is required
@@ -198,8 +213,12 @@ int main(int argc,char **argv)
         //if allocating reasonable amounts of memory, use MPIREDUCEMEM
         //this determines number of particles in the mpi domains
         MPINumInDomain(opt);
-        cout<<ThisTask<<" There are "<<Nlocal<<" particles and have allocated enough memory for "<<Nmemlocal<<" requiring "<<Nmemlocal*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
-        if (opt.iBaryonSearch>0) cout<<ThisTask<<"There are "<<Nlocalbaryon[0]<<" baryon particles and have allocated enough memory for "<<Nmemlocalbaryon<<" requiring "<<Nmemlocalbaryon*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
+        LOG(info) << "There are " << Nlocal << " particles and have allocated enough memory for "
+                  << Nmemlocal << " requiring " << vr::memory_amount(Nmemlocal * sizeof(Particle));
+        if (opt.iBaryonSearch > 0) {
+            LOG(info) << "There are " << Nlocalbaryon[0] << " baryon particles and have allocated enough memory for "
+                      << Nmemlocalbaryon << " requiring " << vr::memory_amount(Nmemlocalbaryon * sizeof(Particle));
+        }
 #else
         //otherwise just base on total number of particles * some factor and initialise the domains
         MPIDomainExtent(opt);
@@ -209,11 +228,16 @@ int main(int argc,char **argv)
         Nlocalbaryon[0]=nbaryons/NProcs*MPIProcFac;
         Nmemlocalbaryon=Nlocalbaryon[0];
         NExport=NImport=Nlocal*MPIExportFac;
-        cout<<ThisTask<<" Have allocated enough memory for "<<Nmemlocal<<" requiring "<<Nmemlocal*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
-        if (opt.iBaryonSearch>0) cout<<" Have allocated enough memory for "<<Nmemlocalbaryon<<" baryons particles requiring "<<Nmemlocalbaryon*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
+        LOG(info) << "Have allocated enough memory for " << Nmemlocal << " requiring "
+                  << vr::memory_amount(Nmemlocal * sizeof(Particle));
+        if (opt.iBaryonSearch > 0) {
+            LOG(info) << "Have allocated enough memory for " << Nmemlocalbaryon << " baryons particles requiring "
+                      << vr::memory_amount(Nmemlocalbaryon * sizeof(Particle));
+        }
 #endif
     }
-    cout<<ThisTask<<" will also require additional memory for FOF algorithms and substructure search. Largest mem needed for preliminary FOF search. Rough estimate is "<<Nlocal*(sizeof(Int_tree_t)*8)/1024./1024./1024.<<"GB of memory"<<endl;
+    LOG(info) << "Will also require additional memory for FOF algorithms and substructure search. "
+              << "Largest mem needed for preliminary FOF search. Rough estimate is " << vr::memory_amount(Nlocal * sizeof(Int_tree_t) * 8);
     if (opt.iBaryonSearch>0 && opt.partsearchtype!=PSTALL) {
         Part.resize(Nmemlocal+Nmemlocalbaryon);
         Pbaryons=&(Part.data()[Nlocal]);
@@ -227,7 +251,6 @@ int main(int argc,char **argv)
 #endif
 
     //now read particle data
-    if (ThisTask==0) cout<<"Loading ... "<<endl;
     ReadData(opt, Part, nbodies, Pbaryons, nbaryons);
 #ifdef USEMPI
     //if mpi and want separate baryon search then once particles are loaded into contigous block of memory and sorted according to type order,
@@ -241,7 +264,6 @@ int main(int argc,char **argv)
     }
 #endif
 
-    time1=MyGetTime()-time1;
 #ifdef USEMPI
     Ntotal=nbodies;
     nbodies=Nlocal;
@@ -249,9 +271,9 @@ int main(int argc,char **argv)
     mpi_period=opt.p;
     MPI_Allgather(&nbodies, 1, MPI_Int_t, mpi_nlocal, 1, MPI_Int_t, MPI_COMM_WORLD);
     MPI_Allreduce(&nbodies, &Ntotal, 1, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
-    cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to load "<<Nlocal<<" of "<<Ntotal<<endl;
+    LOG(info) << Nlocal << '/' << Ntotal << " particles loaded in " << loading_timer;
 #else
-    cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to load "<<nbodies<<endl;
+    LOG(info) << nbodies << " particles loaded in " << loading_timer;
 #endif
 
     //write out the configuration used by velociraptor having read in the data (as input data can contain cosmological information)
@@ -272,14 +294,14 @@ int main(int argc,char **argv)
 #if defined (STRUCDEN) || defined (HALOONLYDEN)
 #else
     if (opt.iSubSearch==1) {
-        time1=MyGetTime();
+        vr::Timer timer;
         if(FileExists(fname4)) ReadLocalVelocityDensity(opt, nbodies,Part);
         else  {
             GetVelocityDensity(opt, nbodies, Part.data());
             WriteLocalVelocityDensity(opt, nbodies,Part);
         }
-        time1=MyGetTime()-time1;
-        cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to analyze/read local velocity density for "<<Nlocal<<" with "<<nthreads<<endl;
+        LOG(info) << "Local velocity density read/analised for " << Nlocal << " particles with "
+                  << nthreads << " threads in " << timer;
     }
 #endif
 
@@ -288,11 +310,10 @@ int main(int argc,char **argv)
 
     //From here can either search entire particle array for "Halos" or if a single halo is loaded, then can just search for substructure
     if (!opt.iSingleHalo) {
+        vr::Timer timer;
 #ifndef USEMPI
-        time1=MyGetTime();
         pfof=SearchFullSet(opt,nbodies,Part,ngroup);
         nhalos=ngroup;
-        cout<<"TIME:: took "<<time1<<" to search "<<nbodies<<" with "<<nthreads<<endl;
 #else
         //nbodies=Ntotal;
         ///\todo Communication Buffer size determination and allocation. For example, eventually need something like FoFDataIn = (struct fofdata_in *) CommBuffer;
@@ -301,14 +322,11 @@ int main(int argc,char **argv)
         //Now when MPI invoked this returns pfof after local linking and linking across and also reorders groups
         //according to size and localizes the particles belong to the same group to the same mpi thread.
         //after this is called Nlocal is adjusted to the local subset where groups are localized to a given mpi thread.
-        time1=MyGetTime();
-
         pfof=SearchFullSet(opt,Nlocal,Part,ngroup);
-        time1=MyGetTime()-time1;
-        cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to search "<<Nlocal<<" with "<<nthreads<<endl;
         nbodies=Nlocal;
         nhalos=ngroup;
 #endif
+        LOG(info) << "Search over " << nbodies << " with " << nthreads << " took " << timer;
         //if compiled to determine inclusive halo masses, then for simplicity, I assume halo id order NOT rearranged!
         //this is not necessarily true if baryons are searched for separately.
         if (opt.iInclusiveHalo > 0 && opt.iInclusiveHalo < 3) {
@@ -340,7 +358,9 @@ int main(int argc,char **argv)
         //build grid using leaf nodes of tree (which is guaranteed to be adaptive and have maximum number of particles in cell of tree bucket size)
         tree=InitializeTreeGrid(opt,nbodies,Part.data());
         ngrid=tree->GetNumLeafNodes();
-        cout<<"Given "<<nbodies<<" particles, and max cell size of "<<opt.Ncell<<" there are "<<ngrid<<" leaf nodes or grid cells, with each node containing ~"<<nbodies/ngrid<<" particles"<<endl;
+        LOG(info) << "Given " << nbodies << " particles, and max cell size of " << opt.Ncell
+                  << " there are " << ngrid << " leaf nodes or grid cells, with each node containing ~"
+                  << nbodies / ngrid << " particles";
         grid=new GridCell[ngrid];
         //note that after this system is back in original order as tree has been deleted.
         FillTreeGrid(opt, nbodies, ngrid, tree, Part.data(), grid);
@@ -359,11 +379,13 @@ int main(int argc,char **argv)
         //nsubset=WriteOutlierValues(opt, nbodies,Part);
         //Now check if any particles are above the threshold
         if (nsubset==0) {
-            cout<<"no particles found above threshold of "<<opt.ellthreshold<<endl;
-            cout<<"Exiting"<<endl;
+            LOG(info) << "No particles found above threshold of " << opt.ellthreshold;
+            LOG(info) << "Exiting";
             return 0;
         }
-        else cout<<nsubset<< " above threshold of "<<opt.ellthreshold<<" to be searched"<<endl;
+        else {
+            LOG(info) << nsubset << " particles above threshold of " << opt.ellthreshold << " to be searched";
+        }
 #ifndef USEMPI
         pfof=SearchSubset(opt,nbodies,nbodies,Part.data(),ngroup);
 #else
@@ -381,12 +403,12 @@ int main(int argc,char **argv)
 #endif
     }
     if (opt.iSubSearch) {
-        cout<<"Searching subset"<<endl;
-        time1=MyGetTime();
+        LOG(info) << "Searching subset";
+        vr::Timer timer;
         //if groups have been found (and localized to single MPI thread) then proceed to search for subsubstructures
         SearchSubSub(opt, nbodies, Part, pfof,ngroup,nhalos, pdatahalos);
-        time1=MyGetTime()-time1;
-        cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to search for substructures "<<Nlocal<<" with "<<nthreads<<endl;
+        LOG(info) << "Search for substructures " << Nlocal << " with " << nthreads
+                  << " threads finished in " << timer;
     }
     pdata=new PropData[ngroup+1];
     //if inclusive halo mass required
@@ -397,7 +419,7 @@ int main(int argc,char **argv)
 
     //if only searching initially for dark matter groups, once found, search for associated baryonic structures if requried
     if (opt.iBaryonSearch>0) {
-        time1=MyGetTime();
+        vr::Timer timer;
         if (opt.partsearchtype==PSTDARK) {
             pfofall=SearchBaryons(opt, nbaryons, Pbaryons, nbodies, Part, pfof, ngroup,nhalos,opt.iseparatefiles,opt.iInclusiveHalo,pdata);
             pfofbaryons=&pfofall[nbodies];
@@ -414,8 +436,7 @@ int main(int argc,char **argv)
             Pbaryons=NULL;
             SearchBaryons(opt, nbaryons, Pbaryons, ndark, Part, pfof, ngroup,nhalos,opt.iseparatefiles,opt.iInclusiveHalo,pdata);
         }
-        time1=MyGetTime()-time1;
-        cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to search baryons  with "<<nthreads<<endl;
+        LOG(info) << "Baryon search with " << nthreads << " threads finished in " << timer;
     }
 
     //get mpi local hierarchy
@@ -447,17 +468,7 @@ int main(int argc,char **argv)
         delete[] numingroup;
         delete[] pdata;
 
-        //get memory useage
-        cout<<ThisTask<<" : finished running VR "<<endl;
-        GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=0));
-
-#ifdef USEMPI
-#ifdef USEADIOS
-        adios_finalize(ThisTask);
-#endif
-        MPI_Finalize();
-#endif
-        return 0;
+        finish_vr(opt);
     }
 
     //if want a simple tipsy still array listing particles group ids in input order
@@ -558,19 +569,8 @@ int main(int argc,char **argv)
     delete[] uparentgid;
     delete[] stype;
 
-    tottime=MyGetTime()-tottime;
-    cout<<"TIME::"<<ThisTask<<" took "<<tottime<<" in all"<<endl;
+    LOG(info) << "VELOCIraptor finished in " << total_timer;
 
-    //get memory useage
-    cout<<ThisTask<<" : finished running VR "<<endl;
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=0));
-
-#ifdef USEMPI
-#ifdef USEADIOS
-    adios_finalize(ThisTask);
-#endif
-    MPI_Finalize();
-#endif
-
+    finish_vr(opt);
     return 0;
 }

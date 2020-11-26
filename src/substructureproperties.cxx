@@ -3,7 +3,10 @@
  */
 
 #include <algorithm>
+
+#include "logging.h"
 #include "stf.h"
+#include "timer.h"
 
 ///\name Routines calculating numerous properties of groups
 //@{
@@ -35,8 +38,8 @@ void GetCM(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_
 #endif
 
     if (ngroup == 0) return;
-    if (opt.iverbose) cout<<ThisTask<<" getting CM"<<endl;
-    double time1 = MyGetTime();
+    vr::Timer timer;
+    LOG(debug) << "Getting CM";
     Particle *Pval;
     Int_t i,j,k;
     Coordinate cmold;
@@ -293,7 +296,7 @@ private(j,Pval,x,y,z,massval)
         pdata[i].gcmvel[0]=cmx;pdata[i].gcmvel[1]=cmy;pdata[i].gcmvel[2]=cmz;
         for (k=0;k<3;k++) pdata[i].gcmvel[k] /= EncMass;
     }
-    if (opt.iverbose) cout<<ThisTask<<" Done getting CM in "<<MyGetTime()-time1<<endl;
+    LOG(debug) << "Done getting CM in " << timer;
 }
 
 /*!
@@ -311,8 +314,8 @@ void GetProperties(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngro
     int ThisTask = 0, NProcs = 1;
 #endif
     if (ngroup == 0) return;
-    if (opt.iverbose) cout<<ThisTask<<" getting bulk properties"<<endl;
-    double time1 = MyGetTime();
+    LOG(debug) << "Getting bulk properties";
+    vr::Timer timer;
     Particle *Pval;
     Int_t i,j,k;
     Coordinate cmold(0.),cmref;
@@ -2081,7 +2084,7 @@ private(i,j,k,Pval,cmref)
 }
 #endif
 
-    if (opt.iverbose) cout<<ThisTask<<" Done getting properties in "<<MyGetTime()-time1<<endl;
+    LOG(debug) << "Done getting properties in " << timer;
 }
 
 ///Adjust positions of bulk properties to desired reference
@@ -2241,10 +2244,12 @@ void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t
     KDTree *tree;
     Double_t *period=NULL;
     Int_t i,j,k;
-    if (opt.iverbose) {
-        cout<<"Get inclusive masses"<<endl;
-        if (opt.iInclusiveHalo==1) cout<<" with masses based on the FOF envelopes (quicker)"<<endl;
-        else if (opt.iInclusiveHalo==2) cout<<" with masses based on full SO search (slower)"<<endl;
+    LOG(debug) << "Get inclusive masses";
+    if (opt.iInclusiveHalo == 1) {
+        LOG(debug) << " with masses based on the FOF envelopes (quicker)";
+    }
+    else if (opt.iInclusiveHalo == 2) {
+        LOG(debug) << " with masses based on full SO search (slower)";
     }
     Double_t ri,ri2,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside;
     Double_t x,y,z,vx,vy,vz,massval,rc,rcold;
@@ -2269,7 +2274,7 @@ void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t
         }
     }
 
-    Double_t time1=MyGetTime(),time2;
+    vr::Timer timer;
     int nthreads=1,tid;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
@@ -2694,9 +2699,7 @@ private(i,j,k,x,y,z,Pval)
 }
 #endif
         //
-        if (opt.iverbose >= 2) {
-            cout<<ThisTask<<" building trees for SO search "<<endl;
-        }
+        LOG(trace) << "Building trees for SO search ";
         //build tree optimised to search for more than min group size
         //this is the bottle neck for the SO calculation. Wonder if there is an easy
         //way of speeding it up
@@ -2711,9 +2714,9 @@ private(i,j,k,x,y,z,Pval)
             radfac=max(1.0,exp(1.0/3.0*(log(pdata[i].gMFOF)-3.0*log(pdata[i].gsize)+fac)));
             maxrdist[i]=pdata[i].gsize*opt.SphericalOverdensitySeachFac*radfac;
         }
-        if (opt.iverbose >= 2) {
+        if (LOG_ENABLED(trace)) {
             for (i=1;i<=ngroup;i++) if (maxsearchdist < maxrdist[i]) maxsearchdist = maxrdist[i];
-            cout<<ThisTask<<" max search distance is "<<maxsearchdist<<" in period fraction "<<maxsearchdist/opt.p<<endl;
+            LOG(trace) << "Max search distance is " << maxsearchdist << " in period fraction " << maxsearchdist / opt.p;
         }
 #ifdef USEMPI
         //if using mpi then determine if halo's search radius overlaps another mpi domain
@@ -2736,7 +2739,6 @@ private(i,j,k,x,y,z,Pval)
         if (nimport>0) treeimport=new KDTree(PartDataGet,nimport,opt.HaloMinSize,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
         }
 #endif
-        time2=MyGetTime();
         //now loop over groups and search for particles. This is probably fast if we build a tree
         fac=-log(4.0*M_PI/3.0);
 #ifdef USEOPENMP
@@ -2953,7 +2955,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
         }
 #endif
     }
-    if (opt.iverbose) cout<<"Done inclusive masses for field objects in "<<MyGetTime()-time1<<endl;
+    LOG(debug) << "Done inclusive masses for field objects in " << timer;
 }
 //@}
 
@@ -2964,11 +2966,12 @@ void GetFOFMass(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup,
     if (ngroup == 0) return;
     Particle *Pval;
     Int_t i,j,k;
-    Double_t time1=MyGetTime(), massval;
+    Double_t massval;
     int nthreads=1,tid;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
+    vr::Timer timer;
 
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
@@ -2993,18 +2996,19 @@ private(i,j,k,Pval,massval)
 #ifdef USEOPENMP
 }
 #endif
-    if (opt.iverbose) cout<<"Done FOF masses "<<MyGetTime()-time1<<endl;
+    LOG(debug) << "Done FOF masses in " << timer;
 }
 
 /// Calculate FOF mass looping over groups once substructure search and have calculated properties
 void GetFOFMass(Options &opt, Int_t ngroup, Int_t *&numingroup, PropData *&pdata)
 {
     Int_t i,j,k,haloidoffset=0, hostindex;
-    Double_t time1=MyGetTime(), massval;
+    Double_t massval;
     int nthreads=1,tid;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
+    vr::Timer timer;
 #ifdef USEMPI
     for (int j=0;j<ThisTask;j++)haloidoffset+=mpi_ngroups[j];
 #endif
@@ -3025,7 +3029,7 @@ void GetFOFMass(Options &opt, Int_t ngroup, Int_t *&numingroup, PropData *&pdata
 #ifdef NOMASS
     for (i=1;i<=ngroup;i++) pdata[i].gMFOF*=opt.MassValue;
 #endif
-    if (opt.iverbose) cout<<"Done FOF masses "<<MyGetTime()-time1<<endl;
+    LOG(debug) << "Done FOF masses in " << timer;
 }
 
 /// of all host halos using there centre of masses
@@ -3042,10 +3046,8 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
     KDTree *tree;
     Double_t period[3];
     Int_t i,j,k, nhalos = 0;
-    if (opt.iverbose) {
-        cout<<"Get inclusive masses"<<endl;
-        cout<<" with masses based on full SO search (slower) for halos only "<<endl;
-    }
+    LOG(debug) << "Get inclusive masses";
+    LOG(debug) << " with masses based on full SO search (slower) for halos only";
     Double_t ri,ri2,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside;
     Double_t x,y,z,vx,vy,vz,massval,rc,rcold;
     Coordinate J(0.);
@@ -3078,11 +3080,12 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
 
 
     Double_t fac,rhoval,rhoval2;
-    Double_t time1=MyGetTime(),time2;
+    Double_t time2;
     int nthreads=1,tid;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
+    vr::Timer timer;
 #ifdef USEOPENMP
 #pragma omp parallel
     {
@@ -3124,9 +3127,7 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
 #endif
     }
 
-    if (opt.iverbose >= 2) {
-        cout<<ThisTask<<" building trees for SO search "<<endl;
-    }
+    LOG(trace) << "Building trees for SO search";
     //build tree optimised to search for more than min group size
     //this is the bottle neck for the SO calculation. Wonder if there is an easy
     //way of speeding it up
@@ -3143,9 +3144,9 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
         radfac=max(1.0,exp(1.0/3.0*(log(pdata[i].gmass)-3.0*log(pdata[i].gsize)+fac)));
         maxrdist[i]=pdata[i].gsize*opt.SphericalOverdensitySeachFac*radfac;
     }
-    if (opt.iverbose >= 2) {
+    if (LOG_ENABLED(trace)) {
         for (i=1;i<=ngroup;i++) if (maxsearchdist < maxrdist[i]) maxsearchdist = maxrdist[i];
-        cout<<ThisTask<<" max search distance is "<<maxsearchdist<<" in period fraction "<<maxsearchdist/opt.p<<endl;
+        LOG(trace) << "Max search distance is " << maxsearchdist << " in period fraction " << maxsearchdist / opt.p;
     }
 #ifdef USEMPI
     //if using mpi then determine if halo's search radius overlaps another mpi domain
@@ -3168,7 +3169,6 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
         if (nimport>0) treeimport=new KDTree(PartDataGet,nimport,opt.HaloMinSize,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
     }
 #endif
-    time2=MyGetTime();
     //now loop over groups and search for particles. This is probably fast if we build a tree
     fac=-log(4.0*M_PI/3.0);
 
@@ -3539,7 +3539,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
         delete[] NNDataIn;
     }
 #endif
-    if (opt.iverbose) cout<<"Done SO masses for field objects in "<<MyGetTime()-time1<<endl;
+    LOG(debug) << "Done SO masses for field objects in " << timer;
 }
 
 ///\name Routines to calculate specific property of a set of particles
@@ -4351,10 +4351,12 @@ void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *Part, Int_t n
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
-    double time1 = MyGetTime();
+    vr::Timer timer;
     if (ngroup == 0) return;
-    if (opt.iverbose) cout<<ThisTask<<" getting energy"<<endl;
-    if (opt.uinfo.cmvelreftype==POTREF && opt.iverbose==1) cout<<"Using minimum potential reference"<<endl;
+    LOG(debug) << "Getting energy";
+    if (opt.uinfo.cmvelreftype==POTREF) {
+        LOG(debug) << "Using minimum potential reference";
+    }
 
     //used to access current particle
     Particle *Pval;
@@ -4379,8 +4381,6 @@ void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *Part, Int_t n
     //finished it puts the particles back into the input order. Therefore store id values in PID  value (which can be over written)
     //also if wish to use the deepest potential as a reference, then used to store original order
     Int_t *storepid;
-
-    double time2 = MyGetTime();
 
     if (opt.uinfo.icalculatepotential) {
     //if approximative calculations, run all calculations in parallel
@@ -4465,8 +4465,7 @@ private(i,j,k,storepid)
         for (i=1;i<=ngroup;i++) for (j=0;j<numingroup[i];j++) Part[j+noffset[i]].SetPotential(Part[j+noffset[i]].GetGravityPotential());
     }
 #endif
-    if (opt.iverbose) cout<<ThisTask<<" Have calculated potentials "<<MyGetTime()-time2<<endl;
-    time2 = MyGetTime();
+    LOG(debug) << "Have calculated potentials in " << timer;
 
     //once potential is calculated, iff using velocity around deepest potential well NOT cm
     if (opt.uinfo.cmvelreftype==POTREF) {
@@ -4767,7 +4766,7 @@ private(i,j,Emostbound,imostbound)
 }
 #endif
 
-    if (opt.iverbose) cout<<ThisTask<<"Done getting energy in "<<MyGetTime()-time1<<endl;
+    LOG(debug) << "Done getting energy in " << timer;
 }
 
 
@@ -4780,17 +4779,25 @@ Int_t **SortAccordingtoBindingEnergy(Options &opt, const Int_t nbodies, Particle
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
-    cout<<ThisTask<<" Sort particles and compute properties of "<<ngroup<<" objects "<<endl;
+    LOG(info) << "Sort particles and compute properties of " << ngroup << " objects";
     Int_t i,j,k;
     Int_t **pglist = NULL;
     Int_t *noffset = new Int_t[ngroup+1];
 
-    if (opt.iverbose) {
-        if (opt.iPropertyReferencePosition == PROPREFCM) cout<<ThisTask<<" Calculate properties using CM as reference "<<endl;
-        else if (opt.iPropertyReferencePosition == PROPREFMBP) cout<<ThisTask<<" Calculate properties using most bound particle as reference "<<endl;
-        else if (opt.iPropertyReferencePosition == PROPREFMINPOT) cout<<ThisTask<<" Calculate properties using minimum potential particle as reference "<<endl;
-        if (opt.iSortByBindingEnergy) cout<<ThisTask<<" Sort particles by binding energy"<<endl;
-        else cout<<ThisTask<<" Sort particles by potential energy"<<endl;
+    if (opt.iPropertyReferencePosition == PROPREFCM) {
+        LOG(debug) << "Calculate properties using CM as reference ";
+    }
+    else if (opt.iPropertyReferencePosition == PROPREFMBP) {
+        LOG(debug) << "Calculate properties using most bound particle as reference ";
+    }
+    else if (opt.iPropertyReferencePosition == PROPREFMINPOT) {
+        LOG(debug) << "Calculate properties using minimum potential particle as reference";
+    }
+    if (opt.iSortByBindingEnergy) {
+        LOG(debug) << "Sort particles by binding energy";
+    }
+    else {
+        LOG(debug) << "Sort particles by potential energy";
     }
 
     //sort the particle data according to their group id so that one can then sort particle data
@@ -4812,8 +4819,7 @@ Int_t **SortAccordingtoBindingEnergy(Options &opt, const Int_t nbodies, Particle
         for (i=1;i<=ngroup;i++) pdata[i].num=numingroup[i];
     }
 
-    //get memory usage
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    MEMORY_USAGE_REPORT(debug, opt);
 
     GetCM(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
     GetFOFMass(opt, ngroup, numingroup, pdata);
@@ -4871,16 +4877,15 @@ private(i,j)
         }
     }
 
-    //get memory useage
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    MEMORY_USAGE_REPORT(debug, opt);
 
     delete[] noffset;
     //reset particles back to id order
     if (opt.iseparatefiles) {
-        cout<<"Reset particles to original order"<<endl;
+        LOG(info) << "Reset particles to original order";
         qsort(Part, nbodies, sizeof(Particle), IDCompare);
     }
-    cout<<"Done"<<endl;
+    LOG(info) << "Done";
     return pglist;
 }
 /*
@@ -4927,8 +4932,7 @@ void CalculateHaloProperties(Options &opt, const Int_t nbodies, Particle *Part, 
     for (i=1;i<=ngroup;i++) pdata[i].ibound=Part[noffset[i]].GetPID();
     for (i=1;i<=ngroup;i++) pdata[i].iunbound=Part[noffset[i]+numingroup[i]-1].GetPID();
 
-    //get memory useage
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    MEMORY_USAGE_REPORT(debug, opt);
     delete[] noffset;
 }
 
@@ -5685,18 +5689,18 @@ void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, Prop
     //go through each projection
     for (auto k=0;k<3;k++) {
         if (k==0) {
-            sort(proj.begin(), proj.end(), [](projectedmass &a, projectedmass &b){
+            sort(proj.begin(), proj.end(), [](const projectedmass &a, const projectedmass &b){
             return a.rproj[0] < b.rproj[0];
             });
 
         }
         if (k==1) {
-            sort(proj.begin(), proj.end(), [](projectedmass &a, projectedmass &b){
+            sort(proj.begin(), proj.end(), [](const projectedmass &a, const projectedmass &b){
             return a.rproj[1] < b.rproj[1];
             });
         }
         if (k==2) {
-            sort(proj.begin(), proj.end(), [](projectedmass &a, projectedmass &b){
+            sort(proj.begin(), proj.end(), [](const projectedmass &a, const projectedmass &b){
             return a.rproj[2] < b.rproj[2];
             });
         }

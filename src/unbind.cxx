@@ -5,7 +5,9 @@
     \todo Need to clean up unbind proceedure, ensure its mpi compatible and can be combined with a pglist output easily
  */
 
+#include "logging.h"
 #include "stf.h"
+#include "timer.h"
 
 ///\name Tree-Potential routines
 //@{
@@ -274,12 +276,12 @@ int CheckUnboundGroups(Options opt, const Int_t nbodies, Particle *Part, Int_t &
     bool ningflag=false, pglistflag=false;
     int iflag;
     Int_t ng=ngroup;
-    Double_t time1=MyGetTime();
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
+    vr::Timer timer;
 
-    if (opt.iverbose) cout<<ThisTask<<" Unbinding "<<ngroup<<" groups  ... "<<endl;
+    LOG(debug) << "Unbinding " << ngroup << " groups ...";
 
     //array creation check.
     if (numingroup==NULL) ningflag=true;
@@ -374,7 +376,7 @@ int CheckUnboundGroups(Options opt, const Int_t nbodies, Particle *Part, Int_t &
     if (pglistflag) {for (Int_t i=1;i<=ng;i++) delete[] pglist[i];delete[] pglist;}
     if (ningflag) delete[] numingroup;
 
-    if (opt.iverbose) cout<<ThisTask<<" Done. Number of groups remaining "<<ngroup<<" in"<<MyGetTime()-time1<<endl;
+    LOG(debug) << "Finished unbinding in " << timer << ". Number of groups remaining: " << ngroup;
 
     return iflag;
 }

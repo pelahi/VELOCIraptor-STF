@@ -4,8 +4,10 @@
 
 //--  Local Velocity density routines
 
+#include "logging.h"
 #include "stf.h"
 #include "swiftinterface.h"
+#include "timer.h"
 
 /*! Calculates the local velocity density function for each particle using a kernel technique
     There are two approaches to getting this local quantity \n
@@ -17,16 +19,13 @@
 */
 void GetVelocityDensity(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree)
 {
-#ifndef USEMPI
-    int ThisTask=0,NProcs=1;
-#endif
-    double time1=MyGetTime();
-    cout<<ThisTask<<": Get local velocity density"<<endl;
-    if (opt.iverbose) {
-        cout<<ThisTask<<" "<<"Using the following parameters to calculate velocity density using sph kernel: ";
-        cout<<ThisTask<<" "<<"(Nse,Nv)="<<opt.Nsearch<<","<<opt.Nvel<<endl;
-        cout<<ThisTask<<" "<<"Get velocity density using a subset of nearby physical or phase-space neighbours"<<endl;
-        if (tree == NULL) cout<<ThisTask<<" Building Tree first in (x) space to get local velocity density"<<endl;
+    vr::Timer timer;
+    LOG(info) << "Getting local velocity density";
+    LOG(debug) << "Using the following parameters to calculate velocity density using sph kernel:";
+    LOG(debug) << " (Nse,Nv)=" << opt.Nsearch << "," << opt.Nvel;
+    LOG(debug) << "Getting velocity density using a subset of nearby physical or phase-space neighbours";
+    if (tree == NULL) {
+        LOG(debug) << "Building Tree first in (x) space to get local velocity density";
     }
 #ifdef HALOONLYDEN
     GetVelocityDensityHaloOnlyDen(opt, nbodies, Part, tree);
@@ -34,7 +33,7 @@ void GetVelocityDensity(Options &opt, const Int_t nbodies, Particle *Part, KDTre
     if (opt.iLocalVelDenApproxCalcFlag>0) GetVelocityDensityApproximative(opt, nbodies, Part, tree);
     else GetVelocityDensityExact(opt, nbodies, Part, tree);
 #endif
-    cout<<ThisTask<<": finished calculation in "<<MyGetTime()-time1<<endl;
+    LOG(info) << "Finished local density calculation in " << timer;
 }
 
 void GetVelocityDensityOld(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree)
@@ -46,7 +45,6 @@ Int_t i,j,k;
     int nthreads;
     int tid,id,pid,pid2,itreeflag=0;
     Double_t v2;
-    Double_t time1,time2;
     Double_t *period=NULL;
     ///\todo alter period so arbitrary dimensions
     if (opt.p>0) {
@@ -72,7 +70,7 @@ Int_t i,j,k;
     }
 #endif
 
-    time2=MyGetTime();
+    vr::Timer local_densities_timer;
     //In loop determine if particles NN search radius overlaps another mpi threads domain.
     //If not, then proceed as usually to determine velocity density.
     //If so, do not calculate local velocity density and set its velocity density to -1 as a flag
@@ -140,8 +138,9 @@ private(i,j,k,tid,id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv
 #ifdef USEOPENMP
 }
 #endif
-    if (opt.iverbose) cout<<ThisTask<<" finished local calculation in "<<MyGetTime()-time2<<endl;
-    time2=MyGetTime();
+    LOG(debug) << "Calculated local densities in " << local_densities_timer;
+
+    vr::Timer other_domain_search_timer;
 
     //determines export AND import numbers
 
@@ -160,7 +159,7 @@ private(i,j,k,tid,id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv
     nimport=MPIBuildParticleNNImportList(opt, nbodies, tree, Part, (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)));
     int nimportsearch=opt.Nsearch;
     if (nimportsearch>nimport) nimportsearch=nimport;
-    if (opt.iverbose) cout<<ThisTask<<" Searching particles in other domains "<<nimport<<endl;
+    LOG(debug) << "Searching particles in other domains " << nimport;
     //now with imported particle list and local particle list can run proper NN search
     //first build neighbouring tree
     KDTree *treeneighbours=NULL;
@@ -262,7 +261,7 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
     delete[] PartDataGet;
     delete[] NNDataIn;
     delete[] NNDataGet;
-    if(opt.iverbose) cout<<ThisTask<<" finished other domain search "<<MyGetTime()-time2<<endl;
+    LOG(debug) << "Finished other domain search " << other_domain_search_timer;
 #else
     //NO MPI invoked
 #ifndef USEOPENMP
@@ -333,7 +332,12 @@ private(i,tid)
         }
 
         fracdone[tid]++;
-        if (opt.iverbose) if (fracdone[tid]>fraclim[tid]) {printf("Task %d done %e of its share \n",tid,fracdone[tid]/((double)nbodies/(double)nthreads));fraclim[tid]+=addamount;}
+        if (fracdone[tid] > fraclim[tid]) {
+            LOG(debug) << "Task " << tid << " has done " << std::scientific
+                       << fracdone[tid] / (double(nbodies) / nthreads)
+                       << " of its share";
+            fraclim[tid] += addamount;
+        }
 #ifdef STRUCDEN
         }
 #endif
@@ -398,7 +402,12 @@ private(i,tid)
 #endif
         Part[i].SetDensity(tree->CalcVelDensityParticle(i,opt.Nvel,opt.Nsearch,1,pqx[tid],pqv[tid],&nnids[tid*opt.Nsearch],&nnr2[tid*opt.Nsearch]));
         fracdone[tid]++;
-        if (opt.iverbose) if (fracdone[tid]>fraclim[tid]) {printf("Task %d done %e of its share \n",tid,fracdone[tid]/((double)nbodies/(double)nthreads));fraclim[tid]+=addamount;}
+        if (fracdone[tid] > fraclim[tid]) {
+            LOG(debug) << "Task " << tid << " has done " << std::scientific
+                       << fracdone[tid] / (double(nbodies) / nthreads)
+                       << " of its share";
+            fraclim[tid] += addamount;
+        }
     }
 #ifdef USEOPENMP
 }
@@ -453,7 +462,7 @@ void GetVelocityDensityHaloOnlyDen(Options &opt, const Int_t nbodies, Particle *
     }
 
     //get memory useage
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    MEMORY_USAGE_REPORT(debug, opt);
 
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
@@ -489,12 +498,10 @@ void GetVelocityDensityExact(Options &opt, const Int_t nbodies, Particle *Part, 
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
-    if (opt.iverbose) cout<<ThisTask<<" Calculating the local velocity density by finding EXACT nearest physical neighbours to particles"<<endl;
+    LOG(debug) << "Calculating the local velocity density by finding EXACT nearest physical neighbours to particles";
     Int_t i,j,k;
-    int nthreads;
-    int tid,id,pid,pid2,itreeflag=0;
+    int id,pid2,itreeflag=0;
     Double_t v2;
-    Double_t time1,time2;
     Double_t *period=NULL;
     ///\todo alter period so arbitrary dimensions
     if (opt.p>0) {
@@ -517,25 +524,15 @@ void GetVelocityDensityExact(Options &opt, const Int_t nbodies, Particle *Part, 
     for (i=0;i<nbodies;i++) maxrdist[i]=0;
 #endif
 
-#ifndef USEOPENMP
-    nthreads=1;
-#else
-#pragma omp parallel
-    {
-            if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
-    }
-#endif
-
-    time2=MyGetTime();
-    //get memory useage
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    MEMORY_USAGE_REPORT(debug, opt);
+    vr::Timer local_densities_timer;
 
     //In loop determine if particles NN search radius overlaps another mpi threads domain.
     //If not, then proceed as usually to determine velocity density.
     //If so, do not calculate local velocity density and set its velocity density to -1 as a flag
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
-private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
+private(i,j,k,id,v2,nnids,nnr2,weight,pqv)
 {
 #endif
     nnids=new Int_t[opt.Nsearch];
@@ -595,8 +592,9 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
 #endif
 #ifdef USEMPI
     if (NProcs >1 && opt.iLocalVelDenApproxCalcFlag==0) {
-    if (opt.iverbose) cout<<ThisTask<<" finished local calculation in "<<MyGetTime()-time2<<endl;
-    time2=MyGetTime();
+    LOG(debug) << "Finished local density calculation in " << local_densities_timer;
+
+    vr::Timer other_domain_search_timer;
     //determines export AND import numbers
     if (opt.impiusemesh) MPIGetNNExportNumUsingMesh(opt, nbodies, Part, maxrdist);
     else MPIGetNNExportNum(nbodies, Part, maxrdist);
@@ -613,19 +611,18 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
     nimport=MPIBuildParticleNNImportList(opt, nbodies, tree, Part,(!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)));
     int nimportsearch=opt.Nsearch+1;
     if (nimportsearch>nimport) nimportsearch=nimport;
-    if (opt.iverbose) cout<<ThisTask<<" Searching particles in other domains "<<nimport<<endl;
+    LOG(debug) << "Searching particles in other domains " << nimport;
     //now with imported particle list and local particle list can run proper NN search
     //first build neighbouring tree
     KDTree *treeneighbours=NULL;
     if (nimport>0) treeneighbours=new KDTree(PartDataGet,nimport,1,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
 
-    //get memory useage
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    MEMORY_USAGE_REPORT(debug, opt);
 
     //then run search
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
-private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv)
+private(i,j,k,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv)
 {
 #endif
     nnids=new Int_t[opt.Nsearch];
@@ -643,12 +640,6 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
         if (Part[i].GetType()<=0) continue;
 #endif
 
-#ifdef USEOPENMP
-        tid=omp_get_thread_num();
-#else
-        tid=0;
-#endif
-        pid=Part[i].GetID();
         if (Part[i].GetDensity()==-1) {
             //search trees
 
@@ -744,7 +735,7 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
     delete[] PartDataGet;
     delete[] NNDataIn;
     delete[] NNDataGet;
-    if(opt.iverbose) cout<<ThisTask<<" finished other domain search "<<MyGetTime()-time2<<endl;
+    LOG(debug) << "Finished other domain search " << other_domain_search_timer;
     }
 #endif
     if (itreeflag) delete tree;
@@ -756,11 +747,9 @@ void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle
 #ifndef USEMPI
     int ThisTask=0, NProcs=1;
 #endif
-    if (opt.iverbose) cout<<ThisTask<<" Calculating the local velocity density by finding APPROXIMATIVE nearest physical neighbour search for each particle "<<endl;
-    int nthreads;
-    int tid,id,pid,pid2,itreeflag=0;
+    LOG(debug) << "Calculating the local velocity density by finding APPROXIMATIVE nearest physical neighbour search for each particle ";
+    int id,pid2,itreeflag=0;
     Double_t v2;
-    Double_t time1,time2;
     Int_t nprocessed=0, ntot=0;
     ///\todo alter period so arbitrary dimensions
     Double_t *period=NULL;
@@ -768,7 +757,7 @@ void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle
         period=new Double_t[3];
         for (int j=0;j<3;j++) period[j]=opt.p;
     }
-    time1=MyGetTime();
+
     //if using mpi run NN search store largest distance for each particle so that export list can be built.
     //if calculating using only particles IN a structure,
     Int_t nimport;
@@ -778,16 +767,8 @@ void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle
     Double_t *nnr2, *nnr2neighbours;
     PriorityQueue *pqx, *pqv;
     Particle *Pval;
-#ifndef USEOPENMP
-    nthreads=1;
-#else
-#pragma omp parallel
-    {
-            if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
-    }
-#endif
 
-    time2=MyGetTime();
+    vr::Timer local_densities_timer;
     //only build tree if necessary
     if (tree==NULL) {
         itreeflag=1;
@@ -817,8 +798,7 @@ void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle
     }
     node=NULL;
 
-    //get memory useage
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    MEMORY_USAGE_REPORT(debug, opt);
 
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)
@@ -929,11 +909,10 @@ reduction(+:nprocessed,ntot)
 #ifdef USEMPI
     //if search is fully approximative, then since particles have been localized to mpi domains in FOF groups, don't search neighbour mpi domains
     if (NProcs >1 && opt.iLocalVelDenApproxCalcFlag==1) {
-    if (opt.iverbose) {
-        cout<<ThisTask<<" finished local calculation in "<<MyGetTime()-time2<<endl;
-        cout<<" fraction that is local"<<nprocessed/(float)ntot<<endl;
-    }
-    time2=MyGetTime();
+    LOG(debug) << "Finished local calculation in " << local_densities_timer;
+    LOG(debug) << "Fraction that is local: " << nprocessed / (float)ntot;
+
+    vr::Timer other_domain_search_timer;
     maxrdist=new Double_t[nbodies];
     //double maxmaxr = 0;
     for (auto i=0;i<numleafnodes;i++)
@@ -960,7 +939,7 @@ reduction(+:nprocessed,ntot)
     nimport=MPIBuildParticleNNImportList(opt, nbodies, tree, Part, (!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)));
     int nimportsearch=opt.Nsearch;
     if (nimportsearch>nimport) nimportsearch=nimport;
-    if (opt.iverbose) cout<<ThisTask<<" Searching particles in other domains "<<nimport<<endl;
+    LOG(debug) << "Searching particles in other domains " << nimport;
 
     //now with imported particle list and local particle list can run proper NN search
     //first build neighbouring tree
@@ -971,8 +950,7 @@ reduction(+:nprocessed,ntot)
         nprocessed=0;
     }
 
-    //get memory useage
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    MEMORY_USAGE_REPORT(debug, opt);
 
     if (nimport>0) {
 #ifdef USEOPENMP
@@ -1071,10 +1049,8 @@ reduction(+:nprocessed)
     delete[] PartDataGet;
     delete[] NNDataIn;
     delete[] NNDataGet;
-    if(opt.iverbose) {
-        cout<<ThisTask<<" finished other domain search "<<MyGetTime()-time2<<endl;
-        cout<<ThisTask<<" mpi processed fraction "<<nprocessed/(float)ntot<<endl;
-    }
+    LOG(debug) << "Finished other domain search " << other_domain_search_timer;
+    LOG(debug) << "MPI processed fraction " << nprocessed / (float)ntot;
     }
 #endif
 
