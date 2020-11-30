@@ -481,7 +481,20 @@ if (opt.iextragasoutput) {
             Fout.write((char*)&SO_Z_mean_gas_highT[j],sizeof(int));
         }
     }
-
+#endif
+    val=M_tot_incl;
+    Fout.write((char*)&val,sizeof(val));
+#ifdef GASON
+    val=M_gas_incl;
+    Fout.write((char*)&val,sizeof(val));
+    val=M_gas_nsf_incl;
+    Fout.write((char*)&val,sizeof(val));
+    val=M_gas_sf_incl;
+    Fout.write((char*)&val,sizeof(val));
+#endif
+#if STARON
+    val=M_star_incl;
+    Fout.write((char*)&val,sizeof(val));
 #endif
 #ifdef GASON
     if (opt.gas_internalprop_names.size()+ opt.gas_chem_names.size()+opt.gas_chemproduction_names.size()>0) {
@@ -1123,6 +1136,15 @@ if (opt.iextragasoutput) {
         }
     }
 
+#endif
+    Fout<<M_tot_incl<<" ";
+#ifdef GASON
+    Fout<<M_gas_incl<<" ";
+    Fout<<M_gas_nsf_incl<<" ";
+    Fout<<M_gas_sf_incl<<" ";
+#endif
+#ifdef STARON
+    Fout<<M_star_incl<<" ";
 #endif
 #ifdef GASON
     if (opt.gas_internalprop_names.size()+opt.gas_chem_names.size()+opt.gas_chemproduction_names.size()>0) {
@@ -2137,6 +2159,20 @@ if (opt.iextragasoutput) {
 	}
 	#endif
     }
+    headerdatainfo.push_back("Mass_tot_incl");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
+#ifdef GASON
+    headerdatainfo.push_back("Mass_gas_incl");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
+    headerdatainfo.push_back("Mass_gas_nsf_incl");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
+    headerdatainfo.push_back("Mass_gas_sf_incl");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
+#endif
+#ifdef STARON
+    headerdatainfo.push_back("Mass_star_incl");
+    sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
+#endif
 #ifdef USEHDF
     sizeval=hdfpredtypeinfo.size();
     // forHeaderUnitInfo (int i=sizeval;i<headerdatainfo.size();i++) predtypeinfo.push_back(desiredproprealtype[0]);

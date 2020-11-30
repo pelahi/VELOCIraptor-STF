@@ -1687,6 +1687,16 @@ struct PropData
     vector<float> SO_Z_mean_gas_highT;
     vector<Double_t> SO_radius_highT, SO_totalmass_highT;
 #endif
+    ///\name inclusive masses computed for the FOF structures.
+    //@{
+    Double_t M_tot_incl;
+#ifdef GASON 
+    Double_t M_gas_incl, M_gas_nsf_incl, M_gas_sf_incl;
+#endif
+#ifdef STARON
+    Double_t M_star_incl;
+#endif
+
 #ifdef STARON
     ///\name star specific quantities
     //@{
@@ -1718,6 +1728,7 @@ struct PropData
     ///physical properties for dynamical state
     Double_t Efrac_star,Pot_star,T_star;
     //@}
+
 
     ///\name stellar radial profiles
     //@{
@@ -1937,6 +1948,13 @@ struct PropData
         L_200crit_excl_star[0]=L_200crit_excl_star[1]=L_200crit_excl_star[2]=0;
         L_200mean_excl_star[0]=L_200mean_excl_star[1]=L_200mean_excl_star[2]=0;
         L_BN98_excl_star[0]=L_BN98_excl_star[1]=L_BN98_excl_star[2]=0;
+#endif
+	M_tot_incl=0;
+#ifdef GASON
+        M_gas_incl=M_gas_nsf_incl=M_gas_sf_incl=0;
+#endif
+#ifdef STARON	
+	M_star_incl=0;
 #endif
 #ifdef BHON
         n_bh=M_bh=0;

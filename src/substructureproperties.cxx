@@ -3354,6 +3354,24 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
 #else
                 massval = opt.MassValue;
 #endif
+
+#ifdef GASON
+		pdata[i].M_tot_incl += massval;
+		if(typeparts[indices[j]]==GASTYPE){
+   		   pdata[i].M_gas_incl += massval;
+		   if(sfr[indices[j]] > 0){
+		      pdata[i].M_gas_sf_incl += massval;
+		   } 
+		   else{
+		      pdata[i].M_gas_nsf_incl += massval;
+		   }
+		}
+#endif
+#ifdef STARON
+		if(typeparts[indices[j]]==STARTYPE){
+                   pdata[i].M_star_incl += massval;
+		}
+#endif
                 J=Coordinate(posparts[indices[j]]).Cross(velparts[indices[j]])*massval;
                 rc=posparts[indices[j]].Length();
                 if (rc<=pdata[i].gR200c) pdata[i].gJ200c+=J;
