@@ -1745,11 +1745,11 @@ PropDataHeader::PropDataHeader(Options&opt){
 #ifdef USEADIOS
     adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
 #endif
-    headerdatainfo.push_back("M_gas");
-    headerdatainfo.push_back("M_gas_Rvmax");
-    headerdatainfo.push_back("M_gas_30kpc");
+    headerdatainfo.push_back("Mass_gas");
+    headerdatainfo.push_back("Mass_gas_Rvmax");
+    headerdatainfo.push_back("Mass_gas_30kpc");
     //headerdatainfo.push_back("M_gas_50kpc");
-    headerdatainfo.push_back("M_gas_500c");
+    headerdatainfo.push_back("Mass_gas_500c");
     sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
     headerdatainfo.push_back("Xc_gas");
     headerdatainfo.push_back("Yc_gas");
@@ -1851,11 +1851,11 @@ if (opt.iextragasoutput) {
 #ifdef USEADIOS
     adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
 #endif
-    headerdatainfo.push_back("M_star");
-    headerdatainfo.push_back("M_star_Rvmax");
-    headerdatainfo.push_back("M_star_30kpc");
+    headerdatainfo.push_back("Mass_star");
+    headerdatainfo.push_back("Mass_star_Rvmax");
+    headerdatainfo.push_back("Mass_star_30kpc");
     //headerdatainfo.push_back("M_star_50kpc");
-    headerdatainfo.push_back("M_star_500c");
+    headerdatainfo.push_back("Mass_star_500c");
     sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
     headerdatainfo.push_back("Xc_star");
     headerdatainfo.push_back("Yc_star");
@@ -1953,7 +1953,7 @@ if (opt.iextragasoutput) {
 #ifdef USEADIOS
     adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
 #endif
-    headerdatainfo.push_back("M_bh");
+    headerdatainfo.push_back("Mass_bh");
     sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
 #ifdef USEHDF
     sizeval=hdfpredtypeinfo.size();
@@ -1977,7 +1977,7 @@ if (opt.iextragasoutput) {
 #ifdef USEADIOS
     adiospredtypeinfo.push_back(ADIOS_DATATYPES::adios_unsigned_long);
 #endif
-    headerdatainfo.push_back("M_interloper");
+    headerdatainfo.push_back("Mass_interloper");
     sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
     if (opt.iextrainterloperoutput) {
         headerdatainfo.push_back("Mass_200mean_interloper");
@@ -2003,7 +2003,7 @@ if (opt.iextragasoutput) {
 #endif
 
 #if defined(GASON) && defined(STARON)
-    headerdatainfo.push_back("M_gas_sf");
+    headerdatainfo.push_back("Mass_gas_sf");
     sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
     headerdatainfo.push_back("R_HalfMass_gas_sf");
     sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,1));
@@ -2051,7 +2051,7 @@ if (opt.iextragasoutput) {
             sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1,1,1));
         }
     }
-    headerdatainfo.push_back("M_gas_nsf");
+    headerdatainfo.push_back("Mass_gas_nsf");
     sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
     headerdatainfo.push_back("R_HalfMass_gas_nsf");
     sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(0,1));
