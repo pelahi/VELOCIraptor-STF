@@ -2335,6 +2335,12 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     Fhdf.write_dataset(opt, head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
     for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Z_mean_gas_highT;
     Fhdf.write_dataset(opt, head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
+    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].M_gas_highT_incl;
+    Fhdf.write_dataset(opt, head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
+    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Temp_mean_gas_highT_incl;
+    Fhdf.write_dataset(opt, head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
+    for (Int_t i=0;i<ngroups;i++) ((Double_t*)data)[i]=pdata[i+1].Z_mean_gas_highT_incl;
+    Fhdf.write_dataset(opt, head.headerdatainfo[itemp],ng,data,head.hdfpredtypeinfo[itemp]);itemp++;
 
     int sonum_hotgas = opt.aperture_hotgas_normalised_to_overdensity.size();
     if (sonum_hotgas>0){

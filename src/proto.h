@@ -383,6 +383,8 @@ double mycNFW_fdf(double c, void *params, double*y,double *dy);
 double mycNFWRhalf(double c, void *params);
 ///Calculate aperture quantities
 void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, PropData &pdata);
+//Calculate half-mass radii by interpolating
+Double_t GetApertureRadiusInterpolation(const Double_t &oldrc, const Double_t &rc, const Double_t &EncMass, const Double_t &mass, const Double_t refmass);
 ///determine the radial bin for calculating profiles
 int GetRadialBin(Options &opt, Double_t rc, int &ibin);
 ///add a particle's properties to the appropriate radial bin.

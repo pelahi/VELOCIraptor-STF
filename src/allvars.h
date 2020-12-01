@@ -1682,6 +1682,9 @@ struct PropData
     Double_t M_gas_highT;
     Double_t Temp_mean_gas_highT;
     Double_t Z_mean_gas_highT;
+    Double_t M_gas_highT_incl;
+    Double_t Temp_mean_gas_highT_incl;
+    Double_t Z_mean_gas_highT_incl;
     vector<float> SO_mass_highT;
     vector<float> SO_Temp_mean_gas_highT;
     vector<float> SO_Z_mean_gas_highT;
@@ -1926,6 +1929,16 @@ struct PropData
 	M_gas_highT=0;
 	Temp_mean_gas_highT=0;
 	Z_mean_gas_highT=0;
+	M_gas_highT_incl=0;
+	Temp_mean_gas_highT_incl=0;
+	Z_mean_gas_highT_incl=0;
+#endif
+	M_tot_incl=0;
+#ifdef GASON
+        M_gas_incl=M_gas_nsf_incl=M_gas_sf_incl=0;
+#endif
+#ifdef STARON	
+	M_star_incl=0;
 #endif
 #ifdef STARON
         M_star_rvmax=M_star_30kpc=M_star_50kpc=0;
@@ -1948,13 +1961,6 @@ struct PropData
         L_200crit_excl_star[0]=L_200crit_excl_star[1]=L_200crit_excl_star[2]=0;
         L_200mean_excl_star[0]=L_200mean_excl_star[1]=L_200mean_excl_star[2]=0;
         L_BN98_excl_star[0]=L_BN98_excl_star[1]=L_BN98_excl_star[2]=0;
-#endif
-	M_tot_incl=0;
-#ifdef GASON
-        M_gas_incl=M_gas_nsf_incl=M_gas_sf_incl=0;
-#endif
-#ifdef STARON	
-	M_star_incl=0;
 #endif
 #ifdef BHON
         n_bh=M_bh=0;
@@ -2584,6 +2590,7 @@ struct PropData
 #endif
 #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
 	M_gas_highT*=opt.h;
+	M_gas_highT_incl*=opt.h;
         if(opt.aperture_hotgas_normalised_to_overdensity.size() > 0){
 		for (auto i=0;i<opt.aperture_hotgas_normalised_to_overdensity.size();i++) {
 			SO_mass_highT[i]*=opt.h;
@@ -2591,7 +2598,14 @@ struct PropData
 		}
 	}
 #endif
+	M_tot_incl*=opt.h;
+#ifdef GASON
+	M_gas_incl*=opt.h;
+	M_gas_nsf_incl*=opt.h;
+	M_gas_sf_incl*=opt.h;
+#endif
 #ifdef STARON
+	M_star_incl*opt.h;
         M_star*=opt.h;
         M_star_rvmax*=opt.h;
         M_star_30kpc*=opt.h;
