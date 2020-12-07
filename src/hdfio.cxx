@@ -1580,63 +1580,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
               //close data spaces
               for (auto &hidval:partsdataspace) HDF5CloseDataSpace(hidval);
               for (auto &hidval:partsdataset) HDF5CloseDataSet(hidval);
-              //now get temperatures
-              for (j=0;j<nusetypes;j++) {
-                k=usetypes[j];
-                if (k==HDFGASTYPE){
-		  report_dataset(hdf_gnames.part_names[k], hdf_parts[k]->names[hdf_parts[k]->propindex[HDFGASTEMP]]);
-                  partsdataset[i*NHDFTYPE+k]=HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],hdf_parts[k]->names[hdf_parts[k]->propindex[HDFGASTEMP]]);
-                  partsdataspace[i*NHDFTYPE+k]=HDF5OpenDataSpace(partsdataset[i*NHDFTYPE+k]);
-                }
-              }
-              if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
-                k=usetypes[j];
-                if (k==HDFGASTYPE){
-                  partsdataset[i*NHDFTYPE+k]=HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],hdf_parts[k]->names[hdf_parts[k]->propindex[HDFGASTEMP]]);
-                  partsdataspace[i*NHDFTYPE+k]=HDF5OpenDataSpace(partsdataset[i*NHDFTYPE+k]);
-                }
-              }
-              count=count2;
-              bcount=bcount2;
-              for (j=0;j<nusetypes;j++) {
-                k=usetypes[j];
-                if (k==HDFGASTYPE) {
-                  //data loaded into memory in chunks
-                  if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
-                  else nchunk=chunksize;
-                  for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
-                  {
-                    if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
-                    HDF5ReadHyperSlabReal(doublebuff,partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 1, nchunk, n);
-                    for (int nn=0;nn<nchunk;nn++) Part[count++].SetTemperature(doublebuff[nn] * opt.temp_input_output_unit_conversion_factor);
-                  }
-                }
-                else {
-                  count+=hdf_header_info[i].npart[k];
-                }
-              }
-              if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
-                for (j=1;j<=nbusetypes;j++) {
-                  k=usetypes[j];
-                  if (k==HDFGASTYPE) {
-                    //data loaded into memory in chunks
-                    if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
-                    else nchunk=chunksize;
-                    for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
-                    {
-                      if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
-                      HDF5ReadHyperSlabReal(doublebuff,partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 1, nchunk, n);
-                      for (int nn=0;nn<nchunk;nn++) Pbaryons[bcount++].SetTemperature(doublebuff[nn] * opt.temp_input_output_unit_conversion_factor);
-                    }
-                  }
-                  else {
-                    count+=hdf_header_info[i].npart[k];
-                  }
-                }
-              }
-              //close data spaces
-              for (auto &hidval:partsdataspace) HDF5CloseDataSpace(hidval);
-              for (auto &hidval:partsdataset) HDF5CloseDataSet(hidval);
 
               //then get star formation time, must also adjust so that if tage<0 this is a wind particle in Illustris so change particle type
               for (j=0;j<nusetypes;j++) {
@@ -1697,6 +1640,66 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
               //close data spaces
               for (auto &hidval:partsdataspace) HDF5CloseDataSpace(hidval);
               for (auto &hidval:partsdataset) HDF5CloseDataSet(hidval);
+
+              //now get temperatures
+              for (j=0;j<nusetypes;j++) {
+                k=usetypes[j];
+                if (k==HDFGASTYPE){
+		  report_dataset(hdf_gnames.part_names[k], hdf_parts[k]->names[hdf_parts[k]->propindex[HDFGASTEMP]]);
+                  partsdataset[i*NHDFTYPE+k]=HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],hdf_parts[k]->names[hdf_parts[k]->propindex[HDFGASTEMP]]);
+                  partsdataspace[i*NHDFTYPE+k]=HDF5OpenDataSpace(partsdataset[i*NHDFTYPE+k]);
+                }
+              }
+              if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
+                k=usetypes[j];
+                if (k==HDFGASTYPE){
+                  partsdataset[i*NHDFTYPE+k]=HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],hdf_parts[k]->names[hdf_parts[k]->propindex[HDFGASTEMP]]);
+                  partsdataspace[i*NHDFTYPE+k]=HDF5OpenDataSpace(partsdataset[i*NHDFTYPE+k]);
+                }
+              }
+              count=count2;
+              bcount=bcount2;
+              for (j=0;j<nusetypes;j++) {
+                k=usetypes[j];
+                if (k==HDFGASTYPE) {
+                  //data loaded into memory in chunks
+                  if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
+                  else nchunk=chunksize;
+                  for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
+                  {
+                    if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+                    HDF5ReadHyperSlabReal(doublebuff,partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 1, nchunk, n);
+                    for (int nn=0;nn<nchunk;nn++) Part[count++].SetTemperature(doublebuff[nn] * opt.temp_input_output_unit_conversion_factor);
+                  }
+                }
+                else {
+                  count+=hdf_header_info[i].npart[k];
+                }
+              }
+              if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
+                for (j=1;j<=nbusetypes;j++) {
+                  k=usetypes[j];
+                  if (k==HDFGASTYPE) {
+                    //data loaded into memory in chunks
+                    if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
+                    else nchunk=chunksize;
+                    for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
+                    {
+                      if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+                      HDF5ReadHyperSlabReal(doublebuff,partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 1, nchunk, n);
+                      for (int nn=0;nn<nchunk;nn++) Pbaryons[bcount++].SetTemperature(doublebuff[nn] * opt.temp_input_output_unit_conversion_factor);
+                    }
+                  }
+                  else {
+                    count+=hdf_header_info[i].npart[k];
+                  }
+                }
+              }
+              //close data spaces
+              for (auto &hidval:partsdataspace) HDF5CloseDataSpace(hidval);
+              for (auto &hidval:partsdataset) HDF5CloseDataSet(hidval);
+
+
 #endif
 #endif
             }//end of if not dark matter then baryon search
