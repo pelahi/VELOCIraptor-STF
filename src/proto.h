@@ -421,6 +421,10 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
     Int_t &numingroup, Particle *Part,
     Double_t &m200val, Double_t &m200mval, Double_t &mBN98val, Double_t &virval, Double_t &m500val,
     vector<Double_t> &SOlgrhovals);
+void Interpolate_SphericalOverdensity(Options &opt, PropData &pdata, Double_t &m200val, Double_t &m200mval, 
+					Double_t &mBN98val, Double_t &virval, Double_t &m500val,
+					vector<Double_t> &SOlgrhovals, Double_t gamma1, Double_t gamma2, 
+					Double_t rc, Double_t EncMass, Double_t rhoval, int iSOfound);
 void CalculateSphericalOverdensitySubhalo(Options &opt, PropData &pdata,
     Int_t &numingroup, Particle *Part,
     Double_t &m200val, Double_t &m200mval, Double_t &mBN98val, Double_t &virval, Double_t &m500val,
@@ -429,7 +433,7 @@ void CalculateSphericalOverdensityExclusive(Options &opt, PropData &pdata,
     Int_t &numingroup, Particle *Part,
     Double_t &m200val, Double_t &m200mval, Double_t &mBN98val, Double_t &virval, Double_t &m500val,
     vector<Double_t> &SOlgrhovals);
-void Loop_over_spherical_overdensities(Options &opt, PropData &pdata, Int_t &num_parts, Particle *Part, 
+void Loop_over_spherical_overdensities_subhalo(Options &opt, PropData &pdata, Int_t &num_parts, Particle *Part, 
     Double_t &m200val, Double_t &m200mval, Double_t &mBN98val, Double_t &virval, Double_t &m500val,
     vector<Double_t> &rhovals, int SOnum, Double_t &enclosed_mass, std::vector<Double_t> &radius, 
     std::vector<Double_t> &mass);

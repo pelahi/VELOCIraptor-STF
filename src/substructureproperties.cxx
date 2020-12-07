@@ -1097,7 +1097,7 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
 			pdata[i].M_star_500c+=mval;
 		    }
                     if (EncMass>0.5*pdata[i].M_star && pdata[i].Rhalfmass_star==0) {
-			pdata[i].Rhalfmass_star=GetApertureRadiusInterpolation(oldrc, rad_part, EncMass, mval, 0.5*pdata[i].M_star);
+			pdata[i].Rhalfmass_star=rad_part; //GetApertureRadiusInterpolation(oldrc, rad_part, EncMass, mval, 0.5*pdata[i].M_star);
 		    }
     		    oldrc = rad_part;
 
@@ -2017,7 +2017,7 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval)
                     if (r2<=opt.lengthtokpc50pow2) pdata[i].M_star_50kpc+=mval;
                     if (r2<=pdata[i].gR500c*pdata[i].gR500c) pdata[i].M_star_500c+=mval;
                     if (EncMass>0.5*pdata[i].M_star && pdata[i].Rhalfmass_star==0) {
-			pdata[i].Rhalfmass_star=GetApertureRadiusInterpolation(oldrc, rad_part, EncMass, mval, 0.5*pdata[i].M_star);
+			pdata[i].Rhalfmass_star=rad_part; //GetApertureRadiusInterpolation(oldrc, rad_part, EncMass, mval, 0.5*pdata[i].M_star);
 		    }
  		    oldrc = rad_part;
                 }
@@ -2364,21 +2364,21 @@ void GetInclusiveMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t
     Coordinate cmold(0.),J(0.);
     Double_t change=MAXVALUE,tol=1e-2;
     Int_t ii,icmv,numinvir,num200c,num200m;
-    Double_t virval=log(opt.virlevel*opt.rhobg);
-    Double_t mBN98val=log(opt.virBN98*opt.rhocrit);
-    Double_t m200val=log(opt.rhocrit*200.0);
-    Double_t m200mval=log(opt.rhobg*200.0);
-    Double_t m500val=log(opt.rhocrit*500.0);
+    Double_t virval=std::log10(opt.virlevel*opt.rhobg);
+    Double_t mBN98val=std::log10(opt.virBN98*opt.rhocrit);
+    Double_t m200val=std::log10(opt.rhocrit*200.0);
+    Double_t m200mval=std::log10(opt.rhobg*200.0);
+    Double_t m500val=std::log10(opt.rhocrit*500.0);
     //find the lowest rho value and set minim threshold to half that
-    Double_t minlgrhoval = min({virval, m200val, mBN98val, m200mval})-(Double_t)log(2.0);
+    Double_t minlgrhoval = min({virval, m200val, mBN98val, m200mval})-(Double_t)std::log10(2.0);
     Double_t fac,rhoval,rhoval2;
     vector<Double_t> SOlgrhovals;
     int iSOfound;
     if (opt.SOnum >0) {
         SOlgrhovals.resize(opt.SOnum);
         for (auto i=0;i<opt.SOnum;i++) {
-            SOlgrhovals[i]=log(opt.rhocrit*opt.SOthresholds_values_crit[i]);
-            minlgrhoval = min(minlgrhoval,SOlgrhovals[i]-(Double_t)log(2.0));
+            SOlgrhovals[i]=std::log10(opt.rhocrit*opt.SOthresholds_values_crit[i]);
+            minlgrhoval = min(minlgrhoval,SOlgrhovals[i])-(Double_t)std::log10(2.0);
         }
     }
 
@@ -2635,7 +2635,7 @@ firstprivate(virval,m200val,m200mval,mBN98val,iSOfound)
         //if overdensity never drops below thresholds then masses are equal to FOF mass or total mass.
         SetSphericalOverdensityMasstoTotalMass(opt, pdata[i]);
 
-        //calculate angular momentum if necessary
+        //calculate angular momentum and masses 
         if (opt.iextrahalooutput) {
             for (j=0;j<numingroup[i];j++) {
                 Pval = &Part[noffset[i] + j];
@@ -2652,9 +2652,15 @@ firstprivate(virval,m200val,m200mval,mBN98val,iSOfound)
                 //J=Coordinate(Pval->GetPosition()).Cross(Coordinate(vx,vy,vz))*massval;
                 J=Coordinate(x,y,z).Cross(Coordinate(vx,vy,vz))*massval;
                 rc=Pval->Radius();
-                if (rc<=pdata[i].gR200c) pdata[i].gJ200c+=J;
-                if (rc<=pdata[i].gR200m) pdata[i].gJ200m+=J;
-                if (rc<=pdata[i].gRBN98) pdata[i].gJBN98+=J;
+                if (rc<=pdata[i].gR200c) {
+			pdata[i].gJ200c+=J;
+		}
+                if (rc<=pdata[i].gR200m) {
+			pdata[i].gJ200m+=J;
+		}
+                if (rc<=pdata[i].gRBN98){
+			pdata[i].gJBN98+=J;
+		}
 #ifdef GASON
                 if (opt.iextragasoutput) {
                     if (Part[noffset[i] + j].GetType()==GASTYPE){
@@ -3228,21 +3234,21 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
     Double_t ri,ri2,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside;
     Double_t x,y,z,vx,vy,vz,massval,rc,rcold;
     Coordinate J(0.);
-    Double_t virval=log(opt.virlevel*opt.rhobg);
-    Double_t mBN98val=log(opt.virBN98*opt.rhocrit);
-    Double_t m200val=log(opt.rhocrit*200.0);
-    Double_t m200mval=log(opt.rhobg*200.0);
-    Double_t m500val=log(opt.rhocrit*500.0);
+    Double_t virval=std::log10(opt.virlevel*opt.rhobg);
+    Double_t mBN98val=std::log10(opt.virBN98*opt.rhocrit);
+    Double_t m200val=std::log10(opt.rhocrit*200.0);
+    Double_t m200mval=std::log10(opt.rhobg*200.0);
+    Double_t m500val=std::log10(opt.rhocrit*500.0);
     //find the lowest rho value and set minim threshold to half that
-    Double_t minlgrhoval = min({virval, m200val, mBN98val, m200mval})-(Double_t)log(2.0);
+    Double_t minlgrhoval = min({virval, m200val, mBN98val, m200mval})-(Double_t)std::log10(2.0);
     //if there are many overdensities to calculate iterate over the list
     vector<Double_t> SOlgrhovals;
     int iSOfound;
     if (opt.SOnum >0) {
         SOlgrhovals.resize(opt.SOnum);
         for (auto i=0;i<opt.SOnum;i++) {
-            SOlgrhovals[i]=log(opt.rhocrit*opt.SOthresholds_values_crit[i]);
-            minlgrhoval = min(minlgrhoval,SOlgrhovals[i]-(Double_t)log(2.0));
+            SOlgrhovals[i]=std::log10(opt.rhocrit*opt.SOthresholds_values_crit[i]);
+            minlgrhoval = min(minlgrhoval,SOlgrhovals[i]-(Double_t)std::log10(2.0));
         }
     }
 
@@ -6889,7 +6895,7 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
     //edge then extrapolate density based on average slope using 10% of radial bins
     double massval, EncMass, rc, oldrc, rhoval, MinMass;
     double rc2, EncMass2, rhoval2;
-    double delta, gamma1, gamma2, gamma1lin, gamma2lin;
+    double gamma1, gamma2, gamma1lin, gamma2lin;
     double fac, MassEdge;
     int lindex=0.9*iindex, llindex=iindex;
     int iSOfound = 0;
@@ -6905,7 +6911,7 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
         MassEdge+=massval;
         if (j<lindex) EncMass+=massval;
     }
-    fac=-log(4.0*M_PI/3.0);
+    fac = 3.0 / (4.0*M_PI);
 
     //find first particle r>0
     while(radii[indices[minnum-1]]==0) minnum++;
@@ -6925,7 +6931,7 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
     //store old radius, old enclosed mass and ln density
     rc2=rc;
     EncMass2=EncMass;
-    rhoval2=log(EncMass2)-3.0*log(rc2)+fac;
+    rhoval2=std::log10(fac * EncMass2 * std::pow(rc2, -3.0));
     for (auto j=minnum;j<radii.size();j++) {
         rc=radii[indices[j]];
 #ifndef NOMASS
@@ -6934,63 +6940,29 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
         EncMass+=opt.MassValue;
 #endif
         //after moving foward one particle, calculate new enclosed average ln density
-        rhoval=log(EncMass)-3.0*log(rc)+fac;
+        rhoval=std::log10(fac * EncMass * std::pow(rc,-3.0));
         //and associated slopes
-        gamma1 = log(rc/rc2)/(rhoval-rhoval2);
-        gamma2 = log(EncMass/EncMass2)/(rhoval-rhoval2);
+        gamma1 = (rc - rc2)/(rhoval-rhoval2); //log(rc/rc2)/(rhoval-rhoval2);
+	gamma2 = std::log10(EncMass2/EncMass) / (rc2 - rc);
+
         //for simplicity of interpolation, if slope is not decreasing, do not interpolate but move to the next point
-        if (gamma1>0) {
+        /*if (gamma1>0) {
             rhoval2 = rhoval;
             rc2 = rc;
             EncMass2 = EncMass;
             continue;
-        }
-        if (pdata.gRvir==0) if (rhoval<virval)
-        {
-            //linearly interpolate, unless previous density also below threshold (which would happen at the start, then just set value)
-            delta = (virval-rhoval);
-            pdata.gRvir=rc*exp(gamma1*delta);
-            pdata.gMvir=EncMass*exp(gamma2*delta);
-        }
-        if (pdata.gR200c==0) if (rhoval<m200val)
-        {
-            delta = (m200val-rhoval);
-            pdata.gR200c=rc*exp(gamma1*delta);
-            pdata.gM200c=EncMass*exp(gamma2*delta);
-        }
-        if (pdata.gR200m==0) if (rhoval<m200mval)
-        {
-            delta = (m200mval-rhoval);
-            pdata.gR200m=rc*exp(gamma1*delta);
-            pdata.gM200m=EncMass*exp(gamma2*delta);
-        }
-        if (pdata.gR500c==0) if (rhoval<m500val)
-        {
-            delta = (m500val-rhoval);
-            pdata.gR500c=rc*exp(gamma1*delta);
-            pdata.gM500c=EncMass*exp(gamma2*delta);
-        }
-        if (pdata.gRBN98==0) if (rhoval<mBN98val)
-        {
-            delta = (mBN98val-rhoval);
-            pdata.gRBN98=rc*exp(gamma1*delta);
-            pdata.gMBN98=EncMass*exp(gamma2*delta);
-        }
-        for (auto iso=0;iso<opt.SOnum;iso++) {
-            if (pdata.SO_radius[iso]==0) if (rhoval<SOlgrhovals[iso])
-            {
-                delta = (SOlgrhovals[iso]-rhoval);
-                pdata.SO_radius[iso]=rc*exp(gamma1*delta);
-                pdata.SO_mass[iso]=EncMass*exp(gamma2*delta);
-                iSOfound++;
-            }
-        }
+        }*/
+        Interpolate_SphericalOverdensity(opt, pdata, m200val, m200mval, mBN98val, virval, m500val, SOlgrhovals, gamma1, gamma2, rc, std::log10(EncMass), rhoval, iSOfound);
+        EncMass2 = EncMass;
+        rc2 = rc;
+	rhoval2 = rhoval;
         //if all overdensity thresholds found, store index and exit
         if (pdata.gR200m!=0&& pdata.gR200c!=0&&pdata.gRvir!=0&&pdata.gR500c!=0&&pdata.gRBN98!=0&&iSOfound==opt.SOnum) {
             llindex=j;
             break;
         }
     }
+
     //if masses are below min min mass of single particle, set to zero
     if (pdata.gM200c<MinMass) {pdata.gM200c=pdata.gR200c=0.0;}
     if (pdata.gM200m<MinMass) {pdata.gM200m=pdata.gR200m=0.0;}
@@ -7045,10 +7017,12 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
     //edge then extrapolate density based on average slope using 10% of radial bins
     double EncMass, rc, oldrc, rhoval, massval, MinMass;
     double rc2, EncMass2, rhoval2;
-    double delta, gamma1, gamma2, gamma1lin, gamma2lin;
+    double gamma1, gamma2, gamma1lin, gamma2lin;
     double fac, MassEdge;
     int lindex=0.9*iindex, llindex=iindex;
     int iSOfound = 0;
+
+    fac= 3.0 / (4.0*M_PI);
 
     //find first particle r>0
     while(Part[minnum-1].Radius()==0) minnum++;
@@ -7067,7 +7041,8 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
     //store old radius, old enclosed mass and ln density
     rc2=rc;
     EncMass2=EncMass;
-    rhoval2=log(EncMass2)-3.0*log(rc2)+fac;
+    rhoval2=std::log10(fac * EncMass2 * std::pow(rc2, -3.0));
+ 
     for (auto j=minnum;j<numingroup;j++) {
         rc=Part[j].Radius();
         massval=Part[j].GetMass();
@@ -7075,63 +7050,31 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
         massval=opt.MassValue;
 #endif
         EncMass+=massval;
-        rhoval=log(EncMass)-3.0*log(rc)+fac;
+        rhoval=std::log10(fac * EncMass * std::pow(rc, -3.0));
         //and associated slopes
-        gamma1 = log(rc/rc2)/(rhoval-rhoval2);
-        gamma2 = log(EncMass/EncMass2)/(rhoval-rhoval2);
-        //for simplicit of interpolation, if slope is not decreasing, do not interpolate but move to the next point
-        if (gamma1>0) {
+        gamma1 = (rc - rc2)/(rhoval-rhoval2); //log(rc/rc2)/(rhoval-rhoval2);
+	gamma2 = std::log10(EncMass2/EncMass) / (rc2 - rc);
+
+ 
+       //for simplicit of interpolation, if slope is not decreasing, do not interpolate but move to the next point
+        /*if (gamma1>0) {
             rhoval2 = rhoval;
             rc2 = rc;
             EncMass2 = EncMass;
             continue;
-        }
-        if (pdata.gRvir==0) if (rhoval<virval)
-        {
-            //linearly interpolate, unless previous density also below threshold (which would happen at the start, then just set value)
-            delta = (virval-rhoval);
-            pdata.gRvir=rc*exp(gamma1*delta);
-            pdata.gMvir=EncMass*exp(gamma2*delta);
-        }
-        if (pdata.gR200c==0) if (rhoval<m200val)
-        {
-            delta = (m200val-rhoval);
-            pdata.gR200c=rc*exp(gamma1*delta);
-            pdata.gM200c=EncMass*exp(gamma2*delta);
-        }
-        if (pdata.gR200m==0) if (rhoval<m200mval)
-        {
-            delta = (m200mval-rhoval);
-            pdata.gR200m=rc*exp(gamma1*delta);
-            pdata.gM200m=EncMass*exp(gamma2*delta);
-        }
-        if (pdata.gR500c==0) if (rhoval<m500val)
-        {
-            delta = (m500val-rhoval);
-            pdata.gR500c=rc*exp(gamma1*delta);
-            pdata.gM500c=EncMass*exp(gamma2*delta);
-        }
-        if (pdata.gRBN98==0) if (rhoval<mBN98val)
-        {
-            delta = (mBN98val-rhoval);
-            pdata.gRBN98=rc*exp(gamma1*delta);
-            pdata.gMBN98=EncMass*exp(gamma2*delta);
-        }
-        for (auto iso=0;iso<opt.SOnum;iso++) {
-            if (pdata.SO_radius[iso]==0) if (rhoval<SOlgrhovals[iso])
-            {
-                delta = (SOlgrhovals[iso]-rhoval);
-                pdata.SO_radius[iso]=rc*exp(gamma1*delta);
-                pdata.SO_mass[iso]=EncMass*exp(gamma2*delta);
-                iSOfound++;
-            }
-        }
+        }*/
+	Interpolate_SphericalOverdensity(opt, pdata, m200val, m200mval, mBN98val, virval, m500val, SOlgrhovals, gamma1, gamma2, rc, std::log10(EncMass), rhoval, iSOfound);
+	EncMass2 = EncMass;
+	rc2 = rc;
+        rhoval2 = rhoval;
+
         //if all overdensity thresholds found, store index and exit
         if (pdata.gR200m!=0&& pdata.gR200c!=0&&pdata.gRvir!=0&&pdata.gR500c!=0&&pdata.gRBN98!=0&&iSOfound==opt.SOnum) {
             llindex=j;
             break;
         }
     }
+
     //if masses are below min mass, set to zero
     if (pdata.gM200c<MinMass) {pdata.gM200c=pdata.gR200c=0.0;}
     if (pdata.gM200m<MinMass) {pdata.gM200m=pdata.gR200m=0.0;}
@@ -7173,6 +7116,54 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
     return llindex;
 }
 
+void Interpolate_SphericalOverdensity(Options &opt, PropData &pdata, Double_t &m200val, Double_t &m200mval, Double_t &mBN98val, Double_t &virval, Double_t &m500val,
+				      vector<Double_t> &SOlgrhovals, Double_t gamma1, Double_t gamma2, Double_t rc, Double_t EncMass, Double_t rhoval, int iSOfound)
+{
+
+	Double_t delta;
+
+        if (pdata.gRvir==0) if (rhoval<virval)
+        {
+            //linearly interpolate, unless previous density also below threshold (which would happen at the start, then just set value)
+            delta = (virval-rhoval);
+            pdata.gRvir=gamma1 * delta + rc; //rc*exp(gamma1*delta);
+	    pdata.gMvir=std::pow(10.0, gamma2 * (pdata.gRvir - rc) + EncMass);
+        }
+        if (pdata.gR200c==0) if (rhoval<m200val)
+        {
+            delta = (m200val-rhoval);
+            pdata.gR200c=gamma1 * delta + rc; //rc*exp(gamma1*delta);
+	    pdata.gM200c=std::pow(10.0, gamma2 * (pdata.gR200c - rc) + EncMass);
+        }
+        if (pdata.gR200m==0) if (rhoval<m200mval)
+        {
+            delta = (m200mval-rhoval);
+            pdata.gR200m=gamma1 * delta + rc; //rc*exp(gamma1*delta);
+	    pdata.gM200m=std::pow(10.0, gamma2 * (pdata.gR200m - rc) + EncMass);
+        }
+        if (pdata.gR500c==0) if (rhoval<m500val)
+        {
+            delta = (m500val-rhoval);
+            pdata.gR500c=gamma1 * delta + rc; //rc*exp(gamma1*delta);
+	    pdata.gM500c=std::pow(10.0, gamma2 * (pdata.gR500c - rc) + EncMass);
+        }
+        if (pdata.gRBN98==0) if (rhoval<mBN98val)
+        {
+            delta = (mBN98val-rhoval);
+            pdata.gRBN98=gamma1 * delta + rc; //rc*exp(gamma1*delta);
+	    pdata.gMBN98=std::pow(10.0, gamma2 * (pdata.gRBN98 - rc) + EncMass);
+        }
+        for (auto iso=0;iso<opt.SOnum;iso++) {
+            if (pdata.SO_radius[iso]==0) if (rhoval<SOlgrhovals[iso])
+            {
+                delta = (SOlgrhovals[iso]-rhoval);
+                pdata.SO_radius[iso]=gamma1 * delta + rc; //rc*exp(gamma1*delta);
+		pdata.SO_mass[iso]=std::pow(10.0, gamma2 * (pdata.SO_radius[iso] - rc) + EncMass);
+                iSOfound++;
+            }
+        }
+
+}
 void CalculateSphericalOverdensitySubhalo(Options &opt, PropData &pdata,
     Int_t &numingroup, Particle *Part,
     Double_t &m200val, Double_t &m200mval, Double_t &mBN98val, Double_t &virval, Double_t &m500val,
@@ -7197,7 +7188,7 @@ void CalculateSphericalOverdensitySubhalo(Options &opt, PropData &pdata,
     for (auto &x:radius) x = 0;
     for (auto &x:mass) x = 0;
 
-    Loop_over_spherical_overdensities(opt, pdata, numingroup, Part, m200val, m200mval, mBN98val, virval, m500val,
+    Loop_over_spherical_overdensities_subhalo(opt, pdata, numingroup, Part, m200val, m200mval, mBN98val, virval, m500val,
     SOlgrhovals, SOnum, EncMass, radius, mass);
     pdata.SO_radius = radius;
     pdata.SO_mass = mass;
@@ -7242,7 +7233,7 @@ void CalculateSphericalOverdensitySubhalo(Options &opt, PropData &pdata,
     }
 }
 
-void Loop_over_spherical_overdensities(Options &opt, PropData &pdata, Int_t &num_parts, Particle *Part, 
+void Loop_over_spherical_overdensities_subhalo(Options &opt, PropData &pdata, Int_t &num_parts, Particle *Part, 
     Double_t &m200val, Double_t &m200mval, Double_t &mBN98val, Double_t &virval, Double_t &m500val,
     vector<Double_t> &rhovals, int SOnum, Double_t &enclosed_mass, std::vector<Double_t> &radius, 
     std::vector<Double_t> &mass)
