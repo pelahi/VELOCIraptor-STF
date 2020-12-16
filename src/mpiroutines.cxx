@@ -7,6 +7,8 @@
 
 #ifdef USEMPI
 
+#include <cassert>
+
 //-- For MPI
 
 #include "stf.h"
@@ -2685,7 +2687,10 @@ void MPISendReceiveFOFHydroInfoBetweenThreads(Options &opt, fofid_in *FoFGroupDa
 
     numextrafields = opt.gas_internalprop_unique_input_names.size() + opt.gas_chem_unique_input_names.size() + opt.gas_chemproduction_unique_input_names.size();
     if (numextrafields == 0) return;
+
     numsend = indicessend.size();
+    assert(propsendbuff.size() == numsend * numextrafields);
+
     MPI_Sendrecv(&numsend, 1, MPI_Int_t, recvTask,
         tag*2, &numrecv, 1, MPI_Int_t, recvTask, tag*2, mpi_comm, &status);
     //send the information. If vectors are of zero size, must increase size so .data() points to a valid address
