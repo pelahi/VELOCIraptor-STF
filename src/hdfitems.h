@@ -98,14 +98,6 @@
 #define HDF5_FILE_GROUP_COMMON_BASE H5::CommonFG
 #endif
 
-// #ifdef USEPARALLELHDF
-// // #if H5_VERSION_GE(1,10,2)
-// // #define USEHDFCOMPRESSOIN
-// // #endif
-// // #else
-// // #define USEHDFCOMPRESSOIN
-// #endif
-
 template <typename ReturnT, typename F, typename ... Ts>
 ReturnT safe_hdf5(F function, Ts ... args)
 {
