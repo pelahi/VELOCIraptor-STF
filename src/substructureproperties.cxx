@@ -3538,8 +3538,11 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
                 massval = opt.MassValue;
 #endif
 
-                J=Coordinate(posparts[indices[j]]).Cross(velparts[indices[j]])*massval;
-                rc=posparts[indices[j]].Length();
+		auto jj = indices[j];
+		auto typeval = typeparts[jj];
+		
+                J=Coordinate(posparts[jj]).Cross(velparts[jj])*massval;
+                rc=radii[jj];
                 if (rc<=pdata[i].gR200c) pdata[i].gJ200c+=J;
                 if (rc<=pdata[i].gR200m) pdata[i].gJ200m+=J;
                 if (rc<=pdata[i].gRBN98) pdata[i].gJBN98+=J;
@@ -3548,7 +3551,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
                 }
 #ifdef GASON
                 if (opt.iextragasoutput) {
-                    if (typeparts[indices[j]]==GASTYPE){
+                    if (typeval == GASTYPE){
                         if (rc<=pdata[i].gR200c) {
                             pdata[i].M_200crit_gas+=massval;
                             pdata[i].L_200crit_gas+=J;
@@ -3572,11 +3575,11 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
     	        if(sonum_hotgas > 0){
 		   for (int r_ap = 0; r_ap < sonum_hotgas; r_ap++){
     		        if(rc < SOlg_radii_highT[r_ap]){
-			   if(typeparts[indices[j]]==GASTYPE){
-                    		if(temp[indices[j]] > opt.temp_max_cut && sfr[indices[j]] <= 0){
+			   if(typeval == GASTYPE){
+                    		if(temp[jj] > opt.temp_max_cut && sfr[jj] <= 0){
                          		pdata[i].SO_mass_highT[r_ap] += massval;
-                         		pdata[i].SO_Temp_mean_gas_highT[r_ap] += massval * temp[indices[j]];
-                         		pdata[i].SO_Z_mean_gas_highT[r_ap] += massval * Zgas[indices[j]];
+                         		pdata[i].SO_Temp_mean_gas_highT[r_ap] += massval * temp[jj];
+                         		pdata[i].SO_Z_mean_gas_highT[r_ap] += massval * Zgas[jj];
                     		}
                 	   }
 			}
@@ -3587,7 +3590,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
 #endif
 #ifdef STARON
                 if (opt.iextrastaroutput) {
-                    if (typeparts[indices[j]]==STARTYPE){
+                    if (typeval == STARTYPE){
                         if (rc<=pdata[i].gR200c) {
                             pdata[i].M_200crit_star+=massval;
                             pdata[i].L_200crit_star+=J;
@@ -3609,7 +3612,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
 #endif
 #ifdef HIGHRES
                 if (opt.iextrainterloperoutput) {
-                    if (typeparts[indices[j]] == DARK2TYPE || typeparts[indices[j]] == DARK3TYPE || (typeparts[indices[j]]==DARKTYPE&&massval>opt.zoomlowmassdm))
+                    if (typeval == DARK2TYPE || typeval == DARK3TYPE || (typeval == DARKTYPE && massval>opt.zoomlowmassdm))
                     {
                         if (rc<=pdata[i].gR200c) {
                             pdata[i].M_200crit_interloper+=massval;
