@@ -1472,7 +1472,7 @@ struct PropData
     Double_t RV_Krot;
     //@}
 
-    ///\name radial profiles
+    ///\name aperture quantities/ radial profiles
     //@{
     vector<unsigned int> aperture_npart;
     vector<float> aperture_mass;
@@ -1532,7 +1532,7 @@ struct PropData
     Double_t Efrac_gas, Pot_gas, T_gas;
     //@}
 
-    ///\name gas radial profiles
+    ///\name gas aperture quantities/ radial profiles
     //@{
     vector<unsigned int> aperture_npart_gas;
     vector<float> aperture_mass_gas;
@@ -1583,7 +1583,7 @@ struct PropData
     Double_t Temp_mean_gas_sf, Z_mean_gas_sf, SFR_mean_gas_sf;
     //@}
 
-    ///\name gas star forming radial profiles
+    ///\name gas star forming aperture quantities/ radial profiles
     //@{
     vector<unsigned int> aperture_npart_gas_sf;
     vector<float> aperture_mass_gas_sf;
@@ -1632,7 +1632,7 @@ struct PropData
     Double_t Temp_mean_gas_nsf, Z_mean_gas_nsf;
     //@}
 
-    ///\name gas star forming radial profiles
+    ///\name gas star forming/non-star forming aperture quantities/radial profiles
     //@{
     vector<unsigned int> aperture_npart_gas_nsf;
     vector<float> aperture_mass_gas_nsf;
@@ -1688,7 +1688,7 @@ struct PropData
     Double_t Efrac_star,Pot_star,T_star;
     //@}
 
-    ///\name stellar radial profiles
+    ///\name stellar aperture quantities/radial profiles
     //@{
     vector<unsigned int> aperture_npart_star;
     vector<float> aperture_mass_star;
@@ -1721,7 +1721,7 @@ struct PropData
     ///mean accretion rate, metallicty
     Double_t acc_bh, acc_bh_mostmassive;
 
-    ///\name blackhole aperture/radial profiles
+    ///\name blackhole aperture quantities/radial profiles
     //@{
     vector<int> aperture_npart_bh;
     vector<float> aperture_mass_bh;
@@ -2127,8 +2127,8 @@ struct PropData
             aperture_rhalfmass_gas_nsf.resize(opt.aperturenum);
             aperture_Z_gas_sf.resize(opt.aperturenum);
             aperture_Z_gas_nsf.resize(opt.aperturenum);
-            // if (opt.gas_extraprop_aperture_calc) aperture_properties_gas_sf.resize(opt.aperturenum);
-            // if (opt.gas_extraprop_aperture_calc) aperture_properties_gas_nsf.resize(opt.aperturenum);
+            if (opt.gas_extraprop_aperture_calc) aperture_properties_gas_sf.resize(opt.aperturenum);
+            if (opt.gas_extraprop_aperture_calc) aperture_properties_gas_nsf.resize(opt.aperturenum);
 #endif
 #endif
 #ifdef STARON
