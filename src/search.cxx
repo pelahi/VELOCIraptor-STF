@@ -255,7 +255,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
 // #else
             numingroup=BuildNumInGroup(nbodies, numgroups, pfof);
             for (i=0;i<nbodies;i++) {
-                Part[i].SetType((numingroup[pfof[i]]>=MINSUBSIZE));
+                Part[i].SetType((numingroup[pfof[Part[i].GetID()]]>=MINSUBSIZE));
                 numlocalden += (Part[i].GetType()>0);
             }
             if (opt.fofbgtype>FOF6D) {
@@ -278,6 +278,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         for (i=0;i<nbodies;i++) {numinstrucs+=(pfof[i]>0);}
         if (opt.iverbose) {
             cout<<"Number of particles in large subhalo searchable structures "<<numinstrucs<<endl;
+            cout<<"Number of particles that will have local velocity densitites calculated "<<numlocalden<<endl;
         }
         if (numlocalden>0) GetVelocityDensity(opt, nbodies, Part.data(), tree);
         for (i=0;i<nbodies;i++) Part[i].SetType(storetype[i]);
@@ -1424,7 +1425,7 @@ private(i,tid)
     }
     if (numgroups>0) if (opt.iverbose>=2) cout<<ThisTask<<": "<<numgroups<<" substructures found"<<endl;
     else {if (opt.iverbose>=2) cout<<ThisTask<<": "<<"NO SUBSTRUCTURES FOUND"<<endl;}
-    
+
     //now search particle list for large compact substructures that are considered part of the background when using smaller grids
     if (nsubset>=MINSUBSIZE && opt.iLargerCellSearch && opt.foftype!=FOF6DCORE)
     {
@@ -2738,7 +2739,7 @@ inline void PreCalcSearchSubSet(Options &opt, Int_t subnumingroup,  Particle *&s
         FillTreeGrid(opt, subnumingroup, ngrid, tree, subPart, grid);
         gvel=GetCellVel(opt,subnumingroup,subPart,ngrid,grid);
         gveldisp=GetCellVelDisp(opt,subnumingroup,subPart,ngrid,grid,gvel);
-        
+
         opt.HaloLocalSigmaV=0;
         for (auto j=0;j<ngrid;j++) opt.HaloLocalSigmaV+=pow(gveldisp[j].Det(),1./3.);opt.HaloLocalSigmaV/=(double)ngrid;
 
