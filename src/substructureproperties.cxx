@@ -3529,6 +3529,47 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
 #endif
 
 
+	//init to zero
+	Coordinate zero(0,0,0), J;
+        pdata[i].gJ200c = zero;
+        pdata[i].gJ200m = zero;
+        pdata[i].gJBN98 = zero;
+        for (auto iso=0;iso<opt.SOnum;iso++)
+             pdata[i].SO_angularmomentum[iso] = zero;
+#ifdef GASON
+    	pdata[i].M_200crit_gas = 0;
+	pdata[i].L_200crit_gas = zero;
+    	pdata[i].M_200mean_gas = 0;
+   	pdata[i].L_200mean_gas = zero;
+    	pdata[i].M_BN98_gas = 0;
+    	pdata[i].L_BN98_gas = zero;
+    	for (auto iso=0;iso<opt.SOnum;iso++) {
+        	pdata[i].SO_mass_gas[iso] = 0;
+        	pdata[i].SO_angularmomentum_gas[iso] = zero;
+    	}
+#endif
+#ifdef STARON
+    	pdata[i].M_200crit_star = 0;
+    	pdata[i].L_200crit_star = zero;
+    	pdata[i].M_200mean_star = 0;
+    	pdata[i].L_200mean_star = zero;
+    	pdata[i].M_BN98_star = 0;
+    	pdata[i].L_BN98_star = zero;
+    	for (auto iso=0;iso<opt.SOnum;iso++) {
+        	pdata[i].SO_mass_star[iso] = 0;
+        	pdata[i].SO_angularmomentum_star[iso] = zero;
+    	}
+#endif
+#ifdef HIGHRES
+    	pdata[i].M_200crit_interloper = 0;
+    	pdata[i].M_200mean_interloper = 0;
+    	pdata[i].M_BN98_interloper = 0;
+    	for (auto iso=0;iso<opt.SOnum;iso++)
+    	{
+        	pdata[i].SO_mass_interloper[iso] = 0;
+    	}
+#endif
+
         //calculate angular momentum if necessary
         if (opt.iextrahalooutput) {
             for (j=0;j<radii.size();j++) {
@@ -6932,9 +6973,9 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
     llindex=radii.size();
 
     //store old radius, old enclosed mass and ln density
-    rc2=rc;
-    EncMass2=EncMass;
-    rhoval2=std::log10(fac * EncMass2 * std::pow(rc2, -3.0));
+    rc2 = rc;
+    EncMass2 = EncMass;
+    rhoval2 = std::log10(fac * EncMass2 * std::pow(rc2, -3.0));
     for (auto j=minnum;j<radii.size();j++) {
         rc=radii[indices[j]];
 #ifndef NOMASS
@@ -6943,18 +6984,18 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
         EncMass+=opt.MassValue;
 #endif
         //after moving foward one particle, calculate new enclosed average ln density
-        rhoval=std::log10(fac * EncMass * std::pow(rc,-3.0));
+        rhoval = std::log10(fac * EncMass * std::pow(rc,-3.0));
         //and associated slopes
         gamma1 = (rc - rc2)/(rhoval-rhoval2); //log(rc/rc2)/(rhoval-rhoval2);
 	gamma2 = std::log10(EncMass2/EncMass) / (rc2 - rc);
 
         //for simplicity of interpolation, if slope is not decreasing, do not interpolate but move to the next point
-        /*if (gamma1>0) {
+        if (gamma1>0) {
             rhoval2 = rhoval;
             rc2 = rc;
             EncMass2 = EncMass;
             continue;
-        }*/
+        }
         Interpolate_SphericalOverdensity(opt, pdata, m200val, m200mval, mBN98val, virval, m500val, SOlgrhovals, gamma1, gamma2, rc, std::log10(EncMass), rhoval, iSOfound);
         EncMass2 = EncMass;
         rc2 = rc;
@@ -7058,14 +7099,13 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
         gamma1 = (rc - rc2)/(rhoval-rhoval2); //log(rc/rc2)/(rhoval-rhoval2);
 	gamma2 = std::log10(EncMass2/EncMass) / (rc2 - rc);
 
- 
        //for simplicit of interpolation, if slope is not decreasing, do not interpolate but move to the next point
-        /*if (gamma1>0) {
+        if (gamma1>0) {
             rhoval2 = rhoval;
             rc2 = rc;
             EncMass2 = EncMass;
             continue;
-        }*/
+        }
 	Interpolate_SphericalOverdensity(opt, pdata, m200val, m200mval, mBN98val, virval, m500val, SOlgrhovals, gamma1, gamma2, rc, std::log10(EncMass), rhoval, iSOfound);
 	EncMass2 = EncMass;
 	rc2 = rc;
