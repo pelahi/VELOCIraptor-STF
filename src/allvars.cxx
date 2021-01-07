@@ -2109,6 +2109,8 @@ if (opt.iextragasoutput) {
             headerdatainfo.push_back("Lz_BN98_excl_gas_nsf");
             sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1,1,1));
         }
+    }
+#endif
 	#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
         headerdatainfo.push_back("Mass_gas_highT_excl");
         sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
@@ -2173,7 +2175,6 @@ if (opt.iextragasoutput) {
 	        sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo());
 	}
 	#endif
-    }
     headerdatainfo.push_back("Mass_tot_incl");
     sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
 #ifdef GASON
@@ -2196,7 +2197,6 @@ if (opt.iextragasoutput) {
 #ifdef USEADIOS
     sizeval=adiospredtypeinfo.size();
     for (int i=sizeval;i<headerdatainfo.size();i++) adiospredtypeinfo.push_back(desiredadiosproprealtype[0]);
-#endif
 #endif
     //if extra hydro properties are calculated
 #ifdef GASON
