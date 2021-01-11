@@ -40,28 +40,28 @@ int RAMSES_fortran_read(fstream &F, RAMSESFLOAT &f){
 int RAMSES_fortran_read(fstream &F, int *i){
     int dummy,byteoffset=0;
     F.read((char*)&dummy, sizeof(dummy));byteoffset+=sizeof(int);
-    F.read((char*)i,dummy); byteoffset+=dummy;
+    F.read((char*)i, sizeof(dummy)); byteoffset+=dummy;
     F.read((char*)&dummy, sizeof(dummy));byteoffset+=sizeof(int);
     return byteoffset;
 }
 int RAMSES_fortran_read(fstream &F, unsigned int *i){
     int dummy,byteoffset=0;
     F.read((char*)&dummy, sizeof(dummy)); byteoffset += sizeof(int);
-    F.read((char*)i,dummy);               byteoffset += dummy;
+    F.read((char*)i, sizeof(dummy)); byteoffset += dummy;
     F.read((char*)&dummy, sizeof(dummy)); byteoffset += sizeof(int);
     return byteoffset;
 }
 int RAMSES_fortran_read(fstream &F, long long *i){
     int dummy,byteoffset=0;
     F.read((char*)&dummy, sizeof(dummy));byteoffset+=sizeof(int);
-    F.read((char*)i,dummy); byteoffset+=dummy;
+    F.read((char*)i, sizeof(dummy)); byteoffset+=dummy;
     F.read((char*)&dummy, sizeof(dummy));byteoffset+=sizeof(int);
     return byteoffset;
 }
 int RAMSES_fortran_read(fstream &F, RAMSESFLOAT *f){
     int dummy,byteoffset=0;
     F.read((char*)&dummy, sizeof(dummy));byteoffset+=sizeof(int);
-    F.read((char*)f,dummy); byteoffset+=dummy;
+    F.read((char*)f, sizeof(dummy)); byteoffset+=dummy;
     F.read((char*)&dummy, sizeof(dummy));byteoffset+=sizeof(int);
     return byteoffset;
 }
