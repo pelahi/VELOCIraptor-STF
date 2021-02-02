@@ -808,7 +808,8 @@ void GetParamFile(Options &opt)
             getline(paramfile,line);
             //if line is not commented out or empty
             if (line[0]!='#'&&line.length()!=0) {
-                if (j=line.find(sep)){
+                j = line.find(sep);
+                if (j != std::string::npos) {
                     //clean up string
                     tag=line.substr(0,j);
                     strcpy(buff, tag.c_str());
