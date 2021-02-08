@@ -38,7 +38,7 @@ macro(vr_option optname optdesc status)
 endmacro()
 
 # Input formats
-vr_option(HDF5 "Attempt to include HDF5 support in VELOCIraptor" ON)
+vr_option(HDF5 "Attempt to include HDF5 support in VELOCIraptor" OFF)
 vr_option(ALLOWCOMPRESSIONHDF5 "Attempt to include HDF5 compression support in VELOCIraptor" ON)
 vr_option(ALLOWPARALLELHDF5 "Attempt to include parallel HDF5 support in VELOCIraptor" ON)
 vr_option(ALLOWCOMPRESSIONPARALLELHDF5 "Attempt to include parallel HDF5 compression support in VELOCIraptor" OFF)
