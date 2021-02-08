@@ -288,6 +288,9 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
     getline(Finfo,stringbuf);//time
     getline(Finfo,stringbuf);//a
     getline(Finfo,stringbuf);//hubble
+
+    getline(Finfo,stringbuf);//Mysterious mis-reading one line
+
     Finfo>>stringbuf>>stringbuf>>OmegaM;
     getline(Finfo,stringbuf);
     getline(Finfo,stringbuf);
