@@ -3380,8 +3380,8 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
         }
 #if defined(GASON) || defined(STARON) || defined(BHON) || defined(HIGHRES)
         if (opt.iextragasoutput || opt.iextrastaroutput || opt.iextrainterloperoutput || opt.iSphericalOverdensityPartList) {
-	    typeparts.resize(taggedparts.size());
-	}
+            typeparts.resize(taggedparts.size());
+    }
 #endif
 
 #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
@@ -3389,34 +3389,34 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
         vector<Double_t> temp;
         vector<Double_t> Zgas;
         if (sonum_hotgas > 0) {
-	    sfr.resize(taggedparts.size());
-	    temp.resize(taggedparts.size());
-	    Zgas.resize(taggedparts.size());
-	}
+            sfr.resize(taggedparts.size());
+            temp.resize(taggedparts.size());
+            Zgas.resize(taggedparts.size());
+        }
 #endif
         if (opt.iSphericalOverdensityPartList) {
-		SOpids.resize(taggedparts.size());
-	}
+            SOpids.resize(taggedparts.size());
+        }
         for (j=0;j<taggedparts.size();j++) {
 #ifndef NOMASS
             masses[j]=Part[taggedparts[j]].GetMass();
 #endif
             if (opt.iSphericalOverdensityPartList) {
-		SOpids[j]=Part[taggedparts[j]].GetPID();	
-	    }
+                SOpids[j]=Part[taggedparts[j]].GetPID();
+            }
 
             radii[j]=0;
 #if defined(GASON) || defined(STARON) || defined(BHON) || defined(HIGHRES)
             if (opt.iextragasoutput || opt.iextrastaroutput || opt.iextrainterloperoutput || opt.iSphericalOverdensityPartList) {
-	        typeparts[j]=Part[taggedparts[j]].GetType();
-	    }
+                typeparts[j]=Part[taggedparts[j]].GetType();
+            }
 #endif
 #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
            if (sonum_hotgas > 0 && typeparts[j] == GASTYPE) {
-		sfr[j] = Part[taggedparts[j]].GetSFR();
-		temp[j] = Part[taggedparts[j]].GetTemperature();
-		Zgas[j] = Part[taggedparts[j]].GetZmet();
-	   }
+               sfr[j] = Part[taggedparts[j]].GetSFR();
+               temp[j] = Part[taggedparts[j]].GetTemperature();
+               Zgas[j] = Part[taggedparts[j]].GetZmet();
+           }
 #endif
 
             for (k=0;k<3;k++) {
@@ -3452,8 +3452,8 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
                     }
 #if defined(GASON) || defined(STARON) || defined(BHON) || defined(HIGHRES)
                     if (opt.iextragasoutput || opt.iextrastaroutput || opt.iextrainterloperoutput || opt.iSphericalOverdensityPartList) {
-			typeparts.resize(typeparts.size()+taggedparts.size());
-		    }
+                        typeparts.resize(typeparts.size()+taggedparts.size());
+                    }
 #endif
 #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
                    if (sonum_hotgas > 0) {
@@ -3464,27 +3464,27 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
 #endif
 
                     if (opt.iSphericalOverdensityPartList) {
-			SOpids.resize(SOpids.size()+taggedparts.size());
-		    }
+                        SOpids.resize(SOpids.size()+taggedparts.size());
+                    }
                     for (j=0;j<taggedparts.size();j++) {
 #ifndef NOMASS
                         masses[offset+j]=PartDataGet[taggedparts[j]].GetMass();
 #endif
 
                         if (opt.iSphericalOverdensityPartList) {
-		            SOpids[j+offset]=PartDataGet[taggedparts[j]].GetPID();
-		 	}
+                            SOpids[j+offset]=PartDataGet[taggedparts[j]].GetPID();
+                        }
 #if defined(GASON) || defined(STARON) || defined(BHON) || defined(HIGHRES)
                         if (opt.iextragasoutput || opt.iextrastaroutput || opt.iextrainterloperoutput || opt.iSphericalOverdensityPartList) {
-			    typeparts[offset+j]=PartDataGet[taggedparts[j]].GetType();
-			}
+                            typeparts[offset+j]=PartDataGet[taggedparts[j]].GetType();
+                        }
 #endif
 #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
                         if (sonum_hotgas > 0 && typeparts[offset+j] == GASTYPE) {
-  	             	    sfr[offset+j] = PartDataGet[taggedparts[j]].GetSFR();
-  	             	    temp[offset+j] = PartDataGet[taggedparts[j]].GetTemperature();
-  	             	    Zgas[offset+j] = PartDataGet[taggedparts[j]].GetZmet();
-  	                }
+                            sfr[offset+j] = PartDataGet[taggedparts[j]].GetSFR();
+                            temp[offset+j] = PartDataGet[taggedparts[j]].GetTemperature();
+                            Zgas[offset+j] = PartDataGet[taggedparts[j]].GetZmet();
+                        }
 #endif
 
                         radii[offset+j]=0;
@@ -3518,9 +3518,9 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
         SetSphericalOverdensityMasstoFlagValue(opt, pdata[i]);
 
 #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
-	// define the radii in which we'll evaluate the mass of hot gas and relates quantities.
+        // define the radii in which we'll evaluate the mass of hot gas and relates quantities.
         vector<Double_t> SOlg_radii_highT(sonum_hotgas);
-	std::transform(opt.aperture_hotgas_normalised_to_overdensity.begin(),
+        std::transform(opt.aperture_hotgas_normalised_to_overdensity.begin(),
                        opt.aperture_hotgas_normalised_to_overdensity.end(),
                        SOlg_radii_highT.begin(),
                        [&](float hotgas) {
@@ -3529,45 +3529,45 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
 #endif
 
 
-	//init to zero
-	Coordinate zero(0,0,0), J;
+        //init to zero
+        Coordinate zero(0,0,0), J;
         pdata[i].gJ200c = zero;
         pdata[i].gJ200m = zero;
         pdata[i].gJBN98 = zero;
         for (auto iso=0;iso<opt.SOnum;iso++)
              pdata[i].SO_angularmomentum[iso] = zero;
 #ifdef GASON
-    	pdata[i].M_200crit_gas = 0;
-	pdata[i].L_200crit_gas = zero;
-    	pdata[i].M_200mean_gas = 0;
-   	pdata[i].L_200mean_gas = zero;
-    	pdata[i].M_BN98_gas = 0;
-    	pdata[i].L_BN98_gas = zero;
-    	for (auto iso=0;iso<opt.SOnum;iso++) {
-        	pdata[i].SO_mass_gas[iso] = 0;
-        	pdata[i].SO_angularmomentum_gas[iso] = zero;
-    	}
+        pdata[i].M_200crit_gas = 0;
+        pdata[i].L_200crit_gas = zero;
+        pdata[i].M_200mean_gas = 0;
+        pdata[i].L_200mean_gas = zero;
+        pdata[i].M_BN98_gas = 0;
+        pdata[i].L_BN98_gas = zero;
+        for (auto iso=0;iso<opt.SOnum;iso++) {
+            pdata[i].SO_mass_gas[iso] = 0;
+            pdata[i].SO_angularmomentum_gas[iso] = zero;
+        }
 #endif
 #ifdef STARON
-    	pdata[i].M_200crit_star = 0;
-    	pdata[i].L_200crit_star = zero;
-    	pdata[i].M_200mean_star = 0;
-    	pdata[i].L_200mean_star = zero;
-    	pdata[i].M_BN98_star = 0;
-    	pdata[i].L_BN98_star = zero;
-    	for (auto iso=0;iso<opt.SOnum;iso++) {
-        	pdata[i].SO_mass_star[iso] = 0;
-        	pdata[i].SO_angularmomentum_star[iso] = zero;
-    	}
+        pdata[i].M_200crit_star = 0;
+        pdata[i].L_200crit_star = zero;
+        pdata[i].M_200mean_star = 0;
+        pdata[i].L_200mean_star = zero;
+        pdata[i].M_BN98_star = 0;
+        pdata[i].L_BN98_star = zero;
+        for (auto iso=0;iso<opt.SOnum;iso++) {
+            pdata[i].SO_mass_star[iso] = 0;
+            pdata[i].SO_angularmomentum_star[iso] = zero;
+        }
 #endif
 #ifdef HIGHRES
-    	pdata[i].M_200crit_interloper = 0;
-    	pdata[i].M_200mean_interloper = 0;
-    	pdata[i].M_BN98_interloper = 0;
-    	for (auto iso=0;iso<opt.SOnum;iso++)
-    	{
-        	pdata[i].SO_mass_interloper[iso] = 0;
-    	}
+        pdata[i].M_200crit_interloper = 0;
+        pdata[i].M_200mean_interloper = 0;
+        pdata[i].M_BN98_interloper = 0;
+        for (auto iso=0;iso<opt.SOnum;iso++)
+        {
+            pdata[i].SO_mass_interloper[iso] = 0;
+        }
 #endif
 
         //calculate angular momentum if necessary
@@ -3579,9 +3579,9 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
                 massval = opt.MassValue;
 #endif
 
-		auto jj = indices[j];
-		auto typeval = typeparts[jj];
-		
+                auto jj = indices[j];
+                auto typeval = typeparts[jj];
+
                 J=Coordinate(posparts[jj]).Cross(velparts[jj])*massval;
                 rc=radii[jj];
                 if (rc<=pdata[i].gR200c) pdata[i].gJ200c+=J;
@@ -3674,17 +3674,17 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
 
 
 #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
-	    // normalize vectors by mass.
-	    if(pdata[i].M_gas_highT_incl){
-		pdata[i].Temp_mean_gas_highT_incl /= pdata[i].M_gas_highT_incl;
+            // normalize vectors by mass.
+            if(pdata[i].M_gas_highT_incl){
+                pdata[i].Temp_mean_gas_highT_incl /= pdata[i].M_gas_highT_incl;
                 pdata[i].Z_mean_gas_highT_incl /= pdata[i].M_gas_highT_incl;
-	    } 
+            }
             for (int r_ap = 0; r_ap < sonum_hotgas; r_ap++){
-		if(pdata[i].SO_mass_highT[r_ap] > 0) {
-			pdata[i].SO_Temp_mean_gas_highT[r_ap] /= pdata[i].SO_mass_highT[r_ap];
-			pdata[i].SO_Z_mean_gas_highT[r_ap] /= pdata[i].SO_mass_highT[r_ap];		
-		}
-	    }
+                if(pdata[i].SO_mass_highT[r_ap] > 0) {
+                    pdata[i].SO_Temp_mean_gas_highT[r_ap] /= pdata[i].SO_mass_highT[r_ap];
+                    pdata[i].SO_Z_mean_gas_highT[r_ap] /= pdata[i].SO_mass_highT[r_ap];
+                }
+            }
 #endif
 
             if (pdata[i].gR200c != -1) {
