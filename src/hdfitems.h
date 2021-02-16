@@ -50,7 +50,7 @@
 ///\name to access where extra baryonic properties are located in the HDF_Part_Info structure that code will use to calcualte object properties
 //@{
 #define HDFGASIMETAL 0
-
+#define HDFGASTEMP 99
 #define HDFSTARIMETAL 40
 #define HDFSTARIAGE 41
 
@@ -1091,7 +1091,7 @@ struct HDF_Part_Info {
     //store where properties are located
     int propindex[100];
 
-    //the HDF naming convenction for the data blocks. By default assumes ILLUSTRIS nameing convention
+    //the HDF naming convention for the data blocks. By default assumes ILLUSTRIS naming convention
     //for simplicity, all particles have basic properties listed first, x,v,ids,mass in this order
     HDF_Part_Info(int PTYPE, int hdfnametype=HDFEAGLENAMES) {
         ptype=PTYPE;
@@ -1195,7 +1195,6 @@ struct HDF_Part_Info {
               propindex[HDFGASIMETAL]=itemp;
               names[itemp++]=string("Metallicity");
             }
-
         }
         //dark matter
         if (ptype==HDFDMTYPE) {
@@ -1397,6 +1396,13 @@ struct HDF_Part_Info {
                 names[itemp++]=string("TotalAccretedMasses");
             }
         }
+	if (ptype==HDFGASTYPE) {
+            // Temperature
+            propindex[HDFGASTEMP] = itemp;
+            if(hdfnametype==HDFSWIFTEAGLENAMES) names[itemp++]=string("Temperatures");
+            else names[itemp++]=string("Temperature");
+	}
+
         nentries=itemp;
     }
 };

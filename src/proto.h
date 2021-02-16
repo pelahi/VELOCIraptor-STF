@@ -383,6 +383,8 @@ double mycNFW_fdf(double c, void *params, double*y,double *dy);
 double mycNFWRhalf(double c, void *params);
 ///Calculate aperture quantities
 void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, PropData &pdata);
+//Calculate half-mass radii by interpolating
+Double_t GetApertureRadiusInterpolation(const Double_t &oldrc, const Double_t &rc, const Double_t &EncMass, const Double_t &mass, const Double_t refmass);
 ///determine the radial bin for calculating profiles
 int GetRadialBin(Options &opt, Double_t rc, int &ibin);
 ///add a particle's properties to the appropriate radial bin.
@@ -419,14 +421,22 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
     Int_t &numingroup, Particle *Part,
     Double_t &m200val, Double_t &m200mval, Double_t &mBN98val, Double_t &virval, Double_t &m500val,
     vector<Double_t> &SOlgrhovals);
+void Interpolate_SphericalOverdensity(Options &opt, PropData &pdata, Double_t &m200val, Double_t &m200mval, 
+					Double_t &mBN98val, Double_t &virval, Double_t &m500val,
+					vector<Double_t> &SOlgrhovals, Double_t gamma1, Double_t gamma2, 
+					Double_t rc, Double_t EncMass, Double_t rhoval, int iSOfound);
 void CalculateSphericalOverdensitySubhalo(Options &opt, PropData &pdata,
     Int_t &numingroup, Particle *Part,
     Double_t &m200val, Double_t &m200mval, Double_t &mBN98val, Double_t &virval, Double_t &m500val,
-    vector<Double_t> &SOlgrhovals);
+    vector<Double_t> &SOlgrhovals, int SOnum);
 void CalculateSphericalOverdensityExclusive(Options &opt, PropData &pdata,
     Int_t &numingroup, Particle *Part,
     Double_t &m200val, Double_t &m200mval, Double_t &mBN98val, Double_t &virval, Double_t &m500val,
     vector<Double_t> &SOlgrhovals);
+void Loop_over_spherical_overdensities_subhalo(Options &opt, PropData &pdata, Int_t &num_parts, Particle *Part, 
+    Double_t &m200val, Double_t &m200mval, Double_t &mBN98val, Double_t &virval, Double_t &m500val,
+    vector<Double_t> &rhovals, int SOnum, Double_t &enclosed_mass, std::vector<Double_t> &radius, 
+    std::vector<Double_t> &mass);
 
 void SetSphericalOverdensityMasstoFlagValue(Options &opt, PropData &pdata);
 void SetSphericalOverdensityMasstoTotalMass(Options &opt, PropData &pdata);
