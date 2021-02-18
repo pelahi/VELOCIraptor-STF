@@ -3580,7 +3580,9 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
 #endif
 
                 auto jj = indices[j];
+#if defined(GASON) || defined(STARON) || defined(BHON) || defined(HIGHRES)
                 auto typeval = typeparts[jj];
+#endif
 
                 J=Coordinate(posparts[jj]).Cross(velparts[jj])*massval;
                 rc=radii[jj];
