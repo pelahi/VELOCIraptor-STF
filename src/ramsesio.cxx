@@ -456,13 +456,13 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
     double dmp_mass;
 
     int ninputoffset = 0;
-    int ifirstfile=0,*ireadfile,ibuf=0;
+    int ifirstfile=0,ibuf=0;
+    std::vector<int> ireadfile;
     Int_t ibufindex;
     int *ireadtask,*readtaskID;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
-    ireadfile=new int[opt.num_files];
-    for (i=0;i<opt.num_files;i++) ireadfile[i]=1;
+    ireadfile = std::vector<int>(opt.num_files, 1);
 #else
     MPI_Bcast (&(opt.num_files), sizeof(opt.num_files), MPI_BYTE, 0, MPI_COMM_WORLD);
     MPI_Barrier (MPI_COMM_WORLD);
@@ -525,7 +525,7 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
             for (int j=0;j<opt.nsnapread;j++) Preadbuf[j].reserve(BufSize);
         }
         //to determine which files the thread should read
-        ireadfile=new int[opt.num_files];
+        ireadfile = std::vector<int>(opt.num_files);
         ifirstfile=MPISetFilesRead(opt,ireadfile,ireadtask);
         inreadsend=0;
         for (int j=0;j<opt.num_files;j++) inreadsend+=ireadfile[j];
@@ -1360,7 +1360,6 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
     if (ireadtask[ThisTask]>=0) {
         delete[] Nreadbuf;
         delete[] Pbuf;
-        delete[] ireadfile;
     }
     delete[] ireadtask;
     delete[] readtaskID;

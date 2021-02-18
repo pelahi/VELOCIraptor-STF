@@ -714,8 +714,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 
     double mscale,lscale,lvscale;
     double MP_DM=MAXVALUE,LN,N_DM,MP_B=0;
-    int ifirstfile=0,*ireadfile,ireaderror=0;
+    int ifirstfile=0, ireaderror=0;
     int *ireadtask,*readtaskID;
+    std::vector<int> ireadfile;
     Int_t ninputoffset;
 
     //for extra fields related to chemistry, feedback etc
@@ -736,8 +737,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 #ifndef USEMPI
     Int_t Ntotal;
     int ThisTask=0,NProcs=1;
-    ireadfile=new int[opt.num_files];
-    for (i=0;i<opt.num_files;i++) ireadfile[i]=1;
+    ireadfile = std::vector<int>(opt.num_files, 1);
 #else
     MPI_Bcast(&(opt.num_files), sizeof(opt.num_files), MPI_BYTE, 0, MPI_COMM_WORLD);
     MPI_Bcast(&(opt.inputcontainslittleh),sizeof(opt.inputcontainslittleh), MPI_BYTE, 0, MPI_COMM_WORLD);
@@ -833,7 +833,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
             for (int j=0;j<opt.nsnapread;j++) Preadbuf[j].reserve(BufSize);
         }
         //to determine which files the thread should read
-        ireadfile=new int[opt.num_files];
+        ireadfile = std::vector<int>(opt.num_files);
         ifirstfile=MPISetFilesRead(opt,ireadfile,ireadtask);
         inreadsend=0;
         for (int j=0;j<opt.num_files;j++) inreadsend+=ireadfile[j];
@@ -3314,7 +3314,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     if (ireadtask[ThisTask]>=0) {
       delete[] Nreadbuf;
       delete[] Pbuf;
-      delete[] ireadfile;
     }
     delete[] ireadtask;
     delete[] readtaskID;

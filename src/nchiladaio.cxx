@@ -331,7 +331,8 @@ void ReadNchilada(Options &opt, vector<Particle> &Part, const Int_t nbodies,Part
     double z,aadjust,Hubble,Hubbleflow;
     Double_t mscale,lscale,lvscale;
     Double_t MP_DM=MAXVALUE,LN,N_DM,MP_B=0;
-    int ifirstfile=0,*ireadfile,ireaderror=0;
+    int ifirstfile=0,ireaderror=0;
+    std::vector<int> ireadfile;
     int *ireadtask,*readtaskID;
     int nusetypes,nbusetypes;
     int usetypes[NNCHILADATYPE];
@@ -378,8 +379,7 @@ void ReadNchilada(Options &opt, vector<Particle> &Part, const Int_t nbodies,Part
 #ifndef USEMPI
     Int_t Ntotal;
     int ThisTask=0,NProcs=1;
-    ireadfile=new int[opt.num_files];
-    for (i=0;i<opt.num_files;i++) ireadfile[i]=1;
+    ireadfile = std::vector<int>(opt.num_files, 1);
 #endif
 
     //if verbose spit out the types of particles that are going to be searched for
@@ -442,7 +442,7 @@ void ReadNchilada(Options &opt, vector<Particle> &Part, const Int_t nbodies,Part
         for (int j=0;j<opt.num_files;j++) Nreadbuf[j]=0;
 
         //to determine which files the thread should read
-        ireadfile=new int[opt.num_files];
+        ireadfile = std::vector<int>(opt.num_files);
         ifirstfile=MPISetFilesRead(opt,ireadfile,ireadtask);
     }
     else {
