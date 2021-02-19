@@ -522,10 +522,10 @@ void MPINumInDomainGadget(Options &opt)
     fstream *Fgad;
     struct gadget_header *header;
     Int_t Nlocalold=Nlocal;
-    int *ireadfile,*ireadtask,*readtaskID;
+    int *ireadtask,*readtaskID;
     ireadtask=new int[NProcs];
     readtaskID=new int[opt.nsnapread];
-    ireadfile=new int[opt.num_files];
+    std::vector<int> ireadfile(opt.num_files);
     MPIDistributeReadTasks(opt,ireadtask,readtaskID);
 
     MPI_Status status;

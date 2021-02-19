@@ -30,13 +30,13 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
     struct gadget_header *header;
     Double_t mscale,lscale,lvscale;
     Double_t MP_DM=MAXVALUE,LN,N_DM,MP_B=MAXVALUE;
-    int ifirstfile=0,*ireadfile,*ireadtask,*readtaskID;
+    int ifirstfile=0,*ireadtask,*readtaskID;
+    std::vector<int> ireadfile;
     Int_t ninputoffset = 0;
 #ifndef USEMPI
     Int_t Ntotal;
     int ThisTask=0,NProcs=1;
-    ireadfile=new int[opt.num_files];
-    for (i=0;i<opt.num_files;i++) ireadfile[i]=1;
+    ireadfile = std::vector<int>(opt.num_files, 1);
     ireadtask=new int[NProcs];
     ireadtask[0]=1;
 #endif
@@ -98,7 +98,7 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
             for (int j=0;j<opt.nsnapread;j++) Preadbuf[j].reserve(BufSize);
         }
         //to determine which files the thread should read
-        ireadfile=new int[opt.num_files];
+        ireadfile = std::vector<int>(opt.num_files);
         ifirstfile=MPISetFilesRead(opt,ireadfile,ireadtask);
         inreadsend=0;
         for (int j=0;j<opt.num_files;j++) inreadsend+=ireadfile[j];
@@ -1435,7 +1435,6 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
     if (ireadtask[ThisTask]>=0) {
         delete[] Nreadbuf;
         delete[] Pbuf;
-        delete[] ireadfile;
     }
     delete[] ireadtask;
     delete[] readtaskID;

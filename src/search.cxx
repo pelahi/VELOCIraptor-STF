@@ -1399,8 +1399,10 @@ private(i,tid)
         numingroup=BuildNumInGroup(nsubset, numgroups, pfof);
         //pglist is constructed without assuming particles are in index order
         pglist=BuildPGList(nsubset, numgroups, numingroup, pfof, Partsubset);
+        // numgroups can change in CheckSignificance, which leads to a memleak
+        auto pglist_numgroups = numgroups;
         CheckSignificance(opt,nsubset,Partsubset,numgroups,numingroup,pfof,pglist);
-        for (i=1;i<=numgroups;i++) delete[] pglist[i];
+        for (i=1;i<=pglist_numgroups;i++) delete[] pglist[i];
         delete[] pglist;
         delete[] numingroup;
     }
@@ -2769,15 +2771,13 @@ inline void CleanAndUpdateGroupsFromSubSearch(Options &opt,
 
     if (opt.uinfo.unbindflag&&subngroup>0) {
         //if also keeping track of cores then must allocate coreflag
+        std::vector<Int_t> coreflag;
         if (numcores>0 && opt.iHaloCoreSearch>=1) {
-            coreflag=new Int_t[subngroup+1];
+            coreflag.resize(subngroup + 1);
             for (auto icore=1;icore<=subngroup;icore++) coreflag[icore]=1+(icore>subngroup-numcores);
         }
-        else {
-            coreflag=NULL;
-        }
         iunbindflag = CheckUnboundGroups(opt, subnumingroup, subPart,
-            subngroup, subpfof, subsubnumingroup, subsubpglist, 1, coreflag);
+            subngroup, subpfof, subsubnumingroup, subsubpglist, 1, coreflag.empty() ? nullptr : coreflag.data());
         if (iunbindflag) {
             for (auto j=1;j<=ng;j++) delete[] subsubpglist[j];
             delete[] subsubnumingroup;
@@ -2790,7 +2790,6 @@ inline void CleanAndUpdateGroupsFromSubSearch(Options &opt,
             if (numcores>0 && opt.iHaloCoreSearch>=1) {
                 numcores=0;
                 for (auto icore=1;icore<=subngroup;icore++) numcores += (coreflag[icore]==2);
-                delete[] coreflag;
             }
         }
     }
@@ -3411,7 +3410,7 @@ private(i)
 Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const Int_t ndark, vector<Particle> &Part, Int_t *&pfofdark, Int_t &ngroupdark, Int_t &nhalos, int ihaloflag, int iinclusive, PropData *pdata)
 {
     KDTree *tree;
-    Double_t *period;
+    std::vector<Double_t> period;
     Int_t *pfofbaryons, *pfofall, *pfofold;
     Int_t i,pindex,npartingroups,ng,nghalos,nhalosold=nhalos, baryonfofold;
     Int_t *ids, *storeval,*storeval2;
@@ -3535,8 +3534,7 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
     if (npartingroups<=2*opt.MinSize) nsearch=npartingroups-1;
     else nsearch=2*opt.MinSize;
     if (opt.p>0) {
-        period=new Double_t[3];
-        for (int j=0;j<3;j++) period[j]=opt.p;
+        period = std::vector<Double_t>(3, opt.p);
     }
 
     //sort dark matter particles so that particles belonging to a group are first, then all other dm particles
@@ -3586,7 +3584,7 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
         LOG(debug) << "Building tree to search dm containing " << npartingroups;
     }
     //build tree of baryon particles (in groups if a full particle search was done, otherwise npartingroups=nbaryons
-    tree=new KDTree(Part.data(),npartingroups,nsearch/2,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
+    tree=new KDTree(Part.data(),npartingroups,nsearch/2,tree->TPHYS,tree->KEPAN,100,0,0,0,period.data());
     //allocate memory for search
     //find the closest dm particle that belongs to the largest dm group and associate the baryon with that group (including phase-space window)
     LOG(debug) << "Searching ...";
@@ -3678,7 +3676,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
         MPIBuildParticleExportBaryonSearchList(opt, npartingroups, Part.data(), pfofdark, ids, numingroup, sqrt(param[1]));
 
         //now dark matter particles associated with a group existing on another mpi domain are local and can be searched.
-        NExport=MPISearchBaryons(nbaryons, Pbaryons, pfofbaryons, numingroup, localdist, nsearch, param, period);
+        NExport=MPISearchBaryons(nbaryons, Pbaryons, pfofbaryons, numingroup, localdist, nsearch, param, period.data());
 
         //reset order
         delete tree;

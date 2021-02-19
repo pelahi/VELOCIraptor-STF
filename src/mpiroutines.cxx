@@ -1655,9 +1655,8 @@ void MPIDistributeReadTasks(Options&opt, int *&ireadtask, int*&readtaskID){
     for (int i=0;i<opt.nsnapread;i++) {ireadtask[i*spacing]=i;readtaskID[i]=i*spacing;}
 }
 
-int MPISetFilesRead(Options&opt, int *&ireadfile, int *&ireadtask){
+int MPISetFilesRead(Options&opt, std::vector<int> &ireadfile, int *&ireadtask){
     //to determine which files the thread should read
-    ireadfile=new int[opt.num_files];
     int nread, niread, nfread;
     for (int i=0;i<opt.num_files;i++) ireadfile[i]=0;
 #ifndef USEPARALLELHDF

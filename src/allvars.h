@@ -732,6 +732,7 @@ struct Options
     vector<string> aperture_names_kpc;
     vector<Double_t> aperture_proj_values_kpc;
     vector<string> aperture_proj_names_kpc;
+
     int iprofilecalc, iprofilenorm, iprofilebintype;
     int profilenbins;
     int iprofilecumulative;
@@ -747,6 +748,21 @@ struct Options
     vector<string> SOthresholds_names_crit;
     //@}
 
+    /// \name temperature threshold above which gas is considered hot in Kelvin.
+    //@{
+    float temp_max_cut;
+    //@}
+
+    /// \name spherical overdensity used for normalisation of radial profiles of hot gas.
+    //@{
+    float hot_gas_overdensity_normalisation;
+    //@}
+
+    /// \name radial apertures values in units of the hot_gas_overdensity_normalisation.
+    //@{
+    vector<float> aperture_hotgas_normalised_to_overdensity;
+    //@}
+    
     /// \name options related to calculating star forming gas quantities
     //@{
     Double_t gas_sfr_threshold;
@@ -817,6 +833,7 @@ struct Options
     vector<float> star_chemproduction_input_output_unit_conversion_factors;
     vector<float> bh_chemproduction_input_output_unit_conversion_factors;
     vector<float> extra_dm_internalprop_input_output_unit_conversion_factors;
+    float temp_input_output_unit_conversion_factor=1; //assume one if nothing is provided
 
     ///store output units
     vector<string> gas_internalprop_output_units;
@@ -1649,11 +1666,38 @@ struct PropData
     vector<float> profile_mass_gas_nsf;
     vector<float> profile_mass_inclusive_gas_nsf;
     vector<Coordinate> profile_L_gas_nsf;
+    #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+    vector<float> aperture_M_gas_highT;
+    vector<float> aperture_Temp_mean_gas_highT;
+    vector<float> aperture_Z_mean_gas_highT;
+    #endif
+
     //@}
 
     vector<Double_t> SO_mass_gas_nsf;
     vector<Coordinate> SO_angularmomentum_gas_nsf;
 #endif
+#endif
+#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+    Double_t M_gas_highT;
+    Double_t Temp_mean_gas_highT;
+    Double_t Z_mean_gas_highT;
+    Double_t M_gas_highT_incl;
+    Double_t Temp_mean_gas_highT_incl;
+    Double_t Z_mean_gas_highT_incl;
+    vector<float> SO_mass_highT;
+    vector<float> SO_Temp_mean_gas_highT;
+    vector<float> SO_Z_mean_gas_highT;
+    vector<Double_t> SO_radius_highT, SO_totalmass_highT;
+#endif
+    ///\name inclusive masses computed for the FOF structures.
+    //@{
+    Double_t M_tot_incl;
+#ifdef GASON 
+    Double_t M_gas_incl, M_gas_nsf_incl, M_gas_sf_incl;
+#endif
+#ifdef STARON
+    Double_t M_star_incl;
 #endif
 
 #ifdef STARON
@@ -1687,6 +1731,7 @@ struct PropData
     ///physical properties for dynamical state
     Double_t Efrac_star,Pot_star,T_star;
     //@}
+
 
     ///\name stellar radial profiles
     //@{
@@ -1876,7 +1921,24 @@ struct PropData
         L_200crit_excl_gas_nsf[0]=L_200crit_excl_gas_nsf[1]=L_200crit_excl_gas_nsf[2]=0;
         L_200mean_excl_gas_nsf[0]=L_200mean_excl_gas_nsf[1]=L_200mean_excl_gas_nsf[2]=0;
         L_BN98_excl_gas_nsf[0]=L_BN98_excl_gas_nsf[1]=L_BN98_excl_gas_nsf[2]=0;
+
+
 #endif
+#endif
+#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+	M_gas_highT=0;
+	Temp_mean_gas_highT=0;
+	Z_mean_gas_highT=0;
+	M_gas_highT_incl=0;
+	Temp_mean_gas_highT_incl=0;
+	Z_mean_gas_highT_incl=0;
+#endif
+	M_tot_incl=0;
+#ifdef GASON
+        M_gas_incl=M_gas_nsf_incl=M_gas_sf_incl=0;
+#endif
+#ifdef STARON	
+	M_star_incl=0;
 #endif
 #ifdef STARON
         M_star_rvmax=M_star_30kpc=M_star_50kpc=0;
@@ -2096,6 +2158,9 @@ struct PropData
         AllocateApertures(opt);
         AllocateProfiles(opt);
         AllocateSOs(opt);
+#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+	AllocateSOs_HotGas(opt);
+#endif
     }
     void AllocateApertures(Options &opt)
     {
@@ -2127,6 +2192,11 @@ struct PropData
             aperture_rhalfmass_gas_nsf.resize(opt.aperturenum);
             aperture_Z_gas_sf.resize(opt.aperturenum);
             aperture_Z_gas_nsf.resize(opt.aperturenum);
+            #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+	    aperture_M_gas_highT.resize(opt.aperturenum);
+	    aperture_Temp_mean_gas_highT.resize(opt.aperturenum);
+	    aperture_Z_mean_gas_highT.resize(opt.aperturenum);
+	    #endif
             // if (opt.gas_extraprop_aperture_calc) aperture_properties_gas_sf.resize(opt.aperturenum);
             // if (opt.gas_extraprop_aperture_calc) aperture_properties_gas_nsf.resize(opt.aperturenum);
 #endif
@@ -2184,6 +2254,11 @@ struct PropData
             for (auto &x:aperture_rhalfmass_gas_nsf) x=-1;
             for (auto &x:aperture_Z_gas_sf) x=0;
             for (auto &x:aperture_Z_gas_nsf) x=0;
+            #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+            for (auto &x:aperture_M_gas_highT) x=0;
+            for (auto &x:aperture_Temp_mean_gas_highT) x=0;
+            for (auto &x:aperture_Z_mean_gas_highT) x=0;
+            #endif
 #endif
 #endif
 #ifdef STARON
@@ -2353,6 +2428,28 @@ struct PropData
             }
         }
     }
+
+#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+    void AllocateSOs_HotGas(Options &opt)
+    {
+        int sonum_hotgas = opt.aperture_hotgas_normalised_to_overdensity.size();
+	
+	if(sonum_hotgas > 0){
+		SO_totalmass_highT.resize(sonum_hotgas);
+		SO_mass_highT.resize(sonum_hotgas);
+		SO_Temp_mean_gas_highT.resize(sonum_hotgas);
+		SO_Z_mean_gas_highT.resize(sonum_hotgas);
+		SO_radius_highT.resize(sonum_hotgas);
+		for (auto &x:SO_totalmass_highT) x=0;
+		for (auto &x:SO_mass_highT) x=0;
+		for (auto &x:SO_Temp_mean_gas_highT) x=0;
+		for (auto &x:SO_Z_mean_gas_highT) x=0;
+		for (auto &x:SO_radius_highT) x=0;
+	}
+
+    }
+#endif
+
     void CopyProfileToInclusive(Options &opt) {
         for (auto i=0;i<opt.profilenbins;i++) {
             profile_npart_inclusive[i]=profile_npart[i];
@@ -2460,6 +2557,7 @@ struct PropData
         MassTwiceRhalfmass_gas_nsf*=opt.h;
         Rhalfmass_gas_nsf*=opt.h/opt.a;
 
+
         if (opt.iextragasoutput) {
             M_200mean_gas_sf*=opt.h;
             M_200crit_gas_sf*=opt.h;
@@ -2490,7 +2588,24 @@ struct PropData
         #endif
 
 #endif
+#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+	M_gas_highT*=opt.h;
+	M_gas_highT_incl*=opt.h;
+        if(opt.aperture_hotgas_normalised_to_overdensity.size() > 0){
+		for (auto i=0;i<opt.aperture_hotgas_normalised_to_overdensity.size();i++) {
+			SO_mass_highT[i]*=opt.h;
+                	SO_radius_highT[i] *= opt.h/opt.a;
+		}
+	}
+#endif
+	M_tot_incl*=opt.h;
+#ifdef GASON
+	M_gas_incl*=opt.h;
+	M_gas_nsf_incl*=opt.h;
+	M_gas_sf_incl*=opt.h;
+#endif
 #ifdef STARON
+	M_star_incl*opt.h;
         M_star*=opt.h;
         M_star_rvmax*=opt.h;
         M_star_30kpc*=opt.h;
@@ -2512,6 +2627,7 @@ struct PropData
                 aperture_mass[i]*=opt.h;
 #ifdef GASON
                 aperture_mass_gas[i]*=opt.h;
+		aperture_M_gas_highT[i]*=opt.h;
 #ifdef STARON
                 aperture_mass_gas_sf[i]*=opt.h;
                 aperture_mass_gas_nsf[i]*=opt.h;
@@ -2586,13 +2702,14 @@ struct PropData
 
 //for storing the units of known fields
 struct HeaderUnitInfo{
-    float massdim, lengthdim, velocitydim, timedim, energydim;
+    float massdim, lengthdim, velocitydim, timedim, tempdim, energydim;
     string extrainfo;
-    HeaderUnitInfo(float md = 0, float ld = 0, float vd = 0, float td = 0, string s = ""){
+    HeaderUnitInfo(float md = 0, float ld = 0, float vd = 0, float td = 0, float tempd = 0, string s = ""){
         massdim = md;
         lengthdim = ld;
         velocitydim = vd;
         timedim = td;
+	tempdim = tempd;
         extrainfo = s;
     };
     //Parse the string in the format massdim:lengthdim:velocitydim:timedim:energydim if only a string is passed
