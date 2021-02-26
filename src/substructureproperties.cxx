@@ -3232,7 +3232,7 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
     LOG(debug) << "Get inclusive masses";
     LOG(debug) << " with masses based on full SO search (slower) for halos only";
     Double_t ri,ri2,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside;
-    Double_t x,y,z,vx,vy,vz,massval,rc,rcold;
+    Double_t x,y,z,vx,vy,vz,rc,rcold;
     Coordinate J(0.);
     Double_t virval=std::log10(opt.virlevel*opt.rhobg);
     Double_t mBN98val=std::log10(opt.virBN98*opt.rhocrit);
@@ -3574,9 +3574,9 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
         if (opt.iextrahalooutput) {
             for (j=0;j<radii.size();j++) {
 #ifndef NOMASS
-                massval = masses[indices[j]];
+                auto massval = masses[indices[j]];
 #else
-                massval = opt.MassValue;
+                auto massval = opt.MassValue;
 #endif
 
                 auto jj = indices[j];
@@ -3714,9 +3714,9 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
                     typeval = typeparts[indices[j]];
 #endif
 #ifndef NOMASS
-                massval = masses[indices[j]];
+                auto massval = masses[indices[j]];
 #else
-                massval = opt.MassValue;
+                auto massval = opt.MassValue;
 #endif
                 AddDataToRadialBinInclusive(opt, radii[indices[j]], massval,
 #if defined(GASON) || defined(STARON) || defined(BHON)
