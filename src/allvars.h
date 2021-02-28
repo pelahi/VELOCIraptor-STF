@@ -2485,10 +2485,10 @@ struct PropData
                 aperture_mass[i]*=opt.h;
 #ifdef GASON
                 aperture_mass_gas[i]*=opt.h;
-		aperture_M_gas_highT[i]*=opt.h;
 #ifdef STARON
                 aperture_mass_gas_sf[i]*=opt.h;
                 aperture_mass_gas_nsf[i]*=opt.h;
+                aperture_M_gas_highT[i]*=opt.h;
 #endif
 #endif
 #ifdef STARON
