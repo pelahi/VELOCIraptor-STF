@@ -1524,11 +1524,11 @@ struct PropData
     vector<float> profile_mass_gas_nsf;
     vector<float> profile_mass_inclusive_gas_nsf;
     vector<Coordinate> profile_L_gas_nsf;
-    #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
     vector<float> aperture_M_gas_highT;
     vector<float> aperture_Temp_mean_gas_highT;
     vector<float> aperture_Z_mean_gas_highT;
-    #endif
+#endif
 
     //@}
 
