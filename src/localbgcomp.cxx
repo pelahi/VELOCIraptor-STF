@@ -87,7 +87,29 @@ if (nbodies > ompsubsearchnum)
     for (i=0;i<nbodies;i++)
     {
         if (!(Part[i].GetDensity() > 0)) {
-            throw std::runtime_error("Particle density not positive, cannot continue");
+            const auto &part = Part[i];
+            std::ostringstream os;
+            os << "Particle density not positive, cannot continue.\n\n"
+               << " Information for particle " << i << '/' << nbodies
+               << ": id=" << part.GetID() << ", pid=" << part.GetPID()
+               << ", type=" << part.GetType()
+               << ", pos=(" << part.X() << ", " << part.Y() << ", " << part.Z()
+               << "), vel=(" << part.Vx() << ", " << part.Vy() << ", " << part.Vz()
+               << "), mass=" << part.GetMass()
+               << ", density=" << part.GetDensity() << '\n';
+            os << "Information for execution context: MPI enabled=";
+#ifdef USEMPI
+            os << "yes, rank=" << ThisTask << '/' << NProcs;
+#else
+            os << "no";
+#endif // USEMPI
+            os << ", OpenMP enabled=";
+#ifdef USEOPENMP
+            os << "yes, thread=" << omp_get_thread_num() << '/' << nthreads;
+#else
+            os << "no";
+#endif // USEOPENMP
+            throw std::runtime_error(os.str());
         }
         tempdenv=Part[i].GetDensity()/opt.Nsearch;
 #ifdef USEOPENMP
