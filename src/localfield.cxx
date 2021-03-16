@@ -4,6 +4,7 @@
 
 //--  Local Velocity density routines
 
+#include "exceptions.h"
 #include "logging.h"
 #include "stf.h"
 #include "swiftinterface.h"
@@ -1057,4 +1058,16 @@ reduction(+:nprocessed)
     //free memory
     if (itreeflag) delete tree;
     if (period!=NULL) delete[] period;
+
+    // Double-check that valid densities have been set in all particles
+    for (int i = 0; i < nbodies; i++)
+    {
+        const auto &part = Part[i];
+#ifdef STRUCDEN
+        if (part.GetType()<=0) continue;
+#endif
+        if (!(part.GetDensity() > 0)) {
+            throw vr::non_positive_density(Part[i], __PRETTY_FUNCTION__);
+        }
+    }
 }
