@@ -426,6 +426,10 @@ void CalculateSphericalOverdensityExclusive(Options &opt, PropData &pdata,
     Int_t &numingroup, Particle *Part,
     Double_t &m200val, Double_t &m200mval, Double_t &mBN98val, Double_t &virval, Double_t &m500val,
     vector<Double_t> &SOlgrhovals);
+///calculate extra properties inside SO apertures
+void CalculateExtraSphericalOverdensityProperties(Options &opt, PropData &pdata,
+    vector<Double_t> &radii, vector<Double_t> &masses, vector<Int_t> &indices,
+    vector<Coordinate> &posparts, vector<Coordinate> &velparts, vector<int> &typeparts);
 
 void SetSphericalOverdensityMasstoFlagValue(Options &opt, PropData &pdata);
 void SetSphericalOverdensityMasstoTotalMass(Options &opt, PropData &pdata);

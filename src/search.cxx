@@ -251,7 +251,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
 // #else
             numingroup=BuildNumInGroup(nbodies, numgroups, pfof);
             for (i=0;i<nbodies;i++) {
-                Part[i].SetType((numingroup[pfof[i]]>=MINSUBSIZE));
+                Part[i].SetType((numingroup[pfof[Part[i].GetID()]]>=MINSUBSIZE));
                 numlocalden += (Part[i].GetType()>0);
             }
             if (opt.fofbgtype>FOF6D) {
@@ -274,6 +274,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         for (i=0;i<nbodies;i++) {numinstrucs+=(pfof[i]>0);}
         if (opt.iverbose) {
             cout<<"Number of particles in large subhalo searchable structures "<<numinstrucs<<endl;
+            cout<<"Number of particles that will have local velocity densitites calculated "<<numlocalden<<endl;
         }
         if (numlocalden>0) GetVelocityDensity(opt, nbodies, Part.data(), tree);
         for (i=0;i<nbodies;i++) Part[i].SetType(storetype[i]);

@@ -3212,94 +3212,8 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
         sort(indices.begin(), indices.end(), comparator);
         Int_t llindex = CalculateSphericalOverdensity(opt, pdata[i], radii, masses, indices, m200val, m200mval, mBN98val, virval, m500val, SOlgrhovals);
         SetSphericalOverdensityMasstoFlagValue(opt, pdata[i]);
-        //calculate angular momentum if necessary
-        if (opt.iextrahalooutput) {
-            for (j=0;j<radii.size();j++) {
-#ifndef NOMASS
-                massval = masses[indices[j]];
-#else
-                massval = opt.MassValue;
-#endif
-                J=Coordinate(posparts[indices[j]]).Cross(velparts[indices[j]])*massval;
-                rc=posparts[indices[j]].Length();
-                if (rc<=pdata[i].gR200c) pdata[i].gJ200c+=J;
-                if (rc<=pdata[i].gR200m) pdata[i].gJ200m+=J;
-                if (rc<=pdata[i].gRBN98) pdata[i].gJBN98+=J;
-                for (auto iso=0;iso<opt.SOnum;iso++) if (rc<pdata[i].SO_radius[iso]) {
-                    pdata[i].SO_angularmomentum[iso]+=J;
-                }
-#ifdef GASON
-                if (opt.iextragasoutput) {
-                    if (typeparts[indices[j]]==GASTYPE){
-                        if (rc<=pdata[i].gR200c) {
-                            pdata[i].M_200crit_gas+=massval;
-                            pdata[i].L_200crit_gas+=J;
-                        }
-                        if (rc<=pdata[i].gR200m) {
-                            pdata[i].M_200mean_gas+=massval;
-                            pdata[i].L_200mean_gas+=J;
-                        }
-                        if (rc<=pdata[i].gRBN98) {
-                            pdata[i].M_BN98_gas+=massval;
-                            pdata[i].L_BN98_gas+=J;
-                        }
-                        for (auto iso=0;iso<opt.SOnum;iso++) if (rc<pdata[i].SO_radius[iso]) {
-                            pdata[i].SO_mass_gas[iso]+=massval;
-                            pdata[i].SO_angularmomentum_gas[iso]+=J;
-                        }
-                    }
-                }
-#endif
-#ifdef STARON
-                if (opt.iextrastaroutput) {
-                    if (typeparts[indices[j]]==STARTYPE){
-                        if (rc<=pdata[i].gR200c) {
-                            pdata[i].M_200crit_star+=massval;
-                            pdata[i].L_200crit_star+=J;
-                        }
-                        if (rc<=pdata[i].gR200m) {
-                            pdata[i].M_200mean_star+=massval;
-                            pdata[i].L_200mean_star+=J;
-                        }
-                        if (rc<=pdata[i].gRBN98) {
-                            pdata[i].M_BN98_star+=massval;
-                            pdata[i].L_BN98_star+=J;
-                        }
-                        for (auto iso=0;iso<opt.SOnum;iso++) if (rc<pdata[i].SO_radius[iso]) {
-                            pdata[i].SO_mass_star[iso]+=massval;
-                            pdata[i].SO_angularmomentum_star[iso]+=J;
-                        }
-                    }
-                }
-#endif
-#ifdef HIGHRES
-                if (opt.iextrainterloperoutput) {
-                    if (typeparts[indices[j]] == DARK2TYPE || typeparts[indices[j]] == DARK3TYPE || (typeparts[indices[j]]==DARKTYPE&&massval>opt.zoomlowmassdm))
-                    {
-                        if (rc<=pdata[i].gR200c) {
-                            pdata[i].M_200crit_interloper+=massval;
-                        }
-                        if (rc<=pdata[i].gR200m) {
-                            pdata[i].M_200mean_interloper+=massval;
-                        }
-                        if (rc<=pdata[i].gRBN98) {
-                            pdata[i].M_BN98_interloper+=massval;
-                        }
-                        for (auto iso=0;iso<opt.SOnum;iso++) if (rc<pdata[i].SO_radius[iso]) {
-                            pdata[i].SO_mass_interloper[iso]+=massval;
-                        }
-                    }
-                }
-#endif
-            }
-
-            if (pdata[i].gR200c != -1) {
-                pdata[i].glambda_B=pdata[i].gJ200c.Length()/(pdata[i].gM200c*sqrt(2.0*opt.G*pdata[i].gM200c*pdata[i].gR200c));
-            }
-            else {
-                pdata[i].glambda_B=0;
-            }
-        }
+        //calculate other extra SO related properties
+        CalculateExtraSphericalOverdensityProperties(opt, pdata[i], radii, masses, indices, posparts, velparts, typeparts);
 
         //if calculating profiles
         if (opt.iprofilecalc) {
@@ -7000,5 +6914,145 @@ void SetSphericalOverdensityMasstoTotalMassExclusive(Options &opt, PropData &pda
     if (pdata.gR200m_excl==0) {pdata.gM200m_excl=pdata.gmass;pdata.gR200m_excl=pdata.gsize;}
     if (pdata.gRBN98_excl==0) {pdata.gMBN98_excl=pdata.gmass;pdata.gRBN98_excl=pdata.gsize;}
 }
+
+void CalculateExtraSphericalOverdensityProperties(Options &opt, PropData &pdata,
+    vector<Double_t> &radii, vector<Double_t> &masses, vector<Int_t> &indices,
+    vector<Coordinate> &posparts, vector<Coordinate> &velparts, vector<int> &typeparts)
+{
+    //calculate extra SO properites like angular momentum, gas, stars in spherical overdensity
+    if (!opt.iextrahalooutput) return;
+
+    //init to zero
+    Coordinate zero(0,0,0), J;
+    pdata.gJ200c = zero;
+    pdata.gJ200m = zero;
+    pdata.gJBN98 = zero;
+    for (auto iso=0;iso<opt.SOnum;iso++)
+        pdata.SO_angularmomentum[iso] = zero;
+#ifdef GASON
+    pdata.M_200crit_gas = 0;
+    pdata.L_200crit_gas = zero;
+    pdata.M_200mean_gas = 0;
+    pdata.L_200mean_gas = zero;
+    pdata.M_BN98_gas = 0;
+    pdata.L_BN98_gas = zero;
+    for (auto iso=0;iso<opt.SOnum;iso++) {
+        pdata.SO_mass_gas[iso] = 0;
+        pdata.SO_angularmomentum_gas[iso] = zero;
+    }
+#endif
+#ifdef STARON
+    pdata.M_200crit_star = 0;
+    pdata.L_200crit_star = zero;
+    pdata.M_200mean_star = 0;
+    pdata.L_200mean_star = zero;
+    pdata.M_BN98_star = 0;
+    pdata.L_BN98_star = zero;
+    for (auto iso=0;iso<opt.SOnum;iso++) {
+        pdata.SO_mass_star[iso] = 0;
+        pdata.SO_angularmomentum_star[iso] = zero;
+    }
+#endif
+#ifdef HIGHRES
+    pdata.M_200crit_interloper = 0;
+    pdata.M_200mean_interloper = 0;
+    pdata.M_BN98_interloper = 0;
+    for (auto iso=0;iso<opt.SOnum;iso++)
+    {
+                pdata.SO_mass_interloper[iso] = 0;
+    }
+#endif
+
+    Double_t massval;
+    for (Int_t j=0;j<radii.size();j++)
+    {
+#ifndef NOMASS
+        massval = masses[indices[j]];
+#else
+        massval = opt.MassValue;
+#endif
+        auto jj = indices[j];
+        auto typeval = typeparts[jj];
+        J=Coordinate(posparts[jj]).Cross(velparts[jj])*massval;
+        auto rc=radii[jj];
+        if (rc<=pdata.gR200c) pdata.gJ200c+=J;
+        if (rc<=pdata.gR200m) pdata.gJ200m+=J;
+        if (rc<=pdata.gRBN98) pdata.gJBN98+=J;
+        for (auto iso=0;iso<opt.SOnum;iso++) if (rc<pdata.SO_radius[iso]) {
+            pdata.SO_angularmomentum[iso]+=J;
+        }
+#ifdef GASON
+        if (opt.iextragasoutput) {
+            if (typeval == GASTYPE){
+                if (rc<=pdata.gR200c) {
+                    pdata.M_200crit_gas+=massval;
+                    pdata.L_200crit_gas+=J;
+                }
+                if (rc<=pdata.gR200m) {
+                    pdata.M_200mean_gas+=massval;
+                    pdata.L_200mean_gas+=J;
+                }
+                if (rc<=pdata.gRBN98) {
+                    pdata.M_BN98_gas+=massval;
+                    pdata.L_BN98_gas+=J;
+                }
+                for (auto iso=0;iso<opt.SOnum;iso++) if (rc<pdata.SO_radius[iso]) {
+                    pdata.SO_mass_gas[iso]+=massval;
+                    pdata.SO_angularmomentum_gas[iso]+=J;
+                }
+            }
+        }
+#endif
+#ifdef STARON
+        if (opt.iextrastaroutput) {
+            if (typeval == STARTYPE){
+                if (rc<=pdata.gR200c) {
+                    pdata.M_200crit_star+=massval;
+                    pdata.L_200crit_star+=J;
+                }
+                if (rc<=pdata.gR200m) {
+                    pdata.M_200mean_star+=massval;
+                    pdata.L_200mean_star+=J;
+                }
+                if (rc<=pdata.gRBN98) {
+                    pdata.M_BN98_star+=massval;
+                    pdata.L_BN98_star+=J;
+                }
+                for (auto iso=0;iso<opt.SOnum;iso++) if (rc<pdata.SO_radius[iso]) {
+                    pdata.SO_mass_star[iso]+=massval;
+                    pdata.SO_angularmomentum_star[iso]+=J;
+                }
+            }
+        }
+#endif
+#ifdef HIGHRES
+        if (opt.iextrainterloperoutput) {
+            if (typeval == DARK2TYPE || typeval == DARK3TYPE || (typeval ==DARKTYPE && massval>opt.zoomlowmassdm))
+            {
+                if (rc<=pdata.gR200c) {
+                    pdata.M_200crit_interloper+=massval;
+                }
+                if (rc<=pdata.gR200m) {
+                    pdata.M_200mean_interloper+=massval;
+                }
+                if (rc<=pdata.gRBN98) {
+                    pdata.M_BN98_interloper+=massval;
+                }
+                for (auto iso=0;iso<opt.SOnum;iso++) if (rc<pdata.SO_radius[iso]) {
+                    pdata.SO_mass_interloper[iso]+=massval;
+                }
+            }
+        }
+#endif
+    }
+
+    if (pdata.gR200c != -1) {
+        pdata.glambda_B=pdata.gJ200c.Length()/(pdata.gM200c*sqrt(2.0*opt.G*pdata.gM200c*pdata.gR200c));
+    }
+    else {
+        pdata.glambda_B=0;
+    }
+}
+
 
 //@}
