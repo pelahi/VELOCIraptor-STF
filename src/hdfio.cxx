@@ -2730,11 +2730,14 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 #if defined(GASON)
                             if (opt.gas_internalprop_names.size()>0)
                             {
-                                // for (auto iextra=0;iextra<opt.gas_internalprop_names.size();iextra++)
                                 for (auto &iextra:opt.gas_internalprop_unique_input_indexlist)
                                 {
                                     if (k == HDFGASTYPE)
-                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id, 1, opt.gas_internalprop_index[iextra]);
+                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],
+                                        partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        1, 1, nchunk, n, plist_id, 1, 
+                                        opt.gas_internalprop_index[iextra]);
                                 }
                             }
                             iextraoffset += opt.gas_internalprop_names.size();
@@ -2744,7 +2747,11 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                                 for (auto &iextra:opt.gas_chem_unique_input_indexlist)
                                 {
                                     if (k == HDFGASTYPE)
-                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id, 1, opt.gas_chem_index[iextra]);
+                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],
+                                        partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        1, 1, nchunk, n, plist_id, 1, 
+                                        opt.gas_chem_index[iextra]);
                                 }
                             }
                             iextraoffset += opt.gas_chem_names.size();
@@ -2754,19 +2761,65 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                                 for (auto &iextra:opt.gas_chemproduction_unique_input_indexlist)
                                 {
                                     if (k == HDFGASTYPE)
-                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id, 1, opt.gas_chemproduction_index[iextra]);
+                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],
+                                        partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        1, 1, nchunk, n, plist_id, 1, 
+                                        opt.gas_chemproduction_index[iextra]);
                                 }
                             }
                             iextraoffset += opt.gas_chemproduction_names.size();
+                            // now access hyperslabs for apertures 
+                            if (opt.gas_internalprop_names_aperture.size()>0)
+                            {
+                                for (auto &iextra:opt.gas_internalprop_unique_input_indexlist_aperture)
+                                {
+                                    if (k == HDFGASTYPE)
+                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],
+                                        partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        1, 1, nchunk, n, plist_id, 1, 
+                                        opt.gas_internalprop_index_aperture[iextra]);
+                                }
+                            }
+                            iextraoffset += opt.gas_internalprop_names_aperture.size();
+                            if (opt.gas_chem_names_aperture.size()>0)
+                            {
+                                for (auto &iextra:opt.gas_chem_unique_input_indexlist_aperture)
+                                {
+                                    if (k == HDFGASTYPE)
+                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],
+                                        partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        1, 1, nchunk, n, plist_id, 1, 
+                                        opt.gas_chem_index_aperture[iextra]);
+                                }
+                            }
+                            iextraoffset += opt.gas_chem_names_aperture.size();
+                            if (opt.gas_chemproduction_names_aperture.size()>0)
+                            {
+                                for (auto &iextra:opt.gas_chemproduction_unique_input_indexlist_aperture)
+                                {
+                                    if (k == HDFGASTYPE)
+                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],
+                                        partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        1, 1, nchunk, n, plist_id, 1, opt.gas_chemproduction_index_aperture[iextra]);
+                                }
+                            }
+                            iextraoffset += opt.gas_chemproduction_names_aperture.size();
 #endif
 #if defined(STARON)
                             if (opt.star_internalprop_names.size()>0)
                             {
-                                // for (auto iextra=0;iextra<opt.star_internalprop_names.size();iextra++)
                                 for (auto &iextra:opt.star_internalprop_unique_input_indexlist)
                                 {
                                     if (k == HDFSTARTYPE)
-                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id, 1, opt.star_internalprop_index[iextra]);
+                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],
+                                        partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        1, 1, nchunk, n, plist_id, 1, 
+                                        opt.star_internalprop_index[iextra]);
                                 }
                             }
                             iextraoffset += opt.star_internalprop_names.size();
@@ -2776,7 +2829,11 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                                 for (auto &iextra:opt.star_chem_unique_input_indexlist)
                                 {
                                     if (k == HDFSTARTYPE)
-                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id, 1, opt.star_chem_index[iextra]);
+                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],
+                                        partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        1, 1, nchunk, n, plist_id, 1, 
+                                        opt.star_chem_index[iextra]);
                                 }
                             }
                             iextraoffset += opt.star_chem_names.size();
@@ -2786,19 +2843,65 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                                 for (auto &iextra:opt.star_chemproduction_unique_input_indexlist)
                                 {
                                     if (k == HDFSTARTYPE)
-                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id, 1, opt.star_chemproduction_index[iextra]);
+                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],
+                                        partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        1, 1, nchunk, n, plist_id, 1, 
+                                        opt.star_chemproduction_index[iextra]);
                                 }
                             }
                             iextraoffset += opt.star_chemproduction_names.size();
+                            // now access hyperslabs for apertures 
+                            if (opt.star_internalprop_names_aperture.size()>0)
+                            {
+                                for (auto &iextra:opt.star_internalprop_unique_input_indexlist_aperture)
+                                {
+                                    if (k == HDFSTARTYPE)
+                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],
+                                        partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        1, 1, nchunk, n, plist_id, 1, 
+                                        opt.star_internalprop_index_aperture[iextra]);
+                                }
+                            }
+                            iextraoffset += opt.star_internalprop_names_aperture.size();
+                            if (opt.star_chem_names_aperture.size()>0)
+                            {
+                                for (auto &iextra:opt.star_chem_unique_input_indexlist_aperture)
+                                {
+                                    if (k == HDFSTARTYPE)
+                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],
+                                        partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        1, 1, nchunk, n, plist_id, 1, 
+                                        opt.star_chem_index_aperture[iextra]);
+                                }
+                            }
+                            iextraoffset += opt.star_chem_names_aperture.size();
+                            if (opt.star_chemproduction_names_aperture.size()>0)
+                            {
+                                for (auto &iextra:opt.star_chemproduction_unique_input_indexlist_aperture)
+                                {
+                                    if (k == HDFSTARTYPE)
+                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],
+                                        partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        1, 1, nchunk, n, plist_id, 1, opt.star_chemproduction_index_aperture[iextra]);
+                                }
+                            }
+                            iextraoffset += opt.star_chemproduction_names_aperture.size();
 #endif
 #if defined(BHON)
                             if (opt.bh_internalprop_names.size()>0)
                             {
-                                // for (auto iextra=0;iextra<opt.bh_internalprop_names.size();iextra++)
                                 for (auto &iextra:opt.bh_internalprop_unique_input_indexlist)
                                 {
                                     if (k == HDFBHTYPE)
-                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id, 1, opt.bh_internalprop_index[iextra]);
+                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],
+                                        partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        1, 1, nchunk, n, plist_id, 1, 
+                                        opt.bh_internalprop_index[iextra]);
                                 }
                             }
                             iextraoffset += opt.bh_internalprop_names.size();
@@ -2808,7 +2911,11 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                                 for (auto &iextra:opt.bh_chem_unique_input_indexlist)
                                 {
                                     if (k == HDFBHTYPE)
-                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id, 1, opt.bh_chem_index[iextra]);
+                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],
+                                        partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        1, 1, nchunk, n, plist_id, 1, 
+                                        opt.bh_chem_index[iextra]);
                                 }
                             }
                             iextraoffset += opt.bh_chem_names.size();
@@ -2818,19 +2925,78 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                                 for (auto &iextra:opt.bh_chemproduction_unique_input_indexlist)
                                 {
                                     if (k == HDFBHTYPE)
-                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id, 1, opt.bh_chemproduction_index[iextra]);
+                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],
+                                        partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        1, 1, nchunk, n, plist_id, 1, 
+                                        opt.bh_chemproduction_index[iextra]);
                                 }
                             }
                             iextraoffset += opt.bh_chemproduction_names.size();
+                            // now access hyperslabs for apertures 
+                            if (opt.bh_internalprop_names_aperture.size()>0)
+                            {
+                                for (auto &iextra:opt.bh_internalprop_unique_input_indexlist_aperture)
+                                {
+                                    if (k == HDFBHTYPE)
+                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],
+                                        partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        1, 1, nchunk, n, plist_id, 1, 
+                                        opt.bh_internalprop_index_aperture[iextra]);
+                                }
+                            }
+                            iextraoffset += opt.bh_internalprop_names_aperture.size();
+                            if (opt.bh_chem_names_aperture.size()>0)
+                            {
+                                for (auto &iextra:opt.bh_chem_unique_input_indexlist_aperture)
+                                {
+                                    if (k == HDFBHTYPE)
+                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],
+                                        partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        1, 1, nchunk, n, plist_id, 1, 
+                                        opt.bh_chem_index_aperture[iextra]);
+                                }
+                            }
+                            iextraoffset += opt.bh_chem_names_aperture.size();
+                            if (opt.bh_chemproduction_names_aperture.size()>0)
+                            {
+                                for (auto &iextra:opt.bh_chemproduction_unique_input_indexlist_aperture)
+                                {
+                                    if (k == HDFBHTYPE)
+                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],
+                                        partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        1, 1, nchunk, n, plist_id, 1, opt.bh_chemproduction_index_aperture[iextra]);
+                                }
+                            }
+                            iextraoffset += opt.bh_chemproduction_names_aperture.size();
 #endif
 #if defined(EXTRADMON)
                             if (opt.extra_dm_internalprop_names.size()>0)
                             {
-                                // for (auto iextra=0;iextra<opt.extra_dm_internalprop_names.size();iextra++)
                                 for (auto &iextra:opt.extra_dm_internalprop_unique_input_indexlist)
                                 {
                                     if (k == HDFDMTYPE)
-                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],partsdatasetall_extra[i*numextrafields+iextra+iextraoffset], partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 1, 1, nchunk, n, plist_id, 1, opt.extra_dm_internalprop_index[iextra]);
+                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],
+                                        partsdatasetall_extra[i*numextrafields+iextra+iextraoffset],
+                                        partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        1, 1, nchunk, n, plist_id, 1, 
+                                        opt.extra_dm_internalprop_index[iextra]);
+                                }
+                            }
+                            iextraoffset += opt.extra_dm_internalprop_names.size();
+                            if (opt.extra_dm_internalprop_names_aperture.size()>0)
+                            {
+                                for (auto &iextra:opt.extra_dm_internalprop_unique_input_indexlist_aperture)
+                                {
+                                    if (k == HDFDMTYPE)
+                                        HDF5ReadHyperSlabReal(&extrafieldbuff[(iextraoffset+iextra)*chunksize],
+                                        partsdatasetall_extra[i*numextrafields+iextra+iextraoffset],
+                                        partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset], 
+                                        1, 1, nchunk, n, plist_id, 1, 
+                                        opt.extra_dm_internalprop_index_aperture[iextra]);
                                 }
                             }
                             iextraoffset += opt.extra_dm_internalprop_names.size();
@@ -2937,9 +3103,45 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                                 }
                             }
                             iextraoffset += opt.gas_chemproduction_names.size();
+                            // aperture 
+                            if (opt.gas_internalprop_names_aperture.size()>0)
+                            {
+                                for (auto &iextra:opt.gas_internalprop_unique_input_indexlist_aperture)
+                                {
+                                    extrafield = opt.gas_internalprop_names_aperture[iextra] +
+                                        to_string(opt.gas_internalprop_index_aperture[iextra]);
+                                    Pbuf[ibufindex].GetHydroProperties().SetInternalProperties(extrafield, extrafieldbuff[(iextraoffset+iextra)*chunksize+nn]);
+                                }
+                            }
+                            iextraoffset += opt.gas_internalprop_names_aperture.size();
+                            if (opt.gas_chem_names_aperture.size()>0)
+                            {
+                                for (auto &iextra:opt.gas_chem_unique_input_indexlist_aperture)
+                                {
+                                    extrafield = opt.gas_chem_names_aperture[iextra] +
+                                        to_string(opt.gas_chem_index_aperture[iextra]);
+                                    Pbuf[ibufindex].GetHydroProperties().SetChemistry(extrafield, extrafieldbuff[(iextraoffset+iextra)*chunksize+nn]);
+                                }
+                            }
+                            iextraoffset += opt.gas_chem_names_aperture.size();
+                            if (opt.gas_chemproduction_names_aperture.size()>0)
+                            {
+                                for (auto &iextra:opt.gas_chemproduction_unique_input_indexlist_aperture)
+                                {
+                                    extrafield = opt.gas_chemproduction_names_aperture[iextra] +
+                                        to_string(opt.gas_chemproduction_index_aperture[iextra]);
+                                    Pbuf[ibufindex].GetHydroProperties().SetChemistryProduction(extrafield, extrafieldbuff[(iextraoffset+iextra)*chunksize+nn]);
+                                }
+                            }
+                            iextraoffset += opt.gas_chemproduction_names_aperture.size();
                         }
                         else {
-                            iextraoffset += opt.gas_internalprop_names.size() + opt.gas_chem_names.size() + opt.gas_chemproduction_names.size();
+                            iextraoffset += opt.gas_internalprop_names.size() +
+                            opt.gas_chem_names.size() +
+                            opt.gas_chemproduction_names.size() +
+                            opt.gas_internalprop_names_aperture.size() + 
+                            opt.gas_chem_names_aperture.size() + 
+                            opt.gas_chemproduction_names_aperture.size();
                         }
 #endif
 #ifdef STARON
@@ -2975,9 +3177,46 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                                 }
                             }
                             iextraoffset += opt.star_chemproduction_names.size();
+                            //aperture 
+                            if (opt.star_internalprop_names_aperture.size()>0)
+                            {
+                                for (auto &iextra:opt.star_internalprop_unique_input_indexlist_aperture)
+                                {
+                                    extrafield = opt.star_internalprop_names_aperture[iextra] +
+                                        to_string(opt.star_internalprop_index_aperture[iextra]);
+                                    Pbuf[ibufindex].GetStarProperties().SetInternalProperties(extrafield, extrafieldbuff[(iextraoffset+iextra)*chunksize+nn]);
+                                }
+                            }
+                            iextraoffset += opt.star_internalprop_names_aperture.size();
+                            if (opt.star_chem_names_aperture.size()>0)
+                            {
+                                for (auto &iextra:opt.star_chem_unique_input_indexlist_aperture)
+                                {
+                                    extrafield = opt.star_chem_names_aperture[iextra] +
+                                        to_string(opt.star_chem_index_aperture[iextra]);
+                                    Pbuf[ibufindex].GetStarProperties().SetChemistry(extrafield, extrafieldbuff[(iextraoffset+iextra)*chunksize+nn]);
+                                }
+                            }
+                            iextraoffset += opt.star_chem_names_aperture.size();
+                            if (opt.star_chemproduction_names_aperture.size()>0)
+                            {
+                                for (auto &iextra:opt.star_chemproduction_unique_input_indexlist_aperture)
+                                {
+                                    extrafield = opt.star_chemproduction_names_aperture[iextra] +
+                                        to_string(opt.star_chemproduction_index_aperture[iextra]);
+                                    Pbuf[ibufindex].GetStarProperties().SetChemistryProduction(extrafield, extrafieldbuff[(iextraoffset+iextra)*chunksize+nn]);
+                                }
+                            }
+                            iextraoffset += opt.star_chemproduction_names_aperture.size();
+
                         }
                         else {
-                            iextraoffset += opt.star_internalprop_names.size() + opt.star_chem_names.size() + opt.star_chemproduction_names.size();
+                            iextraoffset += opt.star_internalprop_names.size() + 
+                            opt.star_chem_names.size() + 
+                            opt.star_chemproduction_names.size()+
+                            opt.star_internalprop_names_aperture.size() + 
+                            opt.star_chem_names_aperture.size() + 
+                            opt.star_chemproduction_names_aperture.size();
                         }
 #endif
 #ifdef BHON
@@ -3013,9 +3252,45 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                                 }
                             }
                             iextraoffset += opt.bh_chemproduction_names.size();
+                            //aperture 
+                            if (opt.bh_internalprop_names_aperture.size()>0)
+                            {
+                                for (auto &iextra:opt.bh_internalprop_unique_input_indexlist_aperture)
+                                {
+                                    extrafield = opt.bh_internalprop_names_aperture[iextra] +
+                                        to_string(opt.bh_internalprop_index_aperture[iextra]);
+                                    Pbuf[ibufindex].GetBHProperties().SetInternalProperties(extrafield, extrafieldbuff[(iextraoffset+iextra)*chunksize+nn]);
+                                }
+                            }
+                            iextraoffset += opt.bh_internalprop_names_aperture.size();
+                            if (opt.bh_chem_names_aperture.size()>0)
+                            {
+                                for (auto &iextra:opt.bh_chem_unique_input_indexlist_aperture)
+                                {
+                                    extrafield = opt.bh_chem_names_aperture[iextra] +
+                                        to_string(opt.bh_chem_index_aperture[iextra]);
+                                    Pbuf[ibufindex].GetBHProperties().SetChemistry(extrafield, extrafieldbuff[(iextraoffset+iextra)*chunksize+nn]);
+                                }
+                            }
+                            iextraoffset += opt.bh_chem_names_aperture.size();
+                            if (opt.bh_chemproduction_names_aperture.size()>0)
+                            {
+                                for (auto &iextra:opt.bh_chemproduction_unique_input_indexlist_aperture)
+                                {
+                                    extrafield = opt.bh_chemproduction_names_aperture[iextra] +
+                                        to_string(opt.bh_chemproduction_index_aperture[iextra]);
+                                    Pbuf[ibufindex].GetBHProperties().SetChemistryProduction(extrafield, extrafieldbuff[(iextraoffset+iextra)*chunksize+nn]);
+                                }
+                            }
+                            iextraoffset += opt.bh_chemproduction_names_aperture.size();
                         }
                         else {
-                            iextraoffset += opt.bh_internalprop_names.size() + opt.bh_chem_names.size() + opt.bh_chemproduction_names.size();
+                            iextraoffset += opt.bh_internalprop_names.size() + 
+                            opt.bh_chem_names.size() + 
+                            opt.bh_chemproduction_names.size() + 
+                            opt.bh_internalprop_names_aperture.size() + 
+                            opt.bh_chem_names_aperture.size() + 
+                            opt.bh_chemproduction_names_aperture.size();
                         }
 #endif
 #ifdef EXTRADMON
@@ -3031,6 +3306,16 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                                 }
                             }
                             iextraoffset += opt.extra_dm_internalprop_names.size();
+                            if (opt.extra_dm_internalprop_names_aperture.size()>0)
+                            {
+                                for (auto &iextra:opt.extra_dm_internalprop_unique_input_indexlist_aperture)
+                                {
+                                    extrafield = opt.extra_dm_internalprop_names_aperture[iextra] +
+                                        to_string(opt.extra_dm_internalprop_index_aperture[iextra]);
+                                    Pbuf[ibufindex].GetExtraDMProperties().SetExtraProperties(extrafield, extrafieldbuff[(iextraoffset+iextra)*chunksize+nn]);
+                                }
+                            }
+                            iextraoffset += opt.extra_dm_internalprop_names_aperture.size();
                         }
 #endif
                     }
