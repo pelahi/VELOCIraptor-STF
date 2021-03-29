@@ -3209,13 +3209,13 @@ class VROMPThreadPool
         /// split the resources and produce new pool
         VROMPThreadPool Split();
         /// move thread from idle pool to active pool 
-        unsigned int ActivateThread();
+        void ActivateThread(unsigned int nactivate=1);
         ///  deactivate a thread and move it to idle pool  
-        unsigned int DeactivateThread();
+        void DeactivateThread(unsigned int ndeactivate=1);
         /// move GPU from idle pool to active pool 
-        unsigned int ActivateGPU();
+        void ActivateGPU(unsigned int nactivate=1);
         ///  deactivate a GPU and move it to idle pool  
-        unsigned int DeactivateGPU();
+        void DeactivateGPU(unsigned int ndeactivate=1);
         //@}
 };
 

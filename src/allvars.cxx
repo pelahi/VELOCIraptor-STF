@@ -44,49 +44,57 @@ VROMPThreadPool VROMPThreadPool::Split()
 #endif 
     return vrotp_new;
 }
-unsigned int VROMPThreadPool::ActivateThread()
+void VROMPThreadPool::ActivateThread(unsigned int n)
 {
+    if (n>nthreads) throw invalid_argument(std::string("Allocating more threads than allowed "));
     unsigned int id = 0;
 #ifdef USEOPENMP
-    id = idlethreadids.back();
-    idlethreadids.pop_back();
-    activethreadids.push_back(id);
-    nactivethreads++;
+    for (auto i=0;i<n;i++) {
+        id = idlethreadids.back();
+        idlethreadids.pop_back();
+        activethreadids.push_back(id);
+        nactivethreads++;
+    }
 #endif
-    return id;
 }
-unsigned int VROMPThreadPool::ActivateGPU()
+void VROMPThreadPool::ActivateGPU(unsigned int n)
 {
+    if (n>ngpus) throw invalid_argument(std::string("Allocating more gpus than allowed "));
     unsigned int id = 0;
 #ifdef USEOPENMPTARGET
-    id = idlegpuids.back();
-    idlegpuids.pop_back();
-    activegpuids.push_back(id);
-    nactivegpus++;
+    for (auto i=0;i<n;i++) {
+        id = idlegpuids.back();
+        idlegpuids.pop_back();
+        activegpuids.push_back(id);
+        nactivegpus++;
+    }
 #endif
-    return id;
 }
-unsigned int VROMPThreadPool::DeactivateThread()
+void VROMPThreadPool::DeactivateThread(unsigned int n)
 {
+    if (n>nthreads) throw invalid_argument(std::string("Deallocating more threads than available "));
     unsigned int id = 0;
 #ifdef USEOPENMP
-    id = activethreadids.back();
-    activethreadids.pop_back();
-    idlethreadids.push_back(id);
-    nactivethreads--;
+    for (auto i=0;i<n;i++) {
+        id = activethreadids.back();
+        activethreadids.pop_back();
+        idlethreadids.push_back(id);
+        nactivethreads--;
+    }
 #endif
-    return id;
 }
-unsigned int VROMPThreadPool::DeactivateGPU()
+void VROMPThreadPool::DeactivateGPU(unsigned int n)
 {
+    if (n>ngpus) throw invalid_argument(std::string("Deallocating more threads than available "));
     unsigned int id = 0;
 #ifdef USEOPENMPTARGET
-    id = activegpuids.back();
-    activegpuids.pop_back();
-    idlegpuids.push_back(id);
-    nactivegpus--;
+    for (auto i=0;i<n;i++) {
+        id = activegpuids.back();
+        activegpuids.pop_back();
+        idlegpuids.push_back(id);
+        nactivegpus--;
+    }
 #endif
-    return id;
 }
 
 ///structure to keep track of thread and gpu pool accessible to local mpi task 
