@@ -53,6 +53,8 @@ int main(int argc,char **argv)
         exit(9);
     }
 #endif
+    //initialise the vr thread/gpu pool class
+    vrotp.Init(); 
 
 #else
     int ThisTask=0,NProcs=1;

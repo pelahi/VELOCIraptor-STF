@@ -8,6 +8,16 @@
 ///external pointer to keep track of structure levels and parent
 StrucLevelData *psldata;
 
+void VROMPThreadPool::Init() {
+    #ifdef USEOPENMP
+    nthreads = nactivethreads = omp_get_max_threads(); 
+    #ifdef USEOPENMPTARGET 
+    ngpus = nactivegpus = omp_get_num_devices(); 
+    #endif 
+    #endif 
+}
+///structure to keep track of thread and gpu pool accessible to local mpi task 
+VROMPThreadPool vrotp;
 
 ///\name define routines for the HeaderUnitInfo
 HeaderUnitInfo::HeaderUnitInfo(string s)

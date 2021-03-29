@@ -3176,6 +3176,26 @@ struct leaf_node_info{
 #endif
 };
 
+///Useful strutcure for managing threads and gpus
+class VROMPThreadPool
+{
+        public :
+        //total number of threads 
+        unsigned int nthreads;
+        //number of active idle threads that can be given tasks to do 
+        unsigned int nactivethreads;
+        //total number of gpus 
+        unsigned int ngpus;
+        //number of active idle gpus that can be given tasks to do 
+        unsigned int nactivegpus;
+        //vector storing ids of active idle threads and gpus, 
+        vector<unsigned int> activethreadids, activegpuids;
+        VROMPThreadPool() = default;
+        void Init();
+};
+
+extern VROMPThreadPool vrotp;
+
 ///if using MPI API
 #ifdef USEMPI
 #include <mpi.h>
