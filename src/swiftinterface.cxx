@@ -153,6 +153,7 @@ int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthrea
     omp_set_num_threads(numthreads);
     vrotp.Init();
 #endif
+    if(ThisTask == 0) vrotp.Print();
 
     //set the gsl handler
     gsl_set_error_handler_off();
@@ -242,6 +243,8 @@ int InitVelociraptorExtra(const int iextra, char* configname, unitinfo u, siminf
     omp_set_num_threads(numthreads);
     vrotp.Init();
 #endif
+    if(ThisTask == 0) vrotp.Print();
+
     int iconfigflag;
     ///read the parameter file
     libvelociraptorOptextra[iextra].pname = configname;

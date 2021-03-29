@@ -3217,6 +3217,8 @@ class VROMPThreadPool
         ///  deactivate a GPU and move it to idle pool  
         void DeactivateGPU(unsigned int ndeactivate=1);
         //@}
+
+        void Print();
 };
 
 extern VROMPThreadPool vrotp;

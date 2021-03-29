@@ -53,8 +53,6 @@ int main(int argc,char **argv)
         exit(9);
     }
 #endif
-    //initialise the vr thread/gpu pool class
-    vrotp.Init(); 
 
 #else
     int ThisTask=0,NProcs=1;
@@ -67,14 +65,13 @@ int main(int argc,char **argv)
 #else
     nthreads=1;
 #endif
+    //initialise the vr thread/gpu pool class
+    vrotp.Init(); 
 
 #ifdef USEMPI
     if (ThisTask==0) cout<<"VELOCIraptor/STF running with MPI. Number of mpi threads: "<<NProcs<<endl;
 #endif
-#ifdef USEOPENMP
-    if (ThisTask==0) cout<<"VELOCIraptor/STF running with OpenMP. Number of openmp threads: "<<nthreads<<endl;
-    if (ThisTask==0) cout<<"VELOCIraptor/STF running with OpenMP version "<< _OPENMP << endl;
-#endif
+    if (ThisTask==0) vrotp.Print();
 
     gsl_set_error_handler_off();
 

@@ -97,6 +97,17 @@ void VROMPThreadPool::DeactivateGPU(unsigned int n)
 #endif
 }
 
+void VROMPThreadPool::Print(){
+#ifdef USEOPENMP
+    cout<<"VELOCIraptor/STF running with OpenMP. Number of openmp threads: "<<nthreads<<endl;
+#ifdef USEOPENMPTARGET
+    cout<<"VELOCIraptor/STF running with OpenMP GPU offloading. Number of gpus: "<<ngpus<<endl;
+#endif
+    cout<<"VELOCIraptor/STF running with OpenMP version "<< _OPENMP << endl;
+#endif
+}
+
+
 ///structure to keep track of thread and gpu pool accessible to local mpi task 
 VROMPThreadPool vrotp;
 
