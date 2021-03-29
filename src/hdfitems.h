@@ -136,7 +136,6 @@ static inline hid_t hdf5_type(std::string dummy)        {return H5T_C_S1;}
 static inline void get_attribute(vector<hid_t> &ids, const std::string attr_name)
 {
     //can use H5Aexists as it is the C interface but how to access it?
-    //auto exists = H5Aexists(l.getId(), attr_name.c_str());
     auto exists = H5Aexists(ids.back(), attr_name.c_str());
     if (exists == 0) {
         throw invalid_argument(std::string("attribute not found ") + attr_name);
@@ -158,12 +157,18 @@ static inline void get_attribute(vector<hid_t> &ids, const std::vector<std::stri
     else {
         H5O_info_t object_info;
         hid_t newid;
-        H5Oget_info_by_name(ids.back(), parts[0].c_str(), &object_info, H5P_DEFAULT);
+        hid_t lapl_id = H5P_DEFAULT;
+#if H5_VERSION_GE(1,12,0)
+        unsigned int fields = H5O_INFO_ALL;
+        H5Oget_info_by_name(ids.back(), parts[0].c_str(), &object_info, fields, lapl_id);
+#else
+        H5Oget_info_by_name(ids.back(), parts[0].c_str(), &object_info, lapl_id);
+#endif
         if (object_info.type == H5O_TYPE_GROUP) {
-            newid = H5Gopen2(ids.back(),parts[0].c_str(),H5P_DEFAULT);
+            newid = H5Gopen(ids.back(),parts[0].c_str(),H5P_DEFAULT);
         }
         else if (object_info.type == H5O_TYPE_DATASET) {
-            newid = H5Dopen2(ids.back(),parts[0].c_str(),H5P_DEFAULT);
+            newid = H5Dopen(ids.back(),parts[0].c_str(),H5P_DEFAULT);
         }
         ids.push_back(newid);
         //get the substring
@@ -200,7 +205,12 @@ static inline void close_hdf_ids(vector<hid_t> &ids)
     H5O_info_t object_info;
     for (auto &id:ids)
     {
+        hid_t lapl_id = H5P_DEFAULT;
+#if H5_VERSION_GE(1,12,0)
+        H5Oget_info(id, &object_info, lapl_id);
+#else
         H5Oget_info(id, &object_info);
+#endif
         if (object_info.type == H5O_TYPE_GROUP) {
             H5Gclose(id);
         }
@@ -243,7 +253,6 @@ template<typename T> const T read_attribute(const hid_t &file_id, const std::str
     std::string attr_name;
     T val;
     hid_t type;
-    H5O_info_t object_info;
     vector <hid_t> ids;
     //traverse the file to get to the attribute, storing the ids of the
     //groups, data spaces, etc that have been opened.
@@ -269,7 +278,6 @@ template<typename T> const vector<T> read_attribute_v(const hid_t &file_id, cons
     std::string attr_name;
     vector<T> val;
     hid_t type;
-    H5O_info_t object_info;
     vector <hid_t> ids;
     //traverse the file to get to the attribute, storing the ids of the
     //groups, data spaces, etc that have been opened.
@@ -300,15 +308,14 @@ template<typename T> const T read_attribute(const std::string &filename, const s
 }
 
 static inline hid_t HDF5OpenFile(string name, unsigned int flags){
-    hid_t Fhdf;
     return H5Fopen(name.c_str(),flags, H5P_DEFAULT);
 }
 
 static inline hid_t HDF5OpenGroup(const hid_t &file, string name){
-    return H5Gopen2(file,name.c_str(),H5P_DEFAULT);
+    return H5Gopen(file,name.c_str(),H5P_DEFAULT);
 }
 static inline hid_t HDF5OpenDataSet(const hid_t &id, string name){
-    hid_t idval = H5Dopen2(id,name.c_str(),H5P_DEFAULT);
+    hid_t idval = H5Dopen(id,name.c_str(),H5P_DEFAULT);
     return idval;
 }
 static inline hid_t HDF5OpenDataSpace(const hid_t &id){
@@ -652,7 +659,10 @@ class H5OutputFile
         int rank = 1;
       	hsize_t dims[1] = {len};
 
-        hid_t memtype_id, filetype_id, dspace_id, dset_id, xfer_plist;
+        hid_t memtype_id, filetype_id, dspace_id, dset_id;
+#ifdef USEPARALLELHDF
+        hid_t xfer_plist;
+#endif
         herr_t status, ret;
         memtype_id = H5Tcopy (H5T_C_S1);
         status = H5Tset_size (memtype_id, data.size());
@@ -1646,21 +1656,13 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
     //H5File Fhdf;
     hid_t Fhdf;
     HDF_Group_Names hdf_gnames;
-    //to store the groups, data sets and their associated data spaces
-    //Attribute headerattribs;
-    hid_t headerattribs;
     HDF_Header hdf_header_info = HDF_Header(opt.ihdfnameconvention);
     //buffers to load data
     string stringbuff, dataname;
     string swift_str = "SWIFT";
-    int intbuff[NHDFTYPE];
-    long long longbuff[NHDFTYPE];
-    unsigned int uintbuff[NHDFTYPE];
     vector<unsigned int> vuintbuff;
-    int j,k,ireaderror=0;
+    int j,k;
     Int_t nbodies=0;
-    //DataSpace headerdataspace;
-    hid_t headerdataspace;
 
     //to determine types
     //IntType inttype;
@@ -1683,9 +1685,6 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
         if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES) {
 
             // Check if it is a SWIFT snapshot.
-            //headerattribs=get_attribute(Fhdf, "Header/Code");
-            //stringtype = headerattribs.getStrType();
-            //headerattribs.read(stringtype, stringbuff);
             dataname = string("Header/Code");
             stringbuff = read_attribute<string>(Fhdf, dataname);
 
@@ -1867,14 +1866,7 @@ inline Int_t HDF_get_nfiles(char *fname, int ptype)
     //H5File Fhdf;
     hid_t Fhdf;
     HDF_Group_Names hdf_gnames;
-    //to store the groups, data sets and their associated data spaces
-    //Attribute headerattribs;
-    hid_t headerattribs;
     HDF_Header hdf_header_info;
-    //buffers to load data
-    int intbuff;
-    long long longbuff;
-    int ireaderror=0;
     Int_t nfiles = 0;
     //IntType inttype;
 

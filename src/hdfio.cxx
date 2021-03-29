@@ -768,7 +768,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     vector<hid_t> partsdataspace;
     vector<hid_t> partsdataset_extra;
     vector<hid_t> partsdataspace_extra;
-    hid_t chunkspace;
     hid_t plist_id = H5P_DEFAULT;
     unsigned long long chunksize=opt.inputbufsize;
     //buffers to load data
@@ -777,22 +776,16 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     unsigned int *uintbuff=new unsigned int[chunksize];
     float *floatbuff=new float[chunksize*3];
     double *doublebuff=new double[chunksize*3];
-    void *integerbuff,*realbuff;
     vector<double> vdoublebuff;
     vector<int> vintbuff;
     vector<unsigned int> vuintbuff;
     vector<long long> vlongbuff;
     vector<unsigned long long> vulongbuff;
-    //arrays to store number of items to read and offsets when selecting hyperslabs
-    hsize_t filespacecount[HDFMAXPROPDIM],filespaceoffset[HDFMAXPROPDIM];
     //to determine types
     //IntType inttype;
     //FloatType floattype;
     //PredType HDFREALTYPE(PredType::NATIVE_FLOAT);
     //PredType HDFINTEGERTYPE(PredType::NATIVE_LONG);
-    int ifloat,ifloat_pos, iint;
-    int datarank;
-    hsize_t datadim[5];
     //if any conversion is need for metallicity
     float zmetconversion=1;
     if (opt.ihdfnameconvention == HDFILLUSTISNAMES) zmetconversion=ILLUSTRISZMET;
@@ -810,15 +803,19 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 
     double mscale,lscale,lvscale;
     double MP_DM=MAXVALUE,LN,N_DM,MP_B=0;
-    int ifirstfile=0,*ireadfile,ireaderror=0;
+    int ifirstfile=0,*ireadfile;
+#ifdef USEMPI
     int *ireadtask,*readtaskID;
+#endif
     Int_t ninputoffset;
 
     //for extra fields related to chemistry, feedback etc
     int numextrafields = 0;
     vector<int> numextrafieldsvec(NHDFTYPE);
     string extrafield, extrafield2;
+#ifdef USEMPI
     int iextraoffset;
+#endif
     double *extrafieldbuff = NULL;
 
     SetUniqueInputNames(opt);
@@ -872,13 +869,14 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     //since positions, velocities, masses are all at different points in the file,
     //to correctly assign particle to proccessor with correct velocities and mass must have several file pointers
     Particle *Pbuf;
-    int mpi_ireaderror;
 
     //for parallel input
     MPI_Comm mpi_comm_read;
     //for parallel hdf5 read
+#ifdef USEPARALLELHDF
     MPI_Comm mpi_comm_parallel_read;
     int ThisParallelReadTask, NProcsParallelReadTask;
+#endif
     vector<Particle> *Preadbuf;
     Int_t BufSize=opt.mpiparticlebufsize;
     Int_t *Nbuf, *Nreadbuf,*nreadoffset;
@@ -2777,8 +2775,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                 {
                     k=usetypes[j];
                     unsigned long long nstart = 0, nend = hdf_header_info[i].npart[k];
-                    unsigned long long nlocalsize;
 #ifdef USEPARALLELHDF
+                    unsigned long long nlocalsize;
                     if (opt.num_files<opt.nsnapread) {
                         nlocalsize = nend / NProcsParallelReadTask;
                         nstart = nlocalsize*ThisParallelReadTask;
@@ -3449,8 +3447,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                   for (j=1;j<=nbusetypes;j++) {
                     k=usetypes[j];
                     unsigned long long nstart = 0, nend = hdf_header_info[i].npart[k];
-                    unsigned long long nlocalsize;
 #ifdef USEPARALLELHDF
+                    unsigned long long nlocalsize;
                     if (opt.num_files<opt.nsnapread) {
                         nlocalsize = nend / NProcsParallelReadTask;
                         nstart = nlocalsize*ThisParallelReadTask;
@@ -3507,8 +3505,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 #endif
 #endif
                       for (int nn=0;nn<nchunk;nn++) {
-                        if (ifloat_pos) ibuf=MPIGetParticlesProcessor(opt, floatbuff[nn*3],floatbuff[nn*3+1],floatbuff[nn*3+2]);
-                        else ibuf=MPIGetParticlesProcessor(opt, doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
+                        ibuf=MPIGetParticlesProcessor(opt, doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
                         ibufindex=ibuf*BufSize+Nbuf[ibuf];
                         //reset hydro quantities of buffer
 #ifdef GASON
