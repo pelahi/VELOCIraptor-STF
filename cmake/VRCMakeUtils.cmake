@@ -234,6 +234,7 @@ macro(vr_nbodylib)
     list(APPEND VR_CXX_FLAGS "${NBODYLIB_CXX_FLAGS}")
     list(APPEND VR_LINK_FLAGS "${NBODYLIB_LINK_FLAGS}")
     list(APPEND VR_LIBS "${NBODYLIB_LIBS}")
+	set(VR_HAS_OPENMPGPU ${NBODYLIB_HAS_OPENMPGPU})
 endmacro()
 
 #run some macros automatically

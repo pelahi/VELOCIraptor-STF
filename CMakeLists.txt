@@ -56,6 +56,8 @@ vr_option(LONG_INT          "Use long ints to represent all integers. Needed if 
 
 # OpenMP options
 vr_option(OPENMP           "Attempt to include OpenMP support in VELOCIraptor" ON)
+vr_option(ENABLE_OPENMP_GPU "Attempt to include OpenMP GPU support in VELOCIraptor" OFF)
+vr_option(OPENACC          "Attempt to include OpenACC support in VELOCIraptor" OFF)
 
 # MPI options
 vr_option(MPI               "Attempt to include MPI support in VELOCIraptor" ON)
@@ -130,6 +132,9 @@ endif()
 if (VR_USE_LARGE_KDTREE)
 	set(NBODY_USE_LARGE_KDTREE ON)
 endif()
+if (VR_ENABLE_OPENMP_GPU)
+	set(NBODY_ENABLE_OPENMP_GPU ON)
+endif()
 set(NBODY_OPENMP ${VR_OPENMP})
 
 
@@ -155,6 +160,7 @@ vr_option_defines(XDR                       USEXDR)
 vr_option_defines(LONG_INT                  LONGINT)
 
 vr_option_defines(OPENMP                    USEOPENMP)
+vr_option_defines(OPENMPGPU                 USEOPENMPTARGET)
 
 vr_option_defines(MPI_REDUCE                MPIREDUCEMEM)
 vr_option_defines(LARGE_MPI_DOMAIN          HUGEMPI)

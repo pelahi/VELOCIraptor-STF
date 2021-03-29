@@ -49,7 +49,9 @@ macro(vr_compilation_summary)
     vr_report("Precision-specifics"
             "Long Integers" LONG_INT)
     vr_report("OpenMP-specifics"
-            "OpenMP support" OPENMP)
+            "OpenMP support" OPENMP
+            "OpenMP GPU offloading support" OPENMPGPU
+            )
     vr_report("MPI-specifics"
             "MPI support" MPI
             "Reduce MPI memory overhead at the cost of extra CPU cycles" MPI_REDUCE
