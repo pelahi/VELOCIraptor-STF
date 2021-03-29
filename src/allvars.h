@@ -234,6 +234,13 @@ typedef double (*ExtraPropFunc)(double, double, double&);
 
 //@}
 
+///\defgroup PROPTYPES defining extra property type
+//@{
+#define PROPTYPE_INTERNALPROP 1 
+#define PROPTYPE_CHEM 2 
+#define PROPTYPE_CHEMPROD 3
+//@}
+
 /// \name For Unbinding
 //@{
 
@@ -943,6 +950,17 @@ struct Options
     vector<unsigned short> bh_chemproduction_unique_input_indexlist;
     vector<unsigned short> extra_dm_internalprop_unique_input_indexlist;
 
+    vector<unsigned short> gas_internalprop_unique_input_indexlist_aperture;
+    vector<unsigned short> gas_chem_unique_input_indexlist_aperture;
+    vector<unsigned short> gas_chemproduction_unique_input_indexlist_aperture;
+    vector<unsigned short> star_internalprop_unique_input_indexlist_aperture;
+    vector<unsigned short> star_chem_unique_input_indexlist_aperture;
+    vector<unsigned short> star_chemproduction_unique_input_indexlist_aperture;
+    vector<unsigned short> bh_internalprop_unique_input_indexlist_aperture;
+    vector<unsigned short> bh_chem_unique_input_indexlist_aperture;
+    vector<unsigned short> bh_chemproduction_unique_input_indexlist_aperture;
+    vector<unsigned short> extra_dm_internalprop_unique_input_indexlist_aperture;
+
     //@}
 
     /// \name memory related info
@@ -1221,11 +1239,12 @@ struct ConfigInfo{
     }
     template<typename T> void AddEntry(string entryname, vector<T> entries1, vector<T> entries2){
         if (entries1.size() + entries2.size() == 0) return;
-        T val = entries1[0];
+        vector<T> entries = entries1;
+        entries.insert(entries.end(), entries2.begin(), entries2.end());
+        T val = entries[0];
         nameinfo.push_back(entryname);
         string datastring=string("");
-        for (auto &x:entries1) {datastring+=to_string(x);datastring+=string(",");}
-        for (auto &x:entries2) {datastring+=to_string(x);datastring+=string(",");}
+        for (auto &x:entries) {datastring+=to_string(x);datastring+=string(",");}
         datainfo.push_back(datastring);
         datatype.push_back(python_type_string(val));
     }
@@ -1245,11 +1264,12 @@ struct ConfigInfo{
     }
     void AddEntry(string entryname, vector<string> entries1, vector<string> entries2){
         if (entries1.size() + entries2.size() == 0) return;
-        string val = entries1[0];
+        vector<string> entries = entries1;
+        entries.insert(entries.end(), entries2.begin(), entries2.end());
+        string val = entries[0];
         nameinfo.push_back(entryname);
         string datastring=string("");
-        for (auto &x:entries1) {datastring+=x;datastring+=string(",");}
-        for (auto &x:entries2) {datastring+=x;datastring+=string(",");}
+        for (auto &x:entries) {datastring+=x;datastring+=string(",");}
         datainfo.push_back(datastring);
         datatype.push_back(python_type_string(val));
     }
@@ -3168,6 +3188,26 @@ struct leaf_node_info{
     Double_t searchdist;
 #endif
 };
+
+///Useful strutcure for managing threads and gpus
+class VROMPThreadPool
+{
+        public :
+        //total number of threads 
+        unsigned int nthreads;
+        //number of active idle threads that can be given tasks to do 
+        unsigned int nactivethreads;
+        //total number of gpus 
+        unsigned int ngpus;
+        //number of active idle gpus that can be given tasks to do 
+        unsigned int nactivegpus;
+        //vector storing ids of active idle threads and gpus, 
+        vector<unsigned int> activethreadids, activegpuids;
+        VROMPThreadPool() = default;
+        void Init();
+};
+
+extern VROMPThreadPool vrotp;
 
 ///if using MPI API
 #ifdef USEMPI
