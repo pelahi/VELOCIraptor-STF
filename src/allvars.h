@@ -3176,10 +3176,10 @@ struct leaf_node_info{
 #endif
 };
 
-///Useful strutcure for managing threads and gpus
+/// Useful class for managing threads and gpus
 class VROMPThreadPool
 {
-        public :
+    public :
         //total number of threads 
         unsigned int nthreads;
         //number of active idle threads that can be given tasks to do 
@@ -3190,8 +3190,33 @@ class VROMPThreadPool
         unsigned int nactivegpus;
         //vector storing ids of active idle threads and gpus, 
         vector<unsigned int> activethreadids, activegpuids;
+        //vector storing ids of active threads and gpus, 
+        vector<unsigned int> idlethreadids, idlegpuids;
+
+        /// \name Constructors 
+        //@{
         VROMPThreadPool() = default;
+        VROMPThreadPool(const VROMPThreadPool &) = default;
+        VROMPThreadPool(VROMPThreadPool &&) = default;
+        VROMPThreadPool& operator=(const VROMPThreadPool&) = default;
+        VROMPThreadPool& operator=(VROMPThreadPool&&) = default;
+        //@}
+
+        /// \name Thread Management Routines
+        //@{
+        /// Init the thread and gpu pool 
         void Init();
+        /// split the resources and produce new pool
+        VROMPThreadPool Split();
+        /// move thread from idle pool to active pool 
+        unsigned int ActivateThread();
+        ///  deactivate a thread and move it to idle pool  
+        unsigned int DeactivateThread();
+        /// move GPU from idle pool to active pool 
+        unsigned int ActivateGPU();
+        ///  deactivate a GPU and move it to idle pool  
+        unsigned int DeactivateGPU();
+        //@}
 };
 
 extern VROMPThreadPool vrotp;

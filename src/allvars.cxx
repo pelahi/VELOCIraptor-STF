@@ -9,13 +9,86 @@
 StrucLevelData *psldata;
 
 void VROMPThreadPool::Init() {
-    #ifdef USEOPENMP
-    nthreads = nactivethreads = omp_get_max_threads(); 
-    #ifdef USEOPENMPTARGET 
-    ngpus = nactivegpus = omp_get_num_devices(); 
-    #endif 
-    #endif 
+    nthreads = ngpus = 0;
+#ifdef USEOPENMP
+    nthreads = omp_get_max_threads();
+    for (unsigned int i=0;i<nthreads;i++) idlethreadids.push_back(i);
+    nactivethreads = 0;
+#ifdef USEOPENMPTARGET 
+    ngpus = omp_get_num_devices(); 
+    for (unsigned int i=0;i<ngpus;i++) idlegpuids.push_back(i);
+    nactivegpus = 0;
+#endif 
+#endif 
 }
+VROMPThreadPool VROMPThreadPool::Split() 
+{
+    VROMPThreadPool vrotp_new;
+#ifdef USEOPENMP
+    vrotp_new.nthreads = min(nthreads/2 - nactivethreads, static_cast<unsigned int>(0));
+    nthreads -= vrotp_new.nthreads;
+    for (unsigned int i=0;i<vrotp_new.nthreads;i++) {
+        vrotp_new.idlethreadids.push_back(idlethreadids.back());
+        idlethreadids.pop_back();
+    }
+    vrotp_new.nactivethreads = 0;
+#ifdef USEOPENMPTARGET 
+    vrotp_new.nthreads = min(ngpus/2 - nactivethreads, static_cast<unsigned int>(0));
+    ngpus -= vrotp_new.ngpus;
+    for (unsigned int i=0;i<vrotp_new.ngpus;i++) {
+        vrotp_new.idlegpuids.push_back(idlegpuids.back());
+        idlegpuids.pop_back();
+    }
+    vrotp_new.nactivegpus = 0;
+#endif 
+#endif 
+    return vrotp_new;
+}
+unsigned int VROMPThreadPool::ActivateThread()
+{
+    unsigned int id = 0;
+#ifdef USEOPENMP
+    id = idlethreadids.back();
+    idlethreadids.pop_back();
+    activethreadids.push_back(id);
+    nactivethreads++;
+#endif
+    return id;
+}
+unsigned int VROMPThreadPool::ActivateGPU()
+{
+    unsigned int id = 0;
+#ifdef USEOPENMPTARGET
+    id = idlegpuids.back();
+    idlegpuids.pop_back();
+    activegpuids.push_back(id);
+    nactivegpus++;
+#endif
+    return id;
+}
+unsigned int VROMPThreadPool::DeactivateThread()
+{
+    unsigned int id = 0;
+#ifdef USEOPENMP
+    id = activethreadids.back();
+    activethreadids.pop_back();
+    idlethreadids.push_back(id);
+    nactivethreads--;
+#endif
+    return id;
+}
+unsigned int VROMPThreadPool::DeactivateGPU()
+{
+    unsigned int id = 0;
+#ifdef USEOPENMPTARGET
+    id = activegpuids.back();
+    activegpuids.pop_back();
+    idlegpuids.push_back(id);
+    nactivegpus--;
+#endif
+    return id;
+}
+
 ///structure to keep track of thread and gpu pool accessible to local mpi task 
 VROMPThreadPool vrotp;
 
