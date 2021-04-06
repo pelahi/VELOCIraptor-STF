@@ -294,8 +294,17 @@ template<typename T> const vector<T> read_attribute_v(const hid_t &file_id, cons
     return val;
 }
 
+static std::string get_hdf5_name(const hid_t object_id)
+{
+    char name[128];
+    if (H5Iget_name(object_id, name, 128) == 0) {
+        throw std::runtime_error("No name for object " + std::to_string(object_id));
+    }
+    return name;
+}
 
 template<typename T> const T read_attribute(const std::string &filename, const std::string &name) {
+    LOG_RANK0(debug) << "Reading attribute " << name;
     safe_hdf5<herr_t>(H5Fopen, filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
     hid_t file_id = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
     T attr = read_attribute<T>(file_id, name);
@@ -305,13 +314,16 @@ template<typename T> const T read_attribute(const std::string &filename, const s
 
 static inline hid_t HDF5OpenFile(string name, unsigned int flags){
     hid_t Fhdf;
+    LOG_RANK0(info) << "Opening " << name;
     return H5Fopen(name.c_str(),flags, H5P_DEFAULT);
 }
 
 static inline hid_t HDF5OpenGroup(const hid_t &file, string name){
+    LOG_RANK0(debug) << "Opening Group " << name;
     return H5Gopen2(file,name.c_str(),H5P_DEFAULT);
 }
 static inline hid_t HDF5OpenDataSet(const hid_t &id, string name){
+    LOG_RANK0(debug) << "Opening Dataset " << get_hdf5_name(id) << '/' << name;
     hid_t idval = H5Dopen2(id,name.c_str(),H5P_DEFAULT);
     return idval;
 }
