@@ -50,6 +50,7 @@ inline void MarkCell(Node *np, Int_t *marktreecell, Int_t *markleafcell, Int_t &
 //@{
 inline bool CheckGroupForBoundness(Options &opt, Double_t &Efrac, Double_t &maxE, Int_t ning) {
     bool unbindcheck;
+
     if (opt.uinfo.unbindtype==USYSANDPART) {
         if(((Efrac<opt.uinfo.minEfrac)||(maxE>0))&&(ning>=opt.MinSize)) unbindcheck=true;
         else unbindcheck=false;
@@ -57,6 +58,10 @@ inline bool CheckGroupForBoundness(Options &opt, Double_t &Efrac, Double_t &maxE
     else if (opt.uinfo.unbindtype==UPART) {
         if ((maxE>0)&&(ning>=opt.MinSize))unbindcheck=true;
         else unbindcheck=false;
+    }
+    else if (opt.uinfo.unbindtype==2) {
+	if ((Efrac<opt.uinfo.minEfrac)&&(ning>=opt.MinSize)) unbindcheck=true;
+	else unbindcheck=false;
     }
     return unbindcheck;
 }
@@ -91,6 +96,19 @@ inline void FillUnboundArrays(Options &opt, int maxunbindsize,
             else break;
         }
     }
+    else if (opt.uinfo.unbindtype==2) {
+	Int_t nEfrac=0;
+	if (Efrac<opt.uinfo.minEfrac) nEfrac=(opt.uinfo.minEfrac-Efrac)*ning;
+	for (auto j=0;j<maxunbindsize;j++) {
+	    if (nEplus<nEfrac)
+	    {
+		    nEplusid[nEplus++]=ning-1-j;
+		    Eplusflag[ning-1-j]=1;
+	    }
+	    else break;
+	}
+    }
+
     //if number of unbound particles is much less than total number of particles
     //which can be unbound in one go, set unbinding check to false
     if (nEplus < opt.uinfo.maxallowedunboundfrac*ning) {
