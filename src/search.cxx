@@ -3251,6 +3251,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
     //unbind halo population
     if (!opt.iSingleHalo&&opt.iBoundHalos>1&&!opt.iBaryonSearch) {
         //begin by storing information of the current hierarchy
+	//
         Int_t nhaloidoffset=0,nhierarchy,gidval;
         Int_t *nsub,*parentgid,*uparentgid,*stype;
         StrucLevelData *ppsldata,**papsldata;

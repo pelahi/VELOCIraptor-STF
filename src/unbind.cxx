@@ -49,7 +49,7 @@ inline void MarkCell(Node *np, Int_t *marktreecell, Int_t *markleafcell, Int_t &
 
 //@{
 inline bool CheckGroupForBoundness(Options &opt, Double_t &Efrac, Double_t &maxE, Int_t ning) {
-    bool unbindcheck;
+    bool unbindcheck=false;
 
     if (opt.uinfo.unbindtype==USYSANDPART) {
         if(((Efrac<opt.uinfo.minEfrac)||(maxE>0))&&(ning>=opt.MinSize)) unbindcheck=true;
@@ -161,7 +161,11 @@ inline void UpdatePotentialForUnboundParticlesPP(Options &opt,
 {
     //if keeping background then do nothing
     if (opt.uinfo.bgpot!=0) return;
-    Double_t r2, pot, poti, eps2=opt.uinfo.eps*opt.uinfo.eps,mv2=opt.MassValue*opt.MassValue;
+    //Double_t r2, pot, poti, eps2=opt.uinfo.eps*opt.uinfo.eps,mv2=opt.MassValue*opt.MassValue;
+    Double_t r2, poti, eps2=opt.uinfo.eps*opt.uinfo.eps;
+#ifdef NOMASS
+    Double_t mv2=opt.MassValue*opt.MassValue;
+#endif
     for (auto k=0;k<nEplus;k++) {
         for (auto j=0;j<nig;j++) {
             if (j!=nEplusid[k]) {
@@ -184,7 +188,11 @@ inline void UpdatePotentialForUnboundParticles(Options &opt,
     Int_t &nEplus, Int_t *&nEplusid, int *&Eplusflag)
 {
     int iunbindsizeflag;
-    Double_t r2, pot, poti, eps2=opt.uinfo.eps*opt.uinfo.eps,mv2=opt.MassValue*opt.MassValue;
+    //Double_t r2, pot, poti, eps2=opt.uinfo.eps*opt.uinfo.eps,mv2=opt.MassValue*opt.MassValue;
+    Double_t r2, poti, eps2=opt.uinfo.eps*opt.uinfo.eps;
+#ifdef NOMASS
+    Double_t mv2=opt.MassValue*opt.MassValue;
+#endif
 
     if (opt.uinfo.bgpot!=0) return;
     //if ignore the background then adjust the potential energy of the particles
@@ -437,6 +445,7 @@ inline void CalculatePotentials(Options &opt, Particle **gPart, Int_t &numgroups
 #ifdef USEOPENMP
 }
 #endif
+
     //reset number of threads to maximum number
 #ifdef USEOPENMP
 #pragma omp master
