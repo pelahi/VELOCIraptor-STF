@@ -488,7 +488,7 @@ void GetVelocityDensityExact(Options &opt, const Int_t nbodies, Particle *Part, 
     int ThisTask=0,NProcs=1;
 #endif
     if (opt.iverbose) cout<<ThisTask<<" Calculating the local velocity density by finding EXACT nearest physical neighbours to particles"<<endl;
-    Int_t i,j,k, nskipped=0;
+    Int_t i,j,k;
     int nthreads;
     int tid,id,pid,pid2,itreeflag=0;
     Double_t v2;
@@ -517,10 +517,9 @@ void GetVelocityDensityExact(Options &opt, const Int_t nbodies, Particle *Part, 
 #ifndef USEOPENMP
     nthreads=1;
 #else
-#pragma omp parallel
-    {
-            if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
-    }
+    nthreads=omp_get_max_threads();
+    int nchunk = 1;
+    nchunk = std::max(nchunk,std::min(opt.Nsearch,static_cast<int>(static_cast<double>(nbodies)/static_cast<double>(nthreads))));
 #endif
 
     auto time2=MyGetTime();
@@ -540,7 +539,7 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
     weight=new Double_t[opt.Nvel];
     pqv=new PriorityQueue(opt.Nvel);
 #ifdef USEOPENMP
-#pragma omp for schedule(dynamic) reduction(+:nskipped)
+#pragma omp for schedule(dynamic,nchunk)
 #endif
     for (i=0;i<nbodies;i++) {
         //if strucden compile flag set then only calculate velocity density for particles in groups
@@ -563,7 +562,6 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
             else ioverlap = (MPISearchForOverlap(Part[i],maxrdist[i])!=0);
             if (ioverlap) {
                 Part[i].SetDensity(-1.0);
-                nskipped++;
                 continue;
             }
             maxrdist[i]=0.0;
@@ -635,7 +633,7 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
     pqx=new PriorityQueue(opt.Nsearch);
     pqv=new PriorityQueue(opt.Nvel);
 #ifdef USEOPENMP
-#pragma omp for
+#pragma omp for schedule(dyanmic) nowait
 #endif
     for (i=0;i<nbodies;i++) {
 #ifdef STRUCDEN
@@ -750,10 +748,9 @@ void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle
 #ifndef USEOPENMP
     nthreads=1;
 #else
-#pragma omp parallel
-    {
-            if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
-    }
+    nthreads = omp_get_max_threads();
+    int nchunk = 1;
+    nchunk = std::max(nchunk,std::min(opt.Nsearch,static_cast<int>(static_cast<double>(nbodies)/static_cast<double>(nthreads))));
 #endif
 
     auto time2=MyGetTime();
@@ -837,7 +834,7 @@ private(id,v2,nnids,nnr2,weight,pqv)
     weight=new Double_t[opt.Nvel];
     pqv=new PriorityQueue(opt.Nvel);
 #ifdef USEOPENMP
-#pragma omp for schedule(dynamic) \
+#pragma omp for schedule(dynamic,nchunk) \
 reduction(+:nprocessed,ntot)
 #endif
     for (auto i=0;i<numleafnodes;i++) {
@@ -959,7 +956,7 @@ private(id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv,Pval,pid2
     pqx=new PriorityQueue(opt.Nsearch);
     pqv=new PriorityQueue(opt.Nvel);
 #ifdef USEOPENMP
-#pragma omp for schedule(dynamic) \
+#pragma omp for schedule(dynamic,1) \
 reduction(+:nprocessed)
 #endif
     for (auto i=0;i<numleafnodes;i++) {
@@ -995,7 +992,7 @@ reduction(+:nprocessed)
                     pqx->Push(nnidsneighbours[j]+nbodies, nnr2neighbours[j]);
                 }
             }
-	}
+    	}
         for (auto j = 0; j < opt.Nsearch; j++) {
             nnids[j] = pqx->TopQueue();
             nnr2[j] = pqx->TopPriority();
