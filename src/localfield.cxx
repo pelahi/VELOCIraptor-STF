@@ -633,7 +633,7 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
     pqx=new PriorityQueue(opt.Nsearch);
     pqv=new PriorityQueue(opt.Nvel);
 #ifdef USEOPENMP
-#pragma omp for schedule(dyanmic) nowait
+#pragma omp for schedule(dynamic) nowait
 #endif
     for (i=0;i<nbodies;i++) {
 #ifdef STRUCDEN
