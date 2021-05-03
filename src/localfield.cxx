@@ -731,7 +731,7 @@ void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle
     int nthreads;
     int id,pid2,itreeflag=0;
     Double_t v2;
-    Int_t nprocessed=0, ntot=0, nskipped=0;
+    Int_t nprocessed=0, ntot=0;
     ///\todo alter period so arbitrary dimensions
     Double_t *period=NULL;
     if (opt.p>0) {
@@ -803,6 +803,7 @@ void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle
 #endif
         for (auto j=leafnodes[i].istart;j<leafnodes[i].iend;j++)
         {
+            Part[j].SetDensity(-1.0);
 #ifdef STRUCDEN
             if (Part[j].GetType()<=0) continue;
 #endif
@@ -837,7 +838,7 @@ private(id,v2,nnids,nnr2,weight,pqv)
     pqv=new PriorityQueue(opt.Nvel);
 #ifdef USEOPENMP
 #pragma omp for schedule(dynamic) \
-reduction(+:nprocessed,ntot,nskipped)
+reduction(+:nprocessed,ntot)
 #endif
     for (auto i=0;i<numleafnodes;i++) {
         ntot += leafnodes[i].num;
@@ -860,12 +861,9 @@ reduction(+:nprocessed,ntot,nskipped)
             bool ioverlap;
             if (opt.impiusemesh) ioverlap = (MPISearchForOverlapUsingMesh(opt,leafnodes[i].cm,leafnodes[i].searchdist)!=0);
             else ioverlap = (MPISearchForOverlap(leafnodes[i].cm,leafnodes[i].searchdist)!=0);
-            if (ioverlap) {
-                nskipped++;
-                continue;
-            }
+            if (ioverlap) continue;
             leafnodes[i].searchdist = 0;
-	    }
+        }
 #endif
         nprocessed += leafnodes[i].num;
         for (auto j=leafnodes[i].istart;j<leafnodes[i].iend;j++)
@@ -948,13 +946,11 @@ reduction(+:nprocessed,ntot,nskipped)
 
     // if no particles have been imported AND no particles have been skipped locally
     // do not need to do anything
-    if (!(nimport == 0 && nskipped == 0)) {
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
 private(id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv,Pval,pid2)
 {
 #endif
-
     nnids=new Int_t[opt.Nsearch];
     nnr2=new Double_t[opt.Nsearch];
     nnidsneighbours=new Int_t[opt.Nsearch];
@@ -999,17 +995,18 @@ reduction(+:nprocessed)
                     pqx->Push(nnidsneighbours[j]+nbodies, nnr2neighbours[j]);
                 }
             }
-            for (auto j = 0; j < opt.Nsearch; j++) {
-                nnids[j] = pqx->TopQueue();
-                nnr2[j] = pqx->TopPriority();
-                pqx->Pop();
-            }
+	}
+        for (auto j = 0; j < opt.Nsearch; j++) {
+            nnids[j] = pqx->TopQueue();
+            nnr2[j] = pqx->TopPriority();
+            pqx->Pop();
         }
         for (auto j = leafnodes[i].istart; j < leafnodes[i].iend; j++)
         {
 #ifdef STRUCDEN
             if (Part[j].GetType()<=0) continue;
 #endif
+            if (Part[j].GetDensity()>0) continue;
             for (auto k=0;k<opt.Nvel;k++) {
                 pqv->Push(-1, MAXVALUE);
                 weight[k]=1.0;
@@ -1043,8 +1040,7 @@ reduction(+:nprocessed)
 #ifdef USEOPENMP
 }
 #endif
-        delete treeneighbours;
-    }
+    delete treeneighbours;
     delete[] PartDataIn;
     delete[] PartDataGet;
     delete[] NNDataIn;
