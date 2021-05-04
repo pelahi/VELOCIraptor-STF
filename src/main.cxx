@@ -10,7 +10,12 @@
     \todo remove array mpi_idlist and mpi_indexlist as these arrays are unnecessary
     \todo alter unbinding/sortbybindingenergy calls since seems a waste of cpu cycles
 */
+#include <algorithm>
+#include <iterator>
+#include <sstream>
+#include <unistd.h>
 
+#include "compilation_info.h"
 #include "stf.h"
 #include "logging.h"
 #include "timer.h"
@@ -34,6 +39,34 @@ void finish_vr(Options &opt)
 #endif
 }
 
+void show_version_info(int argc, char *argv[])
+{
+	LOG_RANK0(info) << "VELOCIraptor git version: " << git_sha1();
+	LOG_RANK0(info) << "VELOCIraptor compiled with: " << vr::get_cxx_flags() << " " << vr::get_macros();
+	LOG_RANK0(info) << "VELOCIraptor was built on: " << vr::get_compilation_date();
+
+	char cwd[PATH_MAX];
+	std::ostringstream os;
+	LOG_RANK0(info) << "VELOCIraptor running at: " << getcwd(cwd, PATH_MAX);
+	std::copy(argv, argv + argc, std::ostream_iterator<char *>(os, " "));
+	LOG_RANK0(info) << "VELOCIraptor started with command line: " << os.str();
+
+	// MPI/OpenMP information
+	LOG_RANK0(info) << "VELOCIratptor MPI support: "
+#ifdef USEMPI
+	<< "yes, " << NProcs << " MPI ranks";
+#else
+	<< "no";
+#endif
+
+	LOG_RANK0(info) << "VELOCIratptor OpenMP support: "
+#ifdef USEOPENMP
+	<< "yes, " << omp_get_max_threads() << " OpenMP threads, OpenMP version " << _OPENMP;
+#else
+	<< "no";
+#endif
+}
+
 int main(int argc,char **argv)
 {
 #ifdef USEMPI
@@ -53,7 +86,6 @@ int main(int argc,char **argv)
     //and this processes' rank is
     MPI_Comm_rank(MPI_COMM_WORLD,&ThisTask);
 
-    if (ThisTask == 0) cout<<"Running VELOCIraptor "<<git_sha1()<<endl;
 #ifdef USEOPENMP
     // Check the threading support level
     if (provided < required)
@@ -78,13 +110,7 @@ int main(int argc,char **argv)
     nthreads=1;
 #endif
 
-#ifdef USEMPI
-    if (ThisTask==0) cout<<"VELOCIraptor/STF running with MPI. Number of mpi threads: "<<NProcs<<endl;
-#endif
-#ifdef USEOPENMP
-    if (ThisTask==0) cout<<"VELOCIraptor/STF running with OpenMP. Number of openmp threads: "<<nthreads<<endl;
-    if (ThisTask==0) cout<<"VELOCIraptor/STF running with OpenMP version "<< _OPENMP << endl;
-#endif
+    show_version_info(argc, argv);
 
 #ifdef SWIFTINTERFACE
     cout<<"Built with SWIFT interface enabled when running standalone VELOCIraptor. Should only be enabled when running VELOCIraptor as a library from SWIFT. Exiting..."<<endl;

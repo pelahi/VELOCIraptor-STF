@@ -223,7 +223,7 @@ void GetArgs(int argc, char *argv[], Options &opt)
     }
     if(configflag){
         if (ThisTask==0)
-        LOG(info) << "Reading config file";
+        LOG(info) << "Reading config file " << opt.pname;
         GetParamFile(opt);
     }
     else {
