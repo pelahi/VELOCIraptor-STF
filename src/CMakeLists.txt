@@ -13,6 +13,7 @@ set(VR_SOURCES
     allvars.cxx
     bgfield.cxx
     buildandsortarrays.cxx
+    "${compilation_info_cxx}"
     endianutils.cxx
     exceptions.cxx
     fofalgo.cxx
