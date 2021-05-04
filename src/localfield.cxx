@@ -4,6 +4,7 @@
 
 //--  Local Velocity density routines
 
+#include "exceptions.h"
 #include "logging.h"
 #include "stf.h"
 #include "swiftinterface.h"
@@ -952,7 +953,6 @@ reduction(+:nprocessed,ntot)
 
     MEMORY_USAGE_REPORT(debug, opt);
 
-    if (nimport>0) {
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
 private(id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv,Pval,pid2)
@@ -992,12 +992,14 @@ reduction(+:nprocessed)
                 pqx->Push(nnids[j], nnr2[j]);
             }
         }
-        //search neighbouring domain and update priority queue
-        treeneighbours->FindNearestPos(leafnodes[i].cm,nnidsneighbours,nnr2neighbours,nimportsearch);
-        for (auto j = 0; j < nimportsearch; j++) {
-            if (nnr2neighbours[j] < pqx->TopPriority()){
-                pqx->Pop();
-                pqx->Push(nnidsneighbours[j]+nbodies, nnr2neighbours[j]);
+        //search neighbouring domain and update priority queue if any neighbours imported
+        if (nimport > 0) {
+            treeneighbours->FindNearestPos(leafnodes[i].cm,nnidsneighbours,nnr2neighbours,nimportsearch);
+            for (auto j = 0; j < nimportsearch; j++) {
+                if (nnr2neighbours[j] < pqx->TopPriority()){
+                    pqx->Pop();
+                    pqx->Push(nnidsneighbours[j]+nbodies, nnr2neighbours[j]);
+                }
             }
         }
         for (auto j = 0; j < opt.Nsearch; j++) {
@@ -1044,7 +1046,6 @@ reduction(+:nprocessed)
 }
 #endif
         delete treeneighbours;
-    }
     delete[] PartDataIn;
     delete[] PartDataGet;
     delete[] NNDataIn;
@@ -1057,4 +1058,16 @@ reduction(+:nprocessed)
     //free memory
     if (itreeflag) delete tree;
     if (period!=NULL) delete[] period;
+
+    // Double-check that valid densities have been set in all particles
+    for (int i = 0; i < nbodies; i++)
+    {
+        const auto &part = Part[i];
+#ifdef STRUCDEN
+        if (part.GetType()<=0) continue;
+#endif
+        if (!(part.GetDensity() > 0)) {
+            throw vr::non_positive_density(Part[i], __PRETTY_FUNCTION__);
+        }
+    }
 }

@@ -3,6 +3,7 @@
     \todo once ratio is calculated, must figure out best way to do global mpi fit. Probably best to combine the binned distribution and fit that
  */
 
+#include "exceptions.h"
 #include "stf.h"
 
 /*! This calculates the logarithmic ratio of the measured velocity density and the expected velocity density assuming a bg muiltivariate gaussian distribution
@@ -87,29 +88,7 @@ if (nbodies > ompsubsearchnum)
     for (i=0;i<nbodies;i++)
     {
         if (!(Part[i].GetDensity() > 0)) {
-            const auto &part = Part[i];
-            std::ostringstream os;
-            os << "Particle density not positive, cannot continue.\n\n"
-               << " Information for particle " << i << '/' << nbodies
-               << ": id=" << part.GetID() << ", pid=" << part.GetPID()
-               << ", type=" << part.GetType()
-               << ", pos=(" << part.X() << ", " << part.Y() << ", " << part.Z()
-               << "), vel=(" << part.Vx() << ", " << part.Vy() << ", " << part.Vz()
-               << "), mass=" << part.GetMass()
-               << ", density=" << part.GetDensity() << '\n';
-            os << "Information for execution context: MPI enabled=";
-#ifdef USEMPI
-            os << "yes, rank=" << ThisTask << '/' << NProcs;
-#else
-            os << "no";
-#endif // USEMPI
-            os << ", OpenMP enabled=";
-#ifdef USEOPENMP
-            os << "yes, thread=" << omp_get_thread_num() << '/' << nthreads;
-#else
-            os << "no";
-#endif // USEOPENMP
-            throw std::runtime_error(os.str());
+            throw vr::non_positive_density(Part[i], __PRETTY_FUNCTION__);
         }
         tempdenv=Part[i].GetDensity()/opt.Nsearch;
 #ifdef USEOPENMP

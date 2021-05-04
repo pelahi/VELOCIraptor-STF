@@ -14,6 +14,7 @@ set(VR_SOURCES
     bgfield.cxx
     buildandsortarrays.cxx
     endianutils.cxx
+    exceptions.cxx
     fofalgo.cxx
     gadgetio.cxx
     "${git_revision_cxx}"
