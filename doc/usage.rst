@@ -592,6 +592,8 @@ Options related to the input and output units and cosmology.
         * Factor by which input velocity unit is scaled, setting the internal code and output unit
     ``Mass_unit =``
         * Factor by which input mass unit is scaled, setting the internal code and output unit
+    ``Gas_star_forming_rate_threshold =``
+        * Value in code units that splits gas from star forming and non-star forming. Default value is 0
     ``Gravity =``
         * Gravity in the internal output units, that is should be set such that :math:`v^2=Gm/r`, where v,m,r are the internal velocity, mass and length units. Note that this does not have to be provided as it will be calculated based on the output units (that indicate how they are converted to kpc, km/s etc) and the gravitational constant of 6.67430e-11 kg^-1 m^3 / s^2. A warning will be given if the provided gravitational constant differs significantly from the expected value given the output.
     ``Hubble_unit =``

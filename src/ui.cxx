@@ -1003,6 +1003,8 @@ void GetParamFile(Options &opt)
                         opt.SFRtosolarmassperyear = atof(vbuff);
                     else if (strcmp(tbuff, "Stellar_age_to_yr")==0)
                         opt.stellaragetoyrs = atof(vbuff);
+                    else if (strcmp(tbuff, "Gas_star_forming_rate_threshold")==0)
+                        opt.gas_sfr_threshold = atof(vbuff);
                     //unbinding
                     else if (strcmp(tbuff, "Unbind_flag")==0)
                         opt.uinfo.unbindflag = atoi(vbuff);
