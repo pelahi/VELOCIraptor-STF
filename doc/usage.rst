@@ -582,12 +582,24 @@ Options related to the input and output units and cosmology.
 
     Set internal (and output) units and conversion factors to well known units
 
-    ``Length_unit =``
+    ``Length_input_unit_conversion_to_output_unit =``
         * Factor by which input length unit is scaled, setting the internal code and output unit
-    ``Velocity_unit =``
+    ``Velocity_input_unit_conversion_to_output_unit =``
         * Factor by which input velocity unit is scaled, setting the internal code and output unit
-    ``Mass_unit =``
+    ``Mass_input_unit_conversion_to_output_unit =``
         * Factor by which input mass unit is scaled, setting the internal code and output unit
+    ``Metallicity_input_unit_conversion_to_output_unit =``
+        * Factor by which input metallicity unit is scaled, setting the internal code and output unit
+    ``Star_formation_rate_input_unit_conversion_to_output_unit =``
+        * Factor by which input star formation rate of gas unit is scaled, setting the internal code and output unit
+    ``Stellar_age_input_unit_conversion_to_output_unit =``
+        * Factor by which input stellar ages unit is scaled, setting the internal code and output unit
+    ``Stellar_age_input_is_cosmological_scalefactor =``
+        * 0/1 to indicate whether stellar age is cosmological scale factor 
+    ``Star_formation_rate_input_is_specific_star_formation_rate =``
+        * 0/1 to indicate whether star formation rates are specific star formation rates 
+    ``Gas_star_forming_rate_threshold =``
+        * Value in code units that splits gas from star forming and non-star forming. Default value is 0
     ``Gravity =``
         * Gravity in the internal output units, that is should be set such that :math:`v^2=Gm/r`, where v,m,r are the internal velocity, mass and length units. Note that this does not have to be provided as it will be calculated based on the output units (that indicate how they are converted to kpc, km/s etc) and the gravitational constant of 6.67430e-11 kg^-1 m^3 / s^2. A warning will be given if the provided gravitational constant differs significantly from the expected value given the output.
     ``Hubble_unit =``
@@ -600,6 +612,8 @@ Options related to the input and output units and cosmology.
         * Specify the conversion factor from the output unit to km/s
     ``Mass_unit_to_solarmass =``
         * Specify the conversion factor from the output unit to solar masses
+    ``Stellar_age_to_yr =``
+        * Specify the conversion factor from the output unit to yr
     ``Comoving_units = 1/0``
         * Flag indicating whether the properties output is in physical or comoving little h units.
 
