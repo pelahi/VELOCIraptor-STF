@@ -772,7 +772,7 @@ struct Options
     
     /// \name options related to calculating star forming gas quantities
     //@{
-    Double_t gas_sfr_threshold;
+    Double_t gas_sfr_threshold = 0;
     //@}
 
     /// \name options related to calculating detailed hydro/star/bh properties related to chemistry/feedbac, etc
