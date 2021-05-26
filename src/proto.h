@@ -344,10 +344,6 @@ void CopyMasses(Options &opt, const Int_t nhalos, PropData *&pold, PropData *&pn
 void ReorderInclusiveMasses(const Int_t &nold, const Int_t &nnew, Int_t *&numingroup, PropData *&pdata);
 ///Get Binding Energy
 void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset);
-///Get Extra Spherical Overdensity properties 
-void GetExtraSOProperties(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&numingroup, PropData *&pdata);
-///Get Extra Radial Profiles 
-void GetExtraRadialProperties(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&numingroup, PropData *&pdata);
 
 
 ///Get Morphology properties (since this is for a particular system just use pointer interface)
