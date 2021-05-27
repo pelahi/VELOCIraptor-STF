@@ -4,6 +4,7 @@
  */
 
 #include "exceptions.h"
+#include "logging.h"
 #include "stf.h"
 
 /*! This calculates the logarithmic ratio of the measured velocity density and the expected velocity density assuming a bg muiltivariate gaussian distribution
@@ -16,9 +17,6 @@ void GetDenVRatio(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngrid
 {
     Int_t i;
     int nthreads,tid;
-#ifndef USEMPI
-    int ThisTask=0;
-#endif
     Double_t **dist;
     Double_t norm=pow(2.0*M_PI,-1.5);
     Int_t **nn;
@@ -29,7 +27,7 @@ void GetDenVRatio(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngrid
     Particle *ptemp;
     KDTree *tree;
 
-    if (opt.iverbose>=2) cout<<ThisTask<<" Now calculate denvratios using grid"<<endl;
+    LOG(trace) << "Calculating denvratios using grid";
     //take inverse for interpolation
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
@@ -127,7 +125,7 @@ if (nbodies > ompsubsearchnum)
 #ifdef USEOPENMP
 }
 #endif
-    if (opt.iverbose>=2) cout<<ThisTask<<" Done"<<endl;
+    LOG(trace) << "Done";
     for (int j=0;j<nthreads;j++) delete[] dist[j];
     delete[] dist;
     for (int j=0;j<nthreads;j++) delete[] nn[j];
@@ -389,10 +387,7 @@ Int_t GetOutliersValues(Options &opt, const Int_t nbodies, Particle *Part, int s
     Int_t nsubset = 0;
     int nthreads;
     Double_t temp, mtot=0.0;
-#ifndef USEMPI
-    int ThisTask=0;
-#endif
-    if (opt.iverbose>=2) cout<<ThisTask<<" Now get average in grid cell and find outliers"<<endl;
+    LOG(trace) << "Getting average in grid cell and finding outliers";
     //printf("Using GLOBAL values to characterize the distribution and determine the normalized values used to determine outlier likelihood\n");
     Double_t globalave,globalvar,globalmostprob,globalsdlow,globalsdhigh;
 
@@ -413,6 +408,6 @@ Int_t GetOutliersValues(Options &opt, const Int_t nbodies, Particle *Part, int s
         Part[i].SetPotential(tempell);
         nsubset+=(Part[i].GetPotential()>opt.ellthreshold);
     }
-    if (opt.iverbose>=2) cout<<ThisTask<<" Done"<<endl;
+    LOG(trace) << "Done";
     return nsubset;
 }

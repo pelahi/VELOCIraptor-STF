@@ -652,8 +652,7 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                 }
 		#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
 		if(j == 0 & opt.iverbose>1){
-			cout<<" --------------- "<<endl;
-			cout<<"Gas temperature of particle 1 in this object "<<temp<<" for gas and threshold "<<opt.temp_max_cut<<" "<<endl;
+			LOG(debug) << "Gas temperature of particle 1 in this object " << temp << " for gas and threshold " << opt.temp_max_cut;
 		}
 		/*select hot gas particles and add up their mass and compute mass-weighted quantities*/
 		if (temp > opt.temp_max_cut && SFR <= 0) {
