@@ -3564,10 +3564,6 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
         pdata[i].M_200crit_interloper = 0;
         pdata[i].M_200mean_interloper = 0;
         pdata[i].M_BN98_interloper = 0;
-        for (auto iso=0;iso<opt.SOnum;iso++)
-        {
-            pdata[i].SO_mass_interloper[iso] = 0;
-        }
 #endif
 
         //calculate angular momentum if necessary
