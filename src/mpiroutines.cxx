@@ -461,6 +461,7 @@ int MPIGetParticlesProcessor(Options &opt, Double_t x, Double_t y, Double_t z){
     }
     LOG(error) << "Particle outside the mpi domains of every process (" << x << "," << y << "," << z << ")";
     MPI_Abort(MPI_COMM_WORLD,9);
+    return 0; // dummy
 }
 
 
