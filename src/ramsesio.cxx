@@ -278,6 +278,7 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
     sprintf(buf1,"%s/info_%s.txt", fname,opt.ramsessnapname);
     Finfo.open(buf1, ios::in);
     Finfo>>stringbuf>>stringbuf>>opt.num_files;
+    getline(Finfo, stringbuf);//ncpu
     getline(Finfo,stringbuf);//ndim
     getline(Finfo,stringbuf);//lmin
     getline(Finfo,stringbuf);//lmax
@@ -289,9 +290,9 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
     getline(Finfo,stringbuf);//a
     getline(Finfo,stringbuf);//hubble
     Finfo>>stringbuf>>stringbuf>>OmegaM;
-    getline(Finfo,stringbuf);
-    getline(Finfo,stringbuf);
-    getline(Finfo,stringbuf);
+    getline(Finfo,stringbuf);//OmegaM
+    getline(Finfo,stringbuf);//OmegaL
+    getline(Finfo,stringbuf);//OmegaK
     Finfo>>stringbuf>>stringbuf>>OmegaB;
     Finfo.close();
     dmp_mass = 1.0 / (opt.Neff*opt.Neff*opt.Neff) * (OmegaM - OmegaB) / OmegaM;
@@ -364,7 +365,7 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
 
         // Read Mass
         Framses.read((char*)&dummy, sizeof(dummy));
-        Framses.read((char*)&dummy_mass[0], dummy);
+        Framses.read((char*)&dummy_mass[0], sizeof(dummy));
         Framses.read((char*)&dummy, sizeof(dummy));
 
         // Skip Id
@@ -380,7 +381,7 @@ Int_t RAMSES_get_nbodies(char *fname, int ptype, Options &opt)
         // Read Birth epoch
         //necessary to separate ghost star particles with negative ages from real one
         Framses.read((char*)&dummy, sizeof(dummy));
-        Framses.read((char*)&dummy_age[0], dummy);
+        Framses.read((char*)&dummy_age[0], sizeof(dummy));
         Framses.read((char*)&dummy, sizeof(dummy));
 
         ghoststars = 0;
