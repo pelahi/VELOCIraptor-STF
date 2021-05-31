@@ -127,7 +127,6 @@ int InitVelociraptor(Options &opt, char* configname, unitinfo u, siminfo s, cons
     opt.lengthtokpc=u.lengthtokpc;
     opt.velocitytokms=u.velocitytokms;
     opt.masstosolarmass=u.masstosolarmass;
-    opt.energyperunitmass=u.energyperunitmass;
 
     //run in swift internal units, don't convert units
     opt.lengthinputconversion=1.0;
