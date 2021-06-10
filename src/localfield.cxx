@@ -517,10 +517,9 @@ void GetVelocityDensityExact(Options &opt, const Int_t nbodies, Particle *Part, 
 #ifndef USEOPENMP
     nthreads=1;
 #else
-#pragma omp parallel
-    {
-            if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
-    }
+    nthreads=omp_get_max_threads();
+    int nchunk = 1;
+    nchunk = std::max(nchunk,std::min(opt.Nsearch,static_cast<int>(static_cast<double>(nbodies)/static_cast<double>(nthreads))));
 #endif
 
     auto time2=MyGetTime();
@@ -540,7 +539,7 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
     weight=new Double_t[opt.Nvel];
     pqv=new PriorityQueue(opt.Nvel);
 #ifdef USEOPENMP
-#pragma omp for schedule(dynamic)
+#pragma omp for schedule(dynamic,nchunk)
 #endif
     for (i=0;i<nbodies;i++) {
         //if strucden compile flag set then only calculate velocity density for particles in groups
@@ -634,7 +633,7 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
     pqx=new PriorityQueue(opt.Nsearch);
     pqv=new PriorityQueue(opt.Nvel);
 #ifdef USEOPENMP
-#pragma omp for
+#pragma omp for schedule(dynamic) nowait
 #endif
     for (i=0;i<nbodies;i++) {
 #ifdef STRUCDEN
@@ -749,10 +748,9 @@ void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle
 #ifndef USEOPENMP
     nthreads=1;
 #else
-#pragma omp parallel
-    {
-            if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
-    }
+    nthreads = omp_get_max_threads();
+    int nchunk = 1;
+    nchunk = std::max(nchunk,std::min(opt.Nsearch,static_cast<int>(static_cast<double>(nbodies)/static_cast<double>(nthreads))));
 #endif
 
     auto time2=MyGetTime();
@@ -802,6 +800,7 @@ void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle
 #endif
         for (auto j=leafnodes[i].istart;j<leafnodes[i].iend;j++)
         {
+            Part[j].SetDensity(-1.0);
 #ifdef STRUCDEN
             if (Part[j].GetType()<=0) continue;
 #endif
@@ -835,7 +834,7 @@ private(id,v2,nnids,nnr2,weight,pqv)
     weight=new Double_t[opt.Nvel];
     pqv=new PriorityQueue(opt.Nvel);
 #ifdef USEOPENMP
-#pragma omp for schedule(dynamic) \
+#pragma omp for schedule(dynamic,nchunk) \
 reduction(+:nprocessed,ntot)
 #endif
     for (auto i=0;i<numleafnodes;i++) {
@@ -854,14 +853,14 @@ reduction(+:nprocessed,ntot)
 #endif
 #ifdef USEMPI
         if (opt.iLocalVelDenApproxCalcFlag==1 && NProcs > 1) {
-        leafnodes[i].searchdist = sqrt(nnr2[opt.Nsearch-1]);
-        //check if search region from Particle extends into other mpi domain, if so, skip particles
-        bool ioverlap;
-        if (opt.impiusemesh) ioverlap = (MPISearchForOverlapUsingMesh(opt,leafnodes[i].cm,leafnodes[i].searchdist)!=0);
-        else ioverlap = (MPISearchForOverlap(leafnodes[i].cm,leafnodes[i].searchdist)!=0);
-        if (ioverlap) continue;
-        leafnodes[i].searchdist = 0;
-	}
+            leafnodes[i].searchdist = sqrt(nnr2[opt.Nsearch-1]);
+            //check if search region from Particle extends into other mpi domain, if so, skip particles
+            bool ioverlap;
+            if (opt.impiusemesh) ioverlap = (MPISearchForOverlapUsingMesh(opt,leafnodes[i].cm,leafnodes[i].searchdist)!=0);
+            else ioverlap = (MPISearchForOverlap(leafnodes[i].cm,leafnodes[i].searchdist)!=0);
+            if (ioverlap) continue;
+            leafnodes[i].searchdist = 0;
+        }
 #endif
         nprocessed += leafnodes[i].num;
         for (auto j=leafnodes[i].istart;j<leafnodes[i].iend;j++)
@@ -942,13 +941,13 @@ reduction(+:nprocessed,ntot)
     //get memory useage
     GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
 
-    if (nimport>0) {
+    // if no particles have been imported AND no particles have been skipped locally
+    // do not need to do anything
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
 private(id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv,Pval,pid2)
 {
 #endif
-
     nnids=new Int_t[opt.Nsearch];
     nnr2=new Double_t[opt.Nsearch];
     nnidsneighbours=new Int_t[opt.Nsearch];
@@ -957,12 +956,14 @@ private(id,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,pqx,pqv,Pval,pid2
     pqx=new PriorityQueue(opt.Nsearch);
     pqv=new PriorityQueue(opt.Nvel);
 #ifdef USEOPENMP
-#pragma omp for schedule(dynamic) \
+#pragma omp for schedule(dynamic,1) \
 reduction(+:nprocessed)
 #endif
     for (auto i=0;i<numleafnodes;i++) {
         //if there are no active particles in leaf node, do nothing
         if (leafnodes[i].num == 0) continue;
+        // if the leaf node's search radius is zero, then does not have overlap 
+        // with other mpi domains and no particles have been skipped
         if (leafnodes[i].searchdist == 0) continue;
         nprocessed += leafnodes[i].num;
         //find the near neighbours for all particles in the leaf node
@@ -982,14 +983,16 @@ reduction(+:nprocessed)
                 pqx->Push(nnids[j], nnr2[j]);
             }
         }
-        //search neighbouring domain and update priority queue
-        treeneighbours->FindNearestPos(leafnodes[i].cm,nnidsneighbours,nnr2neighbours,nimportsearch);
-        for (auto j = 0; j < nimportsearch; j++) {
-            if (nnr2neighbours[j] < pqx->TopPriority()){
-                pqx->Pop();
-                pqx->Push(nnidsneighbours[j]+nbodies, nnr2neighbours[j]);
+        //search neighbouring domain and update priority queue if any neighbours imported 
+        if (nimport >0) {
+            treeneighbours->FindNearestPos(leafnodes[i].cm,nnidsneighbours,nnr2neighbours,nimportsearch);
+            for (auto j = 0; j < nimportsearch; j++) {
+                if (nnr2neighbours[j] < pqx->TopPriority()){
+                    pqx->Pop();
+                    pqx->Push(nnidsneighbours[j]+nbodies, nnr2neighbours[j]);
+                }
             }
-        }
+    	}
         for (auto j = 0; j < opt.Nsearch; j++) {
             nnids[j] = pqx->TopQueue();
             nnr2[j] = pqx->TopPriority();
@@ -1000,6 +1003,7 @@ reduction(+:nprocessed)
 #ifdef STRUCDEN
             if (Part[j].GetType()<=0) continue;
 #endif
+            if (Part[j].GetDensity()>0) continue;
             for (auto k=0;k<opt.Nvel;k++) {
                 pqv->Push(-1, MAXVALUE);
                 weight[k]=1.0;
@@ -1033,8 +1037,7 @@ reduction(+:nprocessed)
 #ifdef USEOPENMP
 }
 #endif
-        delete treeneighbours;
-    }
+    delete treeneighbours;
     delete[] PartDataIn;
     delete[] PartDataGet;
     delete[] NNDataIn;
