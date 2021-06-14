@@ -2735,6 +2735,30 @@ int setNthreads(){
     return 0;
 }
 
+///copy data for subsubset search 
+inline Particle *subPartCopy(Options &opt, Int_t subnumingroup, vector<Particle> &Partsubset, Int_t *subpglist) 
+{
+    Particle *subPart = new Particle[subnumingroup];
+    for (Int_t j=0;j<subnumingroup;j++) 
+    {
+        subPart[j] = Partsubset[subpglist[j]];
+        // if extra info is required then keep it, otherwise clear memory
+        //if (opt.searchrequiresextrainfo) continue;
+#ifdef GASON
+        if (subPart[j].HasHydroProperties()) subPart[j].SetHydroProperties();
+#endif
+#ifdef STARON
+        if (subPart[j].HasStarProperties()) subPart[j].SetStarProperties();
+#endif
+#ifdef BHON
+        if (subPart[j].HasBHProperties()) subPart[j].SetBHProperties();
+#endif
+#ifdef EXTRADMON
+        if (subPart[j].HasExtraDMProperties()) subPart[j].SetExtraDMProperties();
+#endif
+    }
+}
+
 ///adjust to phase centre
 inline void AdjustSubPartToPhaseCM(Int_t num, Particle *subPart, GMatrix &cmphase)
 {
@@ -2981,6 +3005,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
     for (Int_t i=1;i<=ngroup;i++) delete[] pglist[i];
     delete[] pglist;
     delete[] numingroup;
+
     //now start searching while there are still sublevels to be searched
     while (iflag) {
         if (opt.iverbose) cout<<ThisTask<<" There are "<<nsubsearch<<" substructures large enough to search for other substructures at sub level "<<sublevel<<endl;
@@ -3003,6 +3028,64 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
         ompactivesubgroups.resize(0);
 #endif
         GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__)+string("--subelvel--")+to_string(sublevel), (opt.iverbose>=1));
+
+        /// adjust calls to make use of the VROMPThreadPool vrotp
+        /// the idea here is to run as many tasks as possible given the
+        /// current set of objects. 
+        
+        Options opt2;
+        VROMPThreadPool vrotp, vrotp_child;
+        vrotp.Init();
+        #pragma omp parallel \
+        default(none) \
+        shared(pfof, subpfofold, subpglist,  subsubpglist, subnumingroup, subsubnumingroup,subngroup, numcores, vrotp, opt, Partsubset, oldnsubsearch, ngroup, ns, ngroupidoffset_old) \
+        private(opt2, vrotp_child, subPart, subpfof) \
+        firstprivate(sublevel) \
+        num_threads(vrotp.nthreads)
+        #pragma omp single
+        {
+            //run loop and launch tasks if possible
+            for (auto i=0;i<oldnsubsearch;i++) {
+                // apply some lock on threads
+                while (vrotp.nthreads == 0) {}; 
+                // use size to scale the number of threads taken
+                //subnumingroup[i];
+                vrotp_child = vrotp.Split();
+                // should my task depend on anything 
+                #pragma omp task //depend()
+                {
+                    opt2 = opt;
+                    subpfofold[i] = pfof[subpglist[i][0]];
+                    // copy particles 
+                    subPart = subPartCopy(opt2, subnumingroup[i], Partsubset, subpglist[i]);
+                    if (opt.icmrefadjust) 
+                    {
+                        //this routine is in substructureproperties.cxx. Has internal parallelisation
+                        GMatrix cmphase = CalcPhaseCM(subnumingroup[i], subPart);
+                        //this routine is within this file, also has internal parallelisation
+                        AdjustSubPartToPhaseCM(subnumingroup[i], subPart, cmphase);
+                    }
+                    PreCalcSearchSubSet(opt2, subnumingroup[i], subPart, sublevel);
+                    subpfof = SearchSubset(opt2, subnumingroup[i], subnumingroup[i], subPart,
+                        subngroup[i], sublevel, &numcores[i]);
+                    CleanAndUpdateGroupsFromSubSearch(opt2, subnumingroup[i], subPart, subpfof,
+                            subngroup[i], subsubnumingroup[i], subsubpglist[i], numcores[i],
+                            subpglist[i], pfof, ngroup, ngroupidoffset_old[i]);
+                    delete[] subpfof;
+                    delete[] subPart;
+                    // once the task has completed it's thread independent region, 
+                    // update ns and also return resources 
+                    #pragma omp critical 
+                    {
+                        ns += subngroup[i];
+                        vrotp.Merge(vrotp_child);
+                    }
+                }
+            }
+            // wait till all the tasks are done here 
+            #pragma omp taskwait
+        }
+/*
 
         for (Int_t i=1;i<=oldnsubsearch;i++) {
             // try running loop over largest objects in serial with parallel inside calls
@@ -3048,14 +3131,13 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
             ns+=subngroup[i];
         }
 
-
 #ifdef USEOPENMP
         if (ompactivesubgroups.size()>0) {
             Int_t oldns = ns;
             ns = 0;
             Options opt2;
             #pragma omp parallel for \
-            default(shared) private(subPart, subpfof, opt2) schedule(dynamic) \
+            default(shared) private(subPart, subpfof, opt2) schedule(dynamic,1) \
             reduction(+:ns)
             for (auto iomp=0;iomp<ompactivesubgroups.size();iomp++) {
                 Int_t i=ompactivesubgroups[iomp];
@@ -3097,6 +3179,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
             ns += oldns;
         }
 #endif
+*/
         UpdateGroupIDsFromSubstructure(oldnsubsearch, ngroup,
             pfof, subngroup, subnumingroup, subpglist,
             ns, ngroupidoffset, ngroupidoffset_old, ngroupidoffset_new);
@@ -3115,6 +3198,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
             pcsld->nextlevel->stype=HALOSTYPE+SUBSTYPE*sublevel;
             pcsld->nextlevel->nsinlevel=ns;
             Int_t nscount=1;
+            /// PJE try implementing a task based parallelism here 
             for (Int_t i=1;i<=oldnsubsearch;i++) {
                 Int_t ii=0,iindex;
                 Int_t *gidparentheadval,*giduberparentheadval;
@@ -4027,89 +4111,6 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
 }
 //@}
 
-/// \name Routines used to determine substructure hierarchy
-//@{
-Int_t GetHierarchy(Options &opt,Int_t ngroups, Int_t *nsub, Int_t *parentgid, Int_t *uparentgid, Int_t* stype)
-{
-    if (opt.iverbose) cout<<"Getting Hierarchy "<<ngroups<<endl;
-    Int_t nhierarchy=1;
-    StrucLevelData *ppsldata,**papsldata;
-    ppsldata=psldata;
-    while (ppsldata->nextlevel!=NULL){nhierarchy++;ppsldata=ppsldata->nextlevel;}
-    for (Int_t i=1;i<=ngroups;i++) nsub[i]=0;
-    for (Int_t i=1;i<=ngroups;i++) parentgid[i]=GROUPNOPARENT;
-    for (Int_t i=1;i<=ngroups;i++) uparentgid[i]=GROUPNOPARENT;
-    ppsldata=psldata;
-    papsldata=new StrucLevelData*[nhierarchy];
-    nhierarchy=0;
-    while (ppsldata!=NULL) {papsldata[nhierarchy++]=ppsldata;ppsldata=ppsldata->nextlevel;}
-    for (int i=nhierarchy-1;i>=1;i--){
-        //store number of substructures
-        for (int j=1;j<=papsldata[i]->nsinlevel;j++) {
-               if (papsldata[i]->gidparenthead[j]!=NULL&&papsldata[i]->gidparenthead[j]!=papsldata[i]->gidhead[j]) nsub[*(papsldata[i]->gidparenthead[j])]++;
-        }
-        //then add these to parent substructure
-        for (int j=1;j<=papsldata[i]->nsinlevel;j++) {
-            if (papsldata[i]->gidparenthead[j]!=NULL&&papsldata[i]->gidparenthead[j]!=papsldata[i]->gidhead[j]){
-                nsub[*(papsldata[i]->gidparenthead[j])]+=nsub[*(papsldata[i]->gidhead[j])];
-                parentgid[*(papsldata[i]->gidhead[j])]=*(papsldata[i]->gidparenthead[j]);
-            }
-            if (papsldata[i]->giduberparenthead[j]!=NULL &&papsldata[i]->gidparenthead[j]!=papsldata[i]->gidhead[j]) uparentgid[*(papsldata[i]->gidhead[j])]=*(papsldata[i]->giduberparenthead[j]);
-            stype[*(papsldata[i]->gidhead[j])]=(papsldata[i]->stypeinlevel[j]);
-        }
-    }
-    //store field structures (top treel level) types
-    for (int j=1;j<=papsldata[0]->nsinlevel;j++) {
-        stype[*(papsldata[0]->gidhead[j])]=(papsldata[0]->stypeinlevel[j]);
-    }
-    for (int i=0;i<nhierarchy;i++)papsldata[i]=NULL;
-    delete[] papsldata;
-    if(opt.iverbose) cout<<"Done"<<endl;
-    return nhierarchy;
-}
-
-void CopyHierarchy(Options &opt,PropData *pdata, Int_t ngroups, Int_t *nsub, Int_t *parentgid, Int_t *uparentgid, Int_t* stype)
-{
-    Int_t i,haloidoffset=0;
-#ifdef USEMPI
-    for (int j=0;j<ThisTask;j++)haloidoffset+=mpi_ngroups[j];
-#endif
-#ifdef USEOPENMP
-#pragma omp parallel default(shared)  \
-private(i)
-{
-    #pragma omp for nowait
-#endif
-    for (i=1;i<=ngroups;i++) {
-        pdata[i].haloid=opt.snapshotvalue+i;
-        //if using mpi than ids must be offset
-#ifdef USEMPI
-        pdata[i].haloid+=haloidoffset;
-#endif
-        if (parentgid[i]!=GROUPNOPARENT) {
-            pdata[i].hostid=opt.snapshotvalue+uparentgid[i];
-            pdata[i].directhostid=opt.snapshotvalue+parentgid[i];
-            if(opt.iKeepFOF && uparentgid[i]<=opt.num3dfof) pdata[i].hostfofid=opt.snapshotvalue+uparentgid[i];
-            if(opt.iKeepFOF && uparentgid[i]>opt.num3dfof) pdata[i].hostfofid=GROUPNOPARENT;
-#ifdef USEMPI
-            pdata[i].hostid+=haloidoffset;
-            pdata[i].directhostid+=haloidoffset;
-            if(opt.iKeepFOF && uparentgid[i]<=opt.num3dfof) pdata[i].hostfofid+=haloidoffset;
-#endif
-        }
-        else {
-            pdata[i].hostid=GROUPNOPARENT;
-            pdata[i].directhostid=GROUPNOPARENT;
-            pdata[i].hostfofid=GROUPNOPARENT;
-        }
-        pdata[i].stype=stype[i];
-        pdata[i].numsubs=nsub[i];
-    }
-#ifdef USEOPENMP
-}
-#endif
-}
-//@}
 
 /// \name Routines used for interative search
 //@{
