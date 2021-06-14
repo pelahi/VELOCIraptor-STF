@@ -378,4 +378,152 @@ void OpenMPHeadNextUpdate(const Int_t nbodies, vector<Particle> &Part, const Int
 
 //@}
 
+/// setting the thread pool
+void VROMPThreadPool::Init() {
+    nthreads = ngpus = 0;
+#ifdef USEOPENMP
+    nthreads = omp_get_max_threads();
+    for (unsigned int i=0;i<nthreads;i++) idlethreadids.push_back(i);
+    nactivethreads = 0;
+#ifdef USEOPENMPTARGET 
+    ngpus = omp_get_num_devices(); 
+    for (unsigned int i=0;i<ngpus;i++) idlegpuids.push_back(i);
+    nactivegpus = 0;
+#endif 
+#endif 
+}
+
+VROMPThreadPool VROMPThreadPool::Split() 
+{
+    return Split(nthreads/2, ngpus/2);
+}
+
+VROMPThreadPool VROMPThreadPool::Split(int nthreadsplit, int ngpusplit) 
+{
+    VROMPThreadPool vrotp_new;
+#ifdef USEOPENMP
+    vrotp_new.nthreads = min(nthreadsplit - nactivethreads, static_cast<unsigned int>(0));
+    nthreads -= vrotp_new.nthreads;
+    for (unsigned int i=0;i<vrotp_new.nthreads;i++) {
+        vrotp_new.idlethreadids.push_back(idlethreadids.back());
+        idlethreadids.pop_back();
+    }
+    vrotp_new.nactivethreads = 0;
+#ifdef USEOPENMPTARGET 
+    vrotp_new.ngpus = min(ngpusplit - nactivethreads, static_cast<unsigned int>(0));
+    ngpus -= vrotp_new.ngpus;
+    for (unsigned int i=0;i<vrotp_new.ngpus;i++) {
+        vrotp_new.idlegpuids.push_back(idlegpuids.back());
+        idlegpuids.pop_back();
+    }
+    vrotp_new.nactivegpus = 0;
+#endif 
+#endif
+    vrotp_new.hierarchylevel = hierarchylevel+1;
+    return vrotp_new;
+}
+
+void VROMPThreadPool::Merge(VROMPThreadPool &vrotp_new) 
+{
+    if (vrotp_new.hierarchylevel <= hierarchylevel) return;
+#ifdef USEOPENMP
+    nthreads += vrotp_new.nthreads;
+    for (unsigned int i=0;i<vrotp_new.nthreads;i++) {
+        idlethreadids.push_back(vrotp_new.idlethreadids.back());
+        vrotp_new.idlethreadids.pop_back();
+    }
+    vrotp_new.nthreads = 0;
+#ifdef USEOPENMPTARGET 
+    ngpus += vrotp_new.ngpus;
+    for (unsigned int i=0;i<vrotp_new.ngpus;i++) {
+        idlegpuids.push_back(vrotp_new.idlegpuids.back());
+        vrotp_new.idlegpuids.pop_back();
+    }
+    vrotp_new.gnpus = 0;
+    vrotp_new.Close();
+#endif 
+#endif 
+}
+
+void VROMPThreadPool::Close() 
+{
+    nthreads = nactivethreads = ngpus = nactivegpus = 0;
+    hierarchylevel = -1;
+    activethreadids.clear();
+    activethreadids.shrink_to_fit();
+    activegpuids.clear();
+    activegpuids.shrink_to_fit();
+    idlethreadids.clear();
+    idlethreadids.shrink_to_fit();
+    idlegpuids.clear();
+    idlegpuids.shrink_to_fit();
+}
+
+void VROMPThreadPool::ActivateThread(unsigned int n)
+{
+    if (n>nthreads) throw invalid_argument(std::string("Allocating more threads than allowed "));
+    unsigned int id = 0;
+#ifdef USEOPENMP
+    for (auto i=0;i<n;i++) {
+        id = idlethreadids.back();
+        idlethreadids.pop_back();
+        activethreadids.push_back(id);
+        nactivethreads++;
+    }
+#endif
+}
+void VROMPThreadPool::ActivateGPU(unsigned int n)
+{
+    if (n>ngpus) throw invalid_argument(std::string("Allocating more gpus than allowed "));
+    unsigned int id = 0;
+#ifdef USEOPENMPTARGET
+    for (auto i=0;i<n;i++) {
+        id = idlegpuids.back();
+        idlegpuids.pop_back();
+        activegpuids.push_back(id);
+        nactivegpus++;
+    }
+#endif
+}
+void VROMPThreadPool::DeactivateThread(unsigned int n)
+{
+    if (n>nthreads) throw invalid_argument(std::string("Deallocating more threads than available "));
+    unsigned int id = 0;
+#ifdef USEOPENMP
+    for (auto i=0;i<n;i++) {
+        id = activethreadids.back();
+        activethreadids.pop_back();
+        idlethreadids.push_back(id);
+        nactivethreads--;
+    }
+#endif
+}
+void VROMPThreadPool::DeactivateGPU(unsigned int n)
+{
+    if (n>ngpus) throw invalid_argument(std::string("Deallocating more threads than available "));
+    unsigned int id = 0;
+#ifdef USEOPENMPTARGET
+    for (auto i=0;i<n;i++) {
+        id = activegpuids.back();
+        activegpuids.pop_back();
+        idlegpuids.push_back(id);
+        nactivegpus--;
+    }
+#endif
+}
+
+void VROMPThreadPool::Print(){
+#ifdef USEOPENMP
+    cout<<"VELOCIraptor/STF running with OpenMP. Number of openmp threads: "<<nthreads<<endl;
+#ifdef USEOPENMPTARGET
+    cout<<"VELOCIraptor/STF running with OpenMP GPU offloading. Number of gpus: "<<ngpus<<endl;
+#endif
+    cout<<"VELOCIraptor/STF running with OpenMP version "<< _OPENMP << endl;
+#endif
+}
+
+
+///structure to keep track of thread and gpu pool accessible to local mpi task 
+//VROMPThreadPool vrotp;
+
 #endif

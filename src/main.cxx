@@ -61,17 +61,21 @@ int main(int argc,char **argv)
 #endif
     int nthreads;
 #ifdef USEOPENMP
+    //initialise the vr thread/gpu pool class
+    if (ThisTask==0) {
+        VROMPThreadPool vrotp;
+        vrotp.Init(); 
+        vrotp.Print();
+        vrotp.Close();
+    }
     nthreads = omp_get_max_threads();
 #else
     nthreads=1;
 #endif
-    //initialise the vr thread/gpu pool class
-    vrotp.Init(); 
 
 #ifdef USEMPI
     if (ThisTask==0) cout<<"VELOCIraptor/STF running with MPI. Number of mpi threads: "<<NProcs<<endl;
 #endif
-    if (ThisTask==0) vrotp.Print();
 
     gsl_set_error_handler_off();
 

@@ -3003,52 +3003,6 @@ struct leaf_node_info{
 #endif
 };
 
-/// Useful class for managing threads and gpus
-class VROMPThreadPool
-{
-    public :
-        //total number of threads 
-        unsigned int nthreads;
-        //number of active idle threads that can be given tasks to do 
-        unsigned int nactivethreads;
-        //total number of gpus 
-        unsigned int ngpus;
-        //number of active idle gpus that can be given tasks to do 
-        unsigned int nactivegpus;
-        //vector storing ids of active idle threads and gpus, 
-        vector<unsigned int> activethreadids, activegpuids;
-        //vector storing ids of active threads and gpus, 
-        vector<unsigned int> idlethreadids, idlegpuids;
-
-        /// \name Constructors 
-        //@{
-        VROMPThreadPool() = default;
-        VROMPThreadPool(const VROMPThreadPool &) = default;
-        VROMPThreadPool(VROMPThreadPool &&) = default;
-        VROMPThreadPool& operator=(const VROMPThreadPool&) = default;
-        VROMPThreadPool& operator=(VROMPThreadPool&&) = default;
-        //@}
-
-        /// \name Thread Management Routines
-        //@{
-        /// Init the thread and gpu pool 
-        void Init();
-        /// split the resources and produce new pool
-        VROMPThreadPool Split();
-        /// move thread from idle pool to active pool 
-        void ActivateThread(unsigned int nactivate=1);
-        ///  deactivate a thread and move it to idle pool  
-        void DeactivateThread(unsigned int ndeactivate=1);
-        /// move GPU from idle pool to active pool 
-        void ActivateGPU(unsigned int nactivate=1);
-        ///  deactivate a GPU and move it to idle pool  
-        void DeactivateGPU(unsigned int ndeactivate=1);
-        //@}
-
-        void Print();
-};
-
-extern VROMPThreadPool vrotp;
 
 ///if using MPI API
 #ifdef USEMPI
