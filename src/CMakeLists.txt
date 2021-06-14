@@ -18,6 +18,7 @@ set(VR_SOURCES
     gadgetio.cxx
     "${git_revision_cxx}"
     haloproperties.cxx
+    hierarchy.cxx
     hdfio.cxx
     io.cxx
     localbgcomp.cxx

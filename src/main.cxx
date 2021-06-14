@@ -98,7 +98,7 @@ int main(int argc,char **argv)
     Int_t nbodies,nbaryons,ndark;
     vector<Particle> Part;
     Particle *Pbaryons;
-    KDTree *tree;
+    KDTree *tree = nullptr;
 
     //number in subset, number of grids used if iSingleHalo==0;
     Int_t nsubset, ngrid;
@@ -107,11 +107,11 @@ int main(int argc,char **argv)
 
     //to store group value (pfof), and also arrays to parse particles
     //vector<Int_t> pfof, pfofbaryons;
-    Int_t *pfof, *pfofbaryons;;
-    Int_t *numingroup,**pglist;
-    Int_t *pfofall;
+    Int_t *pfof = nullptr, *pfofbaryons = nullptr;
+    Int_t *numingroup = nullptr, **pglist = nullptr;
+    Int_t *pfofall = nullptr;
     //to store information about the group
-    PropData *pdata=NULL,*pdatahalos=NULL;
+    PropData *pdata = nullptr, *pdatahalos = nullptr ;
 
     //to store time and output time taken
     auto tottime=MyGetTime();
@@ -307,7 +307,7 @@ int main(int argc,char **argv)
         //if compiled to determine inclusive halo masses, then for simplicity, I assume halo id order NOT rearranged!
         //this is not necessarily true if baryons are searched for separately.
         if (opt.iInclusiveHalo > 0 && opt.iInclusiveHalo < 3) {
-            pdatahalos=new PropData[nhalos+1];
+            pdatahalos = new PropData[nhalos+1];
             Int_t *numinhalos=BuildNumInGroup(nbodies, nhalos, pfof);
             Int_t *sortvalhalos=new Int_t[nbodies];
             Int_t *originalID=new Int_t[nbodies];
@@ -325,55 +325,10 @@ int main(int argc,char **argv)
         }
     }
     else {
-        Coordinate *gvel;
-        Matrix *gveldisp;
-        GridCell *grid;
-        ///\todo Scaling is still not MPI compatible
-        if (opt.iScaleLengths) ScaleLinkingLengths(opt,nbodies,Part.data(),cm,cmvel,Mtot);
-        opt.Ncell=opt.Ncellfac*nbodies;
-        //build grid using leaf nodes of tree (which is guaranteed to be adaptive and have maximum number of particles in cell of tree bucket size)
-        tree=InitializeTreeGrid(opt,nbodies,Part.data());
-        ngrid=tree->GetNumLeafNodes();
-        cout<<"Given "<<nbodies<<" particles, and max cell size of "<<opt.Ncell<<" there are "<<ngrid<<" leaf nodes or grid cells, with each node containing ~"<<nbodies/ngrid<<" particles"<<endl;
-        grid=new GridCell[ngrid];
-        //note that after this system is back in original order as tree has been deleted.
-        FillTreeGrid(opt, nbodies, ngrid, tree, Part.data(), grid);
-        //calculate cell quantities to get mean field
-        gvel=GetCellVel(opt,nbodies,Part.data(),ngrid,grid);
-        gveldisp=GetCellVelDisp(opt,nbodies,Part.data(),ngrid,grid,gvel);
-        opt.HaloSigmaV=0;for (int j=0;j<ngrid;j++) opt.HaloSigmaV+=pow(gveldisp[j].Det(),1./3.);opt.HaloSigmaV/=(double)ngrid;
-
-        //now that have the grid cell volume quantities and local volume density
-        //can determine the logarithmic ratio between the particle velocity density and that predicted by the background velocity distribution
-        GetDenVRatio(opt,nbodies,Part.data(),ngrid,grid,gvel,gveldisp);
-        //WriteDenVRatio(opt,nbodies,Part);
-        //and then determine how much of an outlier it is
-        nsubset=GetOutliersValues(opt,nbodies,Part.data());
-        //save the normalized denvratio and also determine how many particles lie above the threshold.
-        //nsubset=WriteOutlierValues(opt, nbodies,Part);
-        //Now check if any particles are above the threshold
-        if (nsubset==0) {
-            cout<<"no particles found above threshold of "<<opt.ellthreshold<<endl;
-            cout<<"Exiting"<<endl;
-            return 0;
-        }
-        else cout<<nsubset<< " above threshold of "<<opt.ellthreshold<<" to be searched"<<endl;
-#ifndef USEMPI
-        pfof=SearchSubset(opt,nbodies,nbodies,Part.data(),ngroup);
-#else
-        //nbodies=Ntotal;
-        ///\todo Communication Buffer size determination and allocation. For example, eventually need something like FoFDataIn = (struct fofdata_in *) CommBuffer;
-        ///At the moment just using NExport
-        NExport=Nlocal*MPIExportFac;
-        mpi_foftask=MPISetTaskID(nbodies);
-
-        //Now when MPI invoked this returns pfof after local linking and linking across and also reorders groups
-        //according to size and localizes the particles belong to the same group to the same mpi thread.
-        //after this is called Nlocal is adjusted to the local subset where groups are localized to a given mpi thread.
-        pfof=SearchSubset(opt,Nlocal,Nlocal,Part.data(),ngroup);
-        nbodies=Nlocal;
-#endif
+        pfof = SearchSingleHalo(opt, nbodies, Part, ngroup);
     }
+
+    // now search for substructure
     if (opt.iSubSearch) {
         cout<<"Searching subset"<<endl;
         time1=MyGetTime();
@@ -381,7 +336,8 @@ int main(int argc,char **argv)
         SearchSubSub(opt, nbodies, Part, pfof,ngroup,nhalos, pdatahalos);
         cout<<"TIME::"<<ThisTask<<" took "<<MyElapsedTime(time1)<<" to search for substructures "<<Nlocal<<" with "<<nthreads<<endl;
     }
-    pdata=new PropData[ngroup+1];
+    // now allocate memory to store Properties 
+    pdata = new PropData[ngroup+1];
     //if inclusive halo mass required
     if (opt.iInclusiveHalo > 0 && opt.iInclusiveHalo < 3 && ngroup>0) {
         CopyMasses(opt,nhalos,pdatahalos,pdata);
@@ -392,8 +348,8 @@ int main(int argc,char **argv)
     if (opt.iBaryonSearch>0) {
         time1=MyGetTime();
         if (opt.partsearchtype==PSTDARK) {
-            pfofall=SearchBaryons(opt, nbaryons, Pbaryons, nbodies, Part, pfof, ngroup,nhalos,opt.iseparatefiles,opt.iInclusiveHalo,pdata);
-            pfofbaryons=&pfofall[nbodies];
+            pfofall = SearchBaryons(opt, nbaryons, Pbaryons, nbodies, Part, pfof, ngroup, nhalos, opt.iseparatefiles, opt.iInclusiveHalo, pdata);
+            pfofbaryons = &pfofall[nbodies];
         }
         //if FOF search overall particle types then running sub search over just dm and need to associate baryons to just dm particles must determine number of baryons, sort list, run search, etc
         //but only need to run search if substructure has been searched
@@ -405,19 +361,19 @@ int main(int argc,char **argv)
                 else nbaryons++;
             }
             Pbaryons=NULL;
-            SearchBaryons(opt, nbaryons, Pbaryons, ndark, Part, pfof, ngroup,nhalos,opt.iseparatefiles,opt.iInclusiveHalo,pdata);
+            SearchBaryons(opt, nbaryons, Pbaryons, ndark, Part, pfof, ngroup, nhalos, opt.iseparatefiles, opt.iInclusiveHalo, pdata);
         }
         cout<<"TIME::"<<ThisTask<<" took "<<MyElapsedTime(time1)<<" to search baryons  with "<<nthreads<<endl;
     }
 
     //get mpi local hierarchy
     Int_t *nsub,*parentgid, *uparentgid,*stype;
-    nsub=new Int_t[ngroup+1];
-    parentgid=new Int_t[ngroup+1];
-    uparentgid=new Int_t[ngroup+1];
-    stype=new Int_t[ngroup+1];
-    Int_t nhierarchy=GetHierarchy(opt,ngroup,nsub,parentgid,uparentgid,stype);
-    CopyHierarchy(opt,pdata,ngroup,nsub,parentgid,uparentgid,stype);
+    nsub = new Int_t[ngroup+1];
+    parentgid = new Int_t[ngroup+1];
+    uparentgid = new Int_t[ngroup+1];
+    stype = new Int_t[ngroup+1];
+    Int_t nhierarchy = GetHierarchy(opt, ngroup, nsub, parentgid, uparentgid, stype);
+    CopyHierarchyToPropData(opt, pdata, ngroup, nsub, parentgid, uparentgid, stype);
 
     //if a separate baryon search has been run, now just place all particles together
     if (opt.iBaryonSearch>0 && opt.partsearchtype!=PSTALL) {

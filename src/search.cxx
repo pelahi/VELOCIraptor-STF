@@ -1946,6 +1946,37 @@ private(i,tid)
     return pfof;
 }
 
+/// Search a single halo for substructure. 
+Int_t * SearchSingleHalo(Options &opt, const Int_t nbodies, vector<Particle> &Part, Int_t &numgroups)
+{
+    // if halo is split across mpi domains, then run explicit subsearch first as start point and stich across. 
+    // otherwise just run the subsub search 
+#ifndef USEMPI 
+    Int_t *pfof = new Int_t[nbodies];
+    for (Int_t i=0;i<nbodies;i++) pfof[i] = 1;
+    // set the hiearchy 
+    psldata->Allocate(1);
+    psldata->Initialize();
+    //set the group id head pointer to the address within the pfof array
+    psldata->gidhead[pfof[0]]=&pfof[0];
+    //set particle pointer to particle address
+    psldata->Phead[pfof[0]]=&Part[0];
+    //set the parent pointers to appropriate addresss such that the parent and uber parent are the same as the groups head
+    psldata->gidparenthead[pfof[0]]=&pfof[0];
+    psldata->giduberparenthead[pfof[0]]=&pfof[0];
+    //set structure type
+    psldata->stypeinlevel[pfof[0]]=HALOSTYPE;
+    psldata->stype=HALOSTYPE;
+    numgroups = 1;
+    Int_t nhalos = 1;
+    SearchSubSub(opt, nbodies, Part, pfof, numgroups, nhalos, NULL);
+    return pfof;
+#else 
+    if (ThisTask == 0) cerr<<" MPI Single Halo search currently not supported "<<endl;
+    MPI_Abort(MPI_COMM_WORLD,8);
+#endif
+}
+
 //search for unassigned background particles if cores have been found.
 void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t *&pfofbg, Int_t &numgroupsbg, Double_t param[], vector<Double_t> &dispfac,
     int numactiveloops, vector<int> &corelevel,

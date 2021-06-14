@@ -203,6 +203,8 @@ Int_t GetOutliersValues(Options &opt, const Int_t nbodies, Particle *Part, int s
 
 ///Search full system without finding outliers first
 Int_t *SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, Int_t &numgroups);
+///Search for substructure only as input consists of single halo 
+Int_t *SearchSingleHalo(Options &opt, const Int_t nbodies, vector<Particle> &Part, Int_t &numgroups);
 ///Search the outliers
 Int_t *SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Particle *Partsubset, Int_t &numgroups, Int_t sublevel=0, Int_t *pnumcores=NULL);
 ///Search for subsubstructures
@@ -223,7 +225,7 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
 ///Get the hierarchy of structures found
 Int_t GetHierarchy(Options &opt, Int_t ngroups, Int_t *nsub, Int_t *parentgid, Int_t *uparentgid, Int_t *stype);
 ///Copy hierarchy to PropData structure
-void CopyHierarchy(Options &opt, PropData *pdata,Int_t ngroups, Int_t *nsub, Int_t *parentgid, Int_t *uparentgid, Int_t *stype);
+void CopyHierarchyToPropData(Options &opt, PropData *pdata,Int_t ngroups, Int_t *nsub, Int_t *parentgid, Int_t *uparentgid, Int_t *stype);
 ///Adjust particles in structures for period such that all substructure searches no longer have to run periodic searches
 void AdjustStructureForPeriod(Options &opt, const Int_t nbodies, vector<Particle> &Part, Int_t numgroups, Int_t *pfof);
 ///Adjust halo (object) positions back to inside the periodic volume.
