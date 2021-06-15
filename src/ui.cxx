@@ -163,9 +163,6 @@ static void log_options_summary(const Options &opt)
 /// \todo alter interface as now need to be able to specify only smdata file (no grid, res, normalized res) and functionality to specify eps, background fof search, etc
 void GetArgs(int argc, char *argv[], Options &opt)
 {
-#ifndef USEMPI
-    int ThisTask =0, NProcs =1;
-#endif
 #if defined(USEMPI) && defined(USEPARALLELHDF)
     opt.mpinprocswritesize=NProcs;
 #endif
@@ -222,12 +219,11 @@ void GetArgs(int argc, char *argv[], Options &opt)
         }
     }
     if(configflag){
-        if (ThisTask==0)
-        LOG(info) << "Reading config file " << opt.pname;
+        LOG_RANK0(info) << "Reading config file " << opt.pname;
         GetParamFile(opt);
     }
     else {
-        LOG(warning) << "No configuration file passed, using default values";
+        LOG_RANK0(warning) << "No configuration file passed, using default values";
     }
 #ifdef USEMPI
     MPI_Barrier(MPI_COMM_WORLD);
