@@ -85,7 +85,7 @@ class VROMPThreadPool
         void Init();
         /// split the resources and produce new pool
         VROMPThreadPool Split();
-        VROMPThreadPool Split(int nthreadsplit, int ngpusplit);
+        VROMPThreadPool Split(unsigned int nthreadsplit, unsigned int ngpusplit);
         /// merge resources from a 
         void Merge(VROMPThreadPool &);
         /// move thread from idle pool to active pool 

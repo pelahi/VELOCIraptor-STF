@@ -3029,30 +3029,79 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
 #endif
         GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__)+string("--subelvel--")+to_string(sublevel), (opt.iverbose>=1));
 
-        /// adjust calls to make use of the VROMPThreadPool vrotp
-        /// the idea here is to run as many tasks as possible given the
-        /// current set of objects. 
-        
         Options opt2;
+#ifdef USEOPENMP 
+        // if running with openmp simple parallel for over small groups
+        //store larger group size index 
         VROMPThreadPool vrotp, vrotp_child;
         vrotp.Init();
+        auto maxnthreads = vrotp.nthreads;
+        int chunksize = max(1, static_cast<int>(oldnsubsearch / static_cast<double>(maxnthreads*5)));
+        vector<Int_t> indexsmall, indexlarge;
+        indexsmall.reserve(oldnsubsearch);
+        indexlarge.reserve(oldnsubsearch);
+        for (Int_t i=1;i<=oldnsubsearch;i++) {
+            if (subnumingroup[i] >= ompsplitsubsearchnum) indexlarge.push_back(i);
+            else indexsmall.push_back(i);
+        }
+        #pragma omp parallel for \
+        default(shared) private(subPart, subpfof, opt2) schedule(dynamic,chunksize) \
+        reduction(+:ns)
+        for (Int_t iomp=0;iomp<=indexsmall.size();iomp++) {
+            auto i=indexsmall[iomp];
+#else 
+        for (Int_t i=1;i<=oldnsubsearch;i++) {
+#endif 
+            opt2 = opt;
+            subpfofold[i]=pfof[subpglist[i][0]];
+            subPart = subPartCopy(opt2, subnumingroup[i], Partsubset, subpglist[i]);
+            //move to cm if desired
+            if (opt2.icmrefadjust) {
+                //this routine is in substructureproperties.cxx. Has internal parallelisation
+                GMatrix cmphase = CalcPhaseCM(subnumingroup[i], subPart);
+                //this routine is within this file, also has internal parallelisation
+                AdjustSubPartToPhaseCM(subnumingroup[i], subPart, cmphase);
+            }
+            PreCalcSearchSubSet(opt2, subnumingroup[i], subPart, sublevel);
+            subpfof = SearchSubset(opt2, subnumingroup[i], subnumingroup[i], subPart,
+                subngroup[i], sublevel, &numcores[i]);
+            CleanAndUpdateGroupsFromSubSearch(opt2, subnumingroup[i], subPart, subpfof,
+                    subngroup[i], subsubnumingroup[i], subsubpglist[i], numcores[i],
+                    subpglist[i], pfof, ngroup, ngroupidoffset_old[i]);
+            delete[] subpfof;
+            delete[] subPart;
+            ns+=subngroup[i];
+        }
+
+#ifdef USEOPPENMP
+        // if run with openmp, simple static parallel for run over small groups
+        // now run larger groups using tasks 
+        // determine the thread pool 
+        omp_set_nested(true);
+        auto oldns = ns;
+        ns = 0;
+        // begin launching tasks
         #pragma omp parallel \
         default(none) \
-        shared(pfof, subpfofold, subpglist,  subsubpglist, subnumingroup, subsubnumingroup,subngroup, numcores, vrotp, opt, Partsubset, oldnsubsearch, ngroup, ns, ngroupidoffset_old) \
+        shared(pfof, subpfofold, subpglist,  subsubpglist, subnumingroup, subsubnumingroup, subngroup, numcores, vrotp, opt, Partsubset, oldnsubsearch, ngroup, ns, ngroupidoffset_old, maxnthreads, indexlarge) \
         private(opt2, vrotp_child, subPart, subpfof) \
         firstprivate(sublevel) \
-        num_threads(vrotp.nthreads)
+        num_threads(maxnthreads)
         #pragma omp single
         {
-            //run loop and launch tasks if possible
-            for (auto i=0;i<oldnsubsearch;i++) {
-                // apply some lock on threads
-                while (vrotp.nthreads == 0) {}; 
-                // use size to scale the number of threads taken
-                //subnumingroup[i];
-                vrotp_child = vrotp.Split();
-                // should my task depend on anything 
-                #pragma omp task //depend()
+            //run loop and launch tasks, with task running loop able to yield to tasks running 
+            //the actual compute by untying it.  
+            #pragma omp task untied
+            for (auto iomp=0;iomp<indexlarge.size();iomp++) {
+                auto i=indexlarge[i];
+                // use size to scale the number of threads taken, scaling threads based on a min level for 
+                unsigned int ncurthreads = min(static_cast<unsigned int>(max(static_cast<unsigned int>(floor(subnumingroup[i]/static_cast<double>(ompsubsearchnum))),1u)), maxnthreads);
+                // currently functions do not use GPUs
+                unsigned int ncurgpus=0;
+                vrotp_child.nthreads = ncurthreads;
+                vrotp_child.ngpus = ncurgpus;
+                // launch task that identifies substructures 
+                #pragma omp task 
                 {
                     opt2 = opt;
                     subpfofold[i] = pfof[subpglist[i][0]];
@@ -3073,113 +3122,21 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                             subpglist[i], pfof, ngroup, ngroupidoffset_old[i]);
                     delete[] subpfof;
                     delete[] subPart;
-                    // once the task has completed it's thread independent region, 
-                    // update ns and also return resources 
+                    // once the task has completed, updated ns 
                     #pragma omp critical 
                     {
                         ns += subngroup[i];
-                        vrotp.Merge(vrotp_child);
                     }
                 }
+
             }
             // wait till all the tasks are done here 
             #pragma omp taskwait
         }
-/*
+        ns += oldns;
+        omp_set_nested(false);
+#endif
 
-        for (Int_t i=1;i<=oldnsubsearch;i++) {
-            // try running loop over largest objects in serial with parallel inside calls
-            // so skip of group is small enough and running with openmp
-#ifdef USEOPENMP
-            if (subnumingroup[i] < ompsplitsubsearchnum) {
-                ompactivesubgroups.push_back(i);
-                continue;
-            }
-#endif
-            subpfofold[i]=pfof[subpglist[i][0]];
-            subPart=new Particle[subnumingroup[i]];
-            for (Int_t j=0;j<subnumingroup[i];j++) {
-                subPart[j]=Partsubset[subpglist[i][j]];
-#ifdef GASON
-                if (subPart[j].HasHydroProperties()) subPart[j].SetHydroProperties();
-#endif
-#ifdef STARON
-                if (subPart[j].HasStarProperties()) subPart[j].SetStarProperties();
-#endif
-#ifdef BHON
-                if (subPart[j].HasBHProperties()) subPart[j].SetBHProperties();
-#endif
-#ifdef EXTRADMON
-                if (subPart[j].HasExtraDMProperties()) subPart[j].SetExtraDMProperties();
-#endif
-            }
-            //move to cm if desired
-            if (opt.icmrefadjust) {
-                //this routine is in substructureproperties.cxx. Has internal parallelisation
-                GMatrix cmphase = CalcPhaseCM(subnumingroup[i], subPart);
-                //this routine is within this file, also has internal parallelisation
-                AdjustSubPartToPhaseCM(subnumingroup[i], subPart, cmphase);
-            }
-            PreCalcSearchSubSet(opt, subnumingroup[i], subPart, sublevel);
-            subpfof = SearchSubset(opt, subnumingroup[i], subnumingroup[i], subPart,
-                subngroup[i], sublevel, &numcores[i]);
-            CleanAndUpdateGroupsFromSubSearch(opt, subnumingroup[i], subPart, subpfof,
-                    subngroup[i], subsubnumingroup[i], subsubpglist[i], numcores[i],
-                    subpglist[i], pfof, ngroup, ngroupidoffset_old[i]);
-            delete[] subpfof;
-            delete[] subPart;
-            ns+=subngroup[i];
-        }
-
-#ifdef USEOPENMP
-        if (ompactivesubgroups.size()>0) {
-            Int_t oldns = ns;
-            ns = 0;
-            Options opt2;
-            #pragma omp parallel for \
-            default(shared) private(subPart, subpfof, opt2) schedule(dynamic,1) \
-            reduction(+:ns)
-            for (auto iomp=0;iomp<ompactivesubgroups.size();iomp++) {
-                Int_t i=ompactivesubgroups[iomp];
-                opt2 = opt;
-                subpfofold[i] = pfof[subpglist[i][0]];
-                subPart = new Particle[subnumingroup[i]];
-                for (Int_t j=0;j<subnumingroup[i];j++) {
-                    subPart[j] = Partsubset[subpglist[i][j]];
-#ifdef GASON
-                    if (subPart[j].HasHydroProperties()) subPart[j].SetHydroProperties();
-#endif
-#ifdef STARON
-                    if (subPart[j].HasStarProperties()) subPart[j].SetStarProperties();
-#endif
-#ifdef BHON
-                    if (subPart[j].HasBHProperties()) subPart[j].SetBHProperties();
-#endif
-#ifdef EXTRADMON
-                    if (subPart[j].HasExtraDMProperties()) subPart[j].SetExtraDMProperties();
-#endif
-                }
-
-                if (opt.icmrefadjust) {
-                    //this routine is in substructureproperties.cxx. Has internal parallelisation
-                    GMatrix cmphase = CalcPhaseCM(subnumingroup[i], subPart);
-                    //this routine is within this file, also has internal parallelisation
-                    AdjustSubPartToPhaseCM(subnumingroup[i], subPart, cmphase);
-                }
-                PreCalcSearchSubSet(opt2, subnumingroup[i], subPart, sublevel);
-                subpfof = SearchSubset(opt2, subnumingroup[i], subnumingroup[i], subPart,
-                    subngroup[i], sublevel, &numcores[i]);
-                CleanAndUpdateGroupsFromSubSearch(opt2, subnumingroup[i], subPart, subpfof,
-                        subngroup[i], subsubnumingroup[i], subsubpglist[i], numcores[i],
-                        subpglist[i], pfof, ngroup, ngroupidoffset_old[i]);
-                delete[] subpfof;
-                delete[] subPart;
-                ns += subngroup[i];
-            }
-            ns += oldns;
-        }
-#endif
-*/
         UpdateGroupIDsFromSubstructure(oldnsubsearch, ngroup,
             pfof, subngroup, subnumingroup, subpglist,
             ns, ngroupidoffset, ngroupidoffset_old, ngroupidoffset_new);

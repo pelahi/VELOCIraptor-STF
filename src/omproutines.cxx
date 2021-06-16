@@ -398,11 +398,11 @@ VROMPThreadPool VROMPThreadPool::Split()
     return Split(nthreads/2, ngpus/2);
 }
 
-VROMPThreadPool VROMPThreadPool::Split(int nthreadsplit, int ngpusplit) 
+VROMPThreadPool VROMPThreadPool::Split(unsigned int nthreadsplit, unsigned int ngpusplit) 
 {
     VROMPThreadPool vrotp_new;
 #ifdef USEOPENMP
-    vrotp_new.nthreads = min(nthreadsplit - nactivethreads, static_cast<unsigned int>(0));
+    vrotp_new.nthreads = min(nthreadsplit, nthreads);
     nthreads -= vrotp_new.nthreads;
     for (unsigned int i=0;i<vrotp_new.nthreads;i++) {
         vrotp_new.idlethreadids.push_back(idlethreadids.back());
@@ -410,7 +410,7 @@ VROMPThreadPool VROMPThreadPool::Split(int nthreadsplit, int ngpusplit)
     }
     vrotp_new.nactivethreads = 0;
 #ifdef USEOPENMPTARGET 
-    vrotp_new.ngpus = min(ngpusplit - nactivethreads, static_cast<unsigned int>(0));
+    vrotp_new.ngpus = min(ngpusplit, ngpus);
     ngpus -= vrotp_new.ngpus;
     for (unsigned int i=0;i<vrotp_new.ngpus;i++) {
         vrotp_new.idlegpuids.push_back(idlegpuids.back());
