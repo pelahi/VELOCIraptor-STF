@@ -151,9 +151,9 @@ void FillTreeGrid(Options &opt, const Int_t nbodies, const Int_t ngrid, KDTree *
 //@{
 
 ///Calculate CM vel of cell
-Coordinate *GetCellVel(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngrid, GridCell *grid);
+Coordinate *GetCellVel(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngrid, GridCell *grid, int nthreads = -1);
 ///Calculate velocity dispersion tensor of cell
-Matrix *GetCellVelDisp(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngrid, GridCell *grid, Coordinate *gvel);
+Matrix *GetCellVelDisp(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngrid, GridCell *grid, Coordinate *gvel, int nthreads = -1);
 //@}
 
 /// \name Subroutines to calculate local velocity density
@@ -177,11 +177,16 @@ void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle
 //@{
 
 ///Calculate logarithmic contrast between local velocity density and background velocity density
-void GetDenVRatio(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngrid, GridCell *grid, Coordinate *gvel, Matrix *gveldisp);
+void GetDenVRatio(Options &opt, const Int_t nbodies, Particle *Part, 
+    Int_t ngrid, GridCell *grid, Coordinate *gvel, Matrix *gveldisp, 
+    int nthreads = -1);
 ///Characterize the ratio distribution to estimate intrinsic scatter in this estimator
-void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *Part, Double_t &meanr,Double_t &sdlow,Double_t &sdhigh, int subleve=0);
+void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *Part, 
+    Double_t &meanr,Double_t &sdlow,Double_t &sdhigh, 
+    int subleve=0, int nthreads = -1);
 ///Calculate normalized residual
-Int_t GetOutliersValues(Options &opt, const Int_t nbodies, Particle *Part, int sublevel=0);
+Int_t GetOutliersValues(Options &opt, const Int_t nbodies, Particle *Part, 
+    int sublevel=0, int nthreads = -1);
 
 //@}
 
@@ -355,7 +360,7 @@ void CalcITensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t 
 ///Calculate position dispersion tensor and eigvector
 void CalcPosSigmaTensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t &c, Matrix& eigenvec, Matrix &I, int itype=-1);
 ///Calculate velocity dispersion tensor and eigvector
-void CalcVelSigmaTensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t &c, Matrix& eigenvec, Matrix &I, int itype=-1);
+void CalcVelSigmaTensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t &c, Matrix& eigenvec, Matrix &I, int itype=-1, int nthreads = -1);
 ///Calculate phase-space dispersion tensor and eigvector
 void CalcPhaseSigmaTensor(const Int_t n, Particle *p, GMatrix &eigenvalues, GMatrix& eigenvec, GMatrix &I, int itype=-1);
 ///Calculate phase-space dispersion tensor
@@ -367,7 +372,7 @@ void CalcMTensorWithMass(Matrix& M, const Double_t q, const Double_t s, const In
 ///Rotate particles to some coordinate frame
 void RotParticles(const Int_t n, Particle *p, Matrix &R);
 ///get phase-space center-of-mass
-GMatrix CalcPhaseCM(const Int_t n, Particle *p, int itype=-1);
+GMatrix CalcPhaseCM(const Int_t n, Particle *p, int itype=-1, int nthreads = -1);
 
 ///get concentration routines associted with finding concentrations via root finding
 void CalcConcentration(PropData &p);

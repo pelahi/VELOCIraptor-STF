@@ -3465,7 +3465,7 @@ private(i,weight)
 }
 
 ///calculate the velocity dispersion tensor
-void CalcVelSigmaTensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t &c, Matrix& eigenvec, Matrix &I, int itype)
+void CalcVelSigmaTensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t &c, Matrix& eigenvec, Matrix &I, int itype, int nthreads)
 {
     Double_t Ixx,Iyy,Izz,Ixy,Ixz,Iyz, weight;
     Coordinate e;
@@ -3475,8 +3475,9 @@ void CalcVelSigmaTensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Do
     Double_t mtot=0;
 #ifdef USEOPENMP
     if (n>=ompunbindnum) {
+        if (nthreads == -1) nthreads = omp_get_max_threads();
 #pragma omp parallel default(shared) \
-private(i,weight)
+private(i,weight) num_threads(nthreads)
 {
 #pragma omp for schedule(dynamic) reduction(+:Ixx,Iyy,Izz,Ixy,Ixz,Iyz,mtot)
     for (i = 0; i < n; i++)
@@ -3779,7 +3780,7 @@ private(i,j,temp)
 }
 
 ///calculate the phase-space dispersion tensor
-GMatrix CalcPhaseCM(const Int_t n, Particle *p, int itype)
+GMatrix CalcPhaseCM(const Int_t n, Particle *p, int itype, int nthreads)
 {
     Double_t weight;
     Double_t cmx,cmy,cmz,cmvx,cmvy,cmvz;
@@ -3789,8 +3790,9 @@ GMatrix CalcPhaseCM(const Int_t n, Particle *p, int itype)
     Double_t mtot=0;
 #ifdef USEOPENMP
     if (n>=ompunbindnum) {
+        if (nthreads == -1) nthreads = omp_get_max_threads();
 #pragma omp parallel default(shared) \
-private(i,weight)
+private(i,weight) num_threads(nthreads)
 {
 #pragma omp for schedule(dynamic) reduction(+:cmx,cmy,cmz,cmvx,cmvy,cmvz,mtot)
     for (i = 0; i < n; i++)

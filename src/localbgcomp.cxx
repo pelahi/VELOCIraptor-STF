@@ -11,12 +11,19 @@
     locally to that grid cell. Another option is to determine all cells that are NN of a cell in another mpi's domain, build a grid export list that contains the relevant information
     and an index that is easily accessible when searching the list of NN cells locally.
 */
-void GetDenVRatio(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngrid, GridCell *grid, Coordinate *gvel, Matrix *gveldisp)
+void GetDenVRatio(Options &opt, const Int_t nbodies, Particle *Part, 
+    Int_t ngrid, GridCell *grid, Coordinate *gvel, Matrix *gveldisp, 
+    int nthreads)
 {
     Int_t i;
-    int nthreads=1,tid;
+    int tid;
 #ifndef USEMPI
     int ThisTask=0;
+#endif
+#ifdef USEOPENMP
+    if (nthreads == -1) nthreads=omp_get_max_threads();
+#else 
+    nthreads = 1;
 #endif
     Double_t **dist;
     Double_t norm=pow(2.0*M_PI,-1.5);
@@ -31,15 +38,10 @@ void GetDenVRatio(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngrid
     if (opt.iverbose>=2) cout<<ThisTask<<" Now calculate denvratios using grid"<<endl;
     //take inverse for interpolation
 #ifdef USEOPENMP
-#pragma omp parallel default(shared) \
-private(i) if (nbodies > ompsubsearchnum)
-{
-#pragma omp for schedule(static)
+#pragma omp parallel for default(shared) \
+schedule(static) num_threads(nthreads) if (nbodies > ompsubsearchnum)
 #endif
     for (i=0;i<ngrid;i++) gveldisp[i]=gveldisp[i].Inverse();
-#ifdef USEOPENMP
-}
-#endif
 
     //build grid tree so that one can find nearest cells for each particle
     //if using MPI since number of cells is far fewer than number of particles, simple gather collect all the data so that each processor has access to it
@@ -64,23 +66,16 @@ private(i) if (nbodies > ompsubsearchnum)
     for (i=0;i<ngrid;i++) ptemp[i]=Particle(1.0,grid[i].xm[0],grid[i].xm[1],grid[i].xm[2],0.0,0.0,0.0,i);
     tree=new KDTree(ptemp,ngrid,1,tree->TPHYS, tree->KEPAN,100,0,0,0,NULL,NULL,false);
 
-#ifdef USEOPENMP
-#pragma omp parallel
-    {
-        if (omp_get_thread_num()==0) nthreads=omp_get_num_threads();
-    }
-#endif
     dist=new Double_t*[nthreads];
     for (int j=0;j<nthreads;j++)dist[j]=new Double_t[MAXNGRID+1];
     nn=new Int_t*[nthreads];
     for (int j=0;j<nthreads;j++)nn[j]=new Int_t[MAXNGRID+1];
 
 #ifdef USEOPENMP
-#pragma omp parallel default(shared) \
-private(i,w,wsum,sv,vsv,fbg,vp,maxdist,vmweighted,isvweighted,tid,tempdenv) \
-if (nbodies > ompsubsearchnum)
-{
-#pragma omp for schedule(static)
+#pragma omp parallel for default(shared) \
+private(w,wsum,sv,vsv,fbg,vp,maxdist,vmweighted,isvweighted,tid,tempdenv) \
+schedule(static) \
+num_threads(nthreads) if (nbodies > ompsubsearchnum)
 #endif
     for (i=0;i<nbodies;i++)
     {
@@ -118,9 +113,7 @@ if (nbodies > ompsubsearchnum)
         fbg=log(sv)-0.5*vsv;
         Part[i].SetPotential(log(tempdenv)-log(norm)-fbg);
     }
-#ifdef USEOPENMP
-}
-#endif
+
     if (opt.iverbose>=2) cout<<ThisTask<<" Done"<<endl;
     for (int j=0;j<nthreads;j++) delete[] dist[j];
     delete[] dist;
@@ -134,25 +127,34 @@ if (nbodies > ompsubsearchnum)
 }
 
 
-void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *Part, Double_t &meanr,Double_t &sdlow,Double_t &sdhigh, int sublevel)
+void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *Part, 
+    Double_t &meanr,Double_t &sdlow,Double_t &sdhigh, 
+    int sublevel, int nthreads)
 {
     Int_t i,nbins,iprob,jprob;
     Double_t mtot,mtotpeak,deltar,maxprob,minprob,rmin,rmax;
     vector<Double_t> rbin;
     vector<Double_t> xbin;
-    int nthreads=1,tid;
+    int tid;
     Double_t w;
     unsigned int ir;
     const int MINBIN = 5;
     //to determine initial number of bins using modified Sturges' formula
     nbins = max((int)ceil(log10((Double_t)nbodies)/log10(2.0)+1)*4, MINBIN);
 
+#ifdef USEOPENMP
+    if (nthreads == -1) nthreads=omp_get_max_threads();
+#else 
+    nthreads = 1;
+#endif
+
     //deterrmine average, rmin,rmax and variance about mean
     rmin=rmax=Part[0].GetPotential();
 #ifdef USEOPENMP
     #pragma omp parallel for default(shared) \
-    private(i,tid) schedule(static) \
-    reduction(min:rmin) reduction(max:rmax) if (nbodies > ompperiodnum)
+    schedule(static) \
+    reduction(min:rmin) reduction(max:rmax) \
+    num_threads(nthreads) if (nbodies > ompperiodnum)
 #endif
     for (i=1;i<nbodies;i++) {
         if (rmin>Part[i].GetPotential())rmin=Part[i].GetPotential();
@@ -368,18 +370,24 @@ void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *
     but could add routine that transforms these values to probablity if necessary.
 
 */
-Int_t GetOutliersValues(Options &opt, const Int_t nbodies, Particle *Part, int sublevel)
+Int_t GetOutliersValues(Options &opt, const Int_t nbodies, Particle *Part, int sublevel,
+    int nthreads)
 {
     Int_t nsubset = 0;
-    int nthreads=1;
 #ifndef USEMPI
     int ThisTask=0;
 #endif
+#ifdef USEOPENMP
+    if (nthreads == -1) nthreads = omp_get_max_threads();
+#else 
+    nthreads = 1;
+#endif
+
     if (opt.iverbose>=2) cout<<ThisTask<<" Now get average in grid cell and find outliers"<<endl;
     //printf("Using GLOBAL values to characterize the distribution and determine the normalized values used to determine outlier likelihood\n");
     Double_t globalmostprob,globalsdlow,globalsdhigh;
 
-    DetermineDenVRatioDistribution(opt,nbodies,Part,globalmostprob,globalsdlow,globalsdhigh, sublevel);
+    DetermineDenVRatioDistribution(opt,nbodies,Part,globalmostprob,globalsdlow,globalsdhigh, sublevel, nthreads);
 
     Double_t temp2,temp3, tempell;
     temp2=1.0/(globalsdhigh);
@@ -387,7 +395,8 @@ Int_t GetOutliersValues(Options &opt, const Int_t nbodies, Particle *Part, int s
 #ifdef USEOPENMP
     #pragma omp parallel for default(shared) \
     private(tempell) \
-    reduction(+:nsubset) if (nbodies > ompsubsearchnum)
+    reduction(+:nsubset) \
+    num_threads(nthreads) if (nbodies > ompsubsearchnum)
 #endif
     for (auto i=0;i<nbodies;i++) {
         tempell=(Part[i].GetPotential()-globalmostprob);

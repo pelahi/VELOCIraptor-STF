@@ -2760,10 +2760,10 @@ inline Particle *subPartCopy(Options &opt, Int_t subnumingroup, vector<Particle>
 }
 
 ///adjust to phase centre
-inline void AdjustSubPartToPhaseCM(Int_t num, Particle *subPart, GMatrix &cmphase)
+inline void AdjustSubPartToPhaseCM(Int_t num, Particle *subPart, GMatrix &cmphase, int nthreads = -1)
 {
-    int nthreads = 1;
 #ifdef USEOPENMP
+    if (nthreads == -1) nthreads = omp_get_max_threads();
 #pragma omp parallel for \
 default(shared)  \
 num_threads(nthreads) if (num > ompperiodnum)
@@ -2775,11 +2775,15 @@ num_threads(nthreads) if (num > ompperiodnum)
 }
 
 ///Pre-calcualtions for searching for substructure
-inline void PreCalcSearchSubSet(Options &opt, Int_t subnumingroup,  Particle *&subPart, Int_t sublevel)
+inline void PreCalcSearchSubSet(Options &opt, Int_t subnumingroup,  Particle *&subPart, Int_t sublevel, 
+    int nthreads = -1)
 {
-    #ifndef USEMPI
+#ifndef USEMPI
     int ThisTask = 0;
-    #endif
+#endif
+#ifdef USEOPENMP 
+    if (nthreads == -1) nthreads = omp_get_max_threads();
+#endif 
     KDTree *tree;
     Int_t ngrid;
     GridCell *grid;
@@ -2797,30 +2801,30 @@ inline void PreCalcSearchSubSet(Options &opt, Int_t subnumingroup,  Particle *&s
         ngrid=tree->GetNumLeafNodes();
         grid=new GridCell[ngrid];
         FillTreeGrid(opt, subnumingroup, ngrid, tree, subPart, grid);
-        gvel=GetCellVel(opt,subnumingroup,subPart,ngrid,grid);
-        gveldisp=GetCellVelDisp(opt,subnumingroup,subPart,ngrid,grid,gvel);
+        gvel=GetCellVel(opt, subnumingroup, subPart, ngrid, grid, nthreads);
+        gveldisp=GetCellVelDisp(opt, subnumingroup, subPart, ngrid, grid, gvel, nthreads);
 
         opt.HaloLocalSigmaV=0;
         for (auto j=0;j<ngrid;j++) opt.HaloLocalSigmaV+=pow(gveldisp[j].Det(),1./3.);opt.HaloLocalSigmaV/=(double)ngrid;
 
         Matrix eigvec(0.),I(0.);
         Double_t sigma2x,sigma2y,sigma2z;
-        CalcVelSigmaTensor(subnumingroup, subPart, sigma2x, sigma2y, sigma2z, eigvec, I);
+        CalcVelSigmaTensor(subnumingroup, subPart, sigma2x, sigma2y, sigma2z, eigvec, I, -1, nthreads);
         //\todo need to update this
         opt.HaloSigmaV=pow(sigma2x*sigma2y*sigma2z,1.0/3.0);
         if (opt.HaloSigmaV>opt.HaloVelDispScale) opt.HaloVelDispScale=opt.HaloSigmaV;
 #ifdef HALOONLYDEN
         GetVelocityDensity(opt,subnumingroup,subPart);
 #endif
-        GetDenVRatio(opt,subnumingroup, subPart, ngrid, grid, gvel, gveldisp);
-        GetOutliersValues(opt,subnumingroup, subPart, sublevel);
+        GetDenVRatio(opt,subnumingroup, subPart, ngrid, grid, gvel, gveldisp, nthreads);
+        GetOutliersValues(opt,subnumingroup, subPart, sublevel, nthreads);
         opt.idenvflag++;//largest field halo used to deteremine statistics of ratio
     }
     //otherwise only need to calculate a velocity scale for merger separation
     else {
         Matrix eigvec(0.),I(0.);
         Double_t sigma2x,sigma2y,sigma2z;
-        CalcVelSigmaTensor(subnumingroup, subPart, sigma2x, sigma2y, sigma2z, eigvec, I);
+        CalcVelSigmaTensor(subnumingroup, subPart, sigma2x, sigma2y, sigma2z, eigvec, I, -1, nthreads);
         opt.HaloLocalSigmaV=opt.HaloSigmaV=pow(sigma2x*sigma2y*sigma2z,1.0/3.0);
     }
 }
@@ -3110,16 +3114,16 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                     if (opt.icmrefadjust) 
                     {
                         //this routine is in substructureproperties.cxx. Has internal parallelisation
-                        GMatrix cmphase = CalcPhaseCM(subnumingroup[i], subPart);
+                        GMatrix cmphase = CalcPhaseCM(subnumingroup[i], subPart, -1, vrotp_child.nthreads);
                         //this routine is within this file, also has internal parallelisation
-                        AdjustSubPartToPhaseCM(subnumingroup[i], subPart, cmphase);
+                        AdjustSubPartToPhaseCM(subnumingroup[i], subPart, cmphase, vrotp_child.nthreads);
                     }
-                    PreCalcSearchSubSet(opt2, subnumingroup[i], subPart, sublevel);
+                    PreCalcSearchSubSet(opt2, subnumingroup[i], subPart, sublevel, vrotp_child.nthreads);
                     subpfof = SearchSubset(opt2, subnumingroup[i], subnumingroup[i], subPart,
-                        subngroup[i], sublevel, &numcores[i]);
+                        subngroup[i], sublevel, &numcores[i], vrotp_child.nthreads);
                     CleanAndUpdateGroupsFromSubSearch(opt2, subnumingroup[i], subPart, subpfof,
                             subngroup[i], subsubnumingroup[i], subsubpglist[i], numcores[i],
-                            subpglist[i], pfof, ngroup, ngroupidoffset_old[i]);
+                            subpglist[i], pfof, ngroup, ngroupidoffset_old[i], vrotp_child.nthreads);
                     delete[] subpfof;
                     delete[] subPart;
                     // once the task has completed, updated ns 
