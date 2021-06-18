@@ -4795,7 +4795,7 @@ Int_t MPILinkAcross(const Int_t nbodies, KDTree *&tree, Particle *Part, Int_t *&
 Int_t MPIGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, Int_t *&pfof){
     Int_t i, j,nthreads,nexport,nimport,nlocal,n;
     Int_t nsend_local[NProcs],noffset_import[NProcs],noffset_export[NProcs],nbuffer[NProcs];
-    int sendTask,recvTask;
+    int recvTask;
     int maxchunksize=2147483648/NProcs/sizeof(fofid_in);
     int nsend,nrecv,nsendchunks,nrecvchunks,numsendrecv;
     int sendoffset,recvoffset;
@@ -4886,7 +4886,6 @@ Int_t MPIGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
     {
         if (j!=ThisTask)
         {
-            sendTask = ThisTask;
             recvTask = j;
 
             if(mpi_nsend[ThisTask * NProcs + recvTask] > 0 || mpi_nsend[recvTask * NProcs + ThisTask] > 0)
