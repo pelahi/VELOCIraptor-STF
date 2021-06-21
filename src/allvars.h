@@ -762,7 +762,7 @@ struct Options
     double icellwidth[3];
 
     /*! Holds the node ID of each top-level cell. */
-    int *cellnodeids = NULL;
+    std::vector<int> cellnodeids;
 
     /// holds the order of cells based on z-curve decomposition;
     vector<int> cellnodeorder;
