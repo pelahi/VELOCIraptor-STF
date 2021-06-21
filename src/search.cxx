@@ -1392,7 +1392,6 @@ private(i,tid)
         for (i=0;i<nsubset;i++) if (numingroup[pfof[i]]<opt.MinSize) pfof[i]=0;
         for (i=1;i<=numgroups;i++) numingroup[i]=0;
         for (i=0;i<nsubset;i++) numingroup[pfof[i]]++;
-        //cout<<ThisTask<<" "<<"Now determine number of groups with non zero length"<<endl;
         for (i=numgroups;i>=1;i--) {
             if (numingroup[i]==0) ng--;
             else pglist[i]=new Int_t[numingroup[i]];
@@ -2757,6 +2756,7 @@ inline Particle *subPartCopy(Options &opt, Int_t subnumingroup, vector<Particle>
         if (subPart[j].HasExtraDMProperties()) subPart[j].SetExtraDMProperties();
 #endif
     }
+    return subPart;
 }
 
 ///adjust to phase centre
@@ -3044,14 +3044,15 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
         vector<Int_t> indexsmall, indexlarge;
         indexsmall.reserve(oldnsubsearch);
         indexlarge.reserve(oldnsubsearch);
-        for (Int_t i=1;i<=oldnsubsearch;i++) {
+        for (Int_t i=1;i<=oldnsubsearch;i++) 
+        {
             if (subnumingroup[i] >= ompsplitsubsearchnum) indexlarge.push_back(i);
             else indexsmall.push_back(i);
         }
         #pragma omp parallel for \
         default(shared) private(subPart, subpfof, opt2) schedule(dynamic,chunksize) \
         reduction(+:ns)
-        for (Int_t iomp=0;iomp<=indexsmall.size();iomp++) {
+        for (Int_t iomp=0;iomp<indexsmall.size();iomp++) {
             auto i=indexsmall[iomp];
 #else 
         for (Int_t i=1;i<=oldnsubsearch;i++) {
