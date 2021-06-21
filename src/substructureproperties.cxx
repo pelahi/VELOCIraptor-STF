@@ -3106,7 +3106,7 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
 
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typeparts,n,dx,EncMass,J,rc,rhoval,rhoval2,tid,SOpids,iSOfound)
+private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typeparts,n,dx,EncMass,J,rc,rhoval,rhoval2,tid,SOpids,iSOfound, massval)
 {
 #pragma omp for schedule(dynamic) nowait
 #endif
@@ -3156,6 +3156,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
             radii[j]=sqrt(radii[j]);
         }
         taggedparts.clear();
+        taggedparts.shrink_to_fit();
 #ifdef USEMPI
         if (NProcs>1) {
             //if halo has overlap then search the imported particles as well, add them to the radii and mass vectors
@@ -3255,13 +3256,19 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
             for (j=0;j<llindex;j++) SOparttypelist[i][j]=typeparts[indices[j]];
 #endif
             SOpids.clear();
+            SOpids.shrink_to_fit();
         }
         indices.clear();
         radii.clear();
         masses.clear();
+        indices.shrink_to_fit();
+        radii.shrink_to_fit();
+        masses.shrink_to_fit();
         if (opt.iextrahalooutput) {
             posparts.clear();
             velparts.clear();
+            posparts.shrink_to_fit();
+            velparts.shrink_to_fit();
         }
 #if defined(GASON) || defined(STARON) || defined(BHON) || defined(HIGHRES)
         if (opt.iextragasoutput || opt.iextrastaroutput || opt.iextrainterloperoutput) typeparts.clear();
