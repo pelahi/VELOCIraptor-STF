@@ -11,6 +11,7 @@
 
 #include <hdf5.h>
 
+#include "ioutils.h"
 #include "logging.h"
 
 
@@ -635,6 +636,9 @@ class H5OutputFile
     }
     void write_dataset(Options opt, string name, hsize_t len, string data, bool flag_parallel = true, bool flag_collective = true)
     {
+        if (verbose && LOG_ENABLED(debug)) {
+            LOG(debug) << "Writing dataset " << name << " with " << len << " elements";
+        }
 #ifdef USEPARALLELHDF
         MPI_Comm comm = mpi_comm_write;
         MPI_Info info = MPI_INFO_NULL;
@@ -715,6 +719,12 @@ class H5OutputFile
         bool flag_parallel = true, bool flag_first_dim_parallel = true,
         bool flag_hyperslab = true, bool flag_collective = true)
     {
+        if (verbose && LOG_ENABLED(debug)) {
+            std::ostringstream os;
+            os << "Writing dataset " << name << " with dimensions ";
+            os << vr::printable_range(dims, rank);
+            LOG(debug) << os.str();
+        }
 #ifdef USEPARALLELHDF
         MPI_Comm comm = mpi_comm_write;
         MPI_Info info = MPI_INFO_NULL;
