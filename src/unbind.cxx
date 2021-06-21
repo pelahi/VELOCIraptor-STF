@@ -1164,18 +1164,20 @@ void PotentialTree(Options &opt, Int_t nbodies, Particle *&Part, KDTree* &tree)
     //for tree code potential calculation
     Int_t ncell;
     Int_t *start,*end;
-    Double_t *cmtot,*cBmax,*cR2max, **r2val;
+    Double_t *cmtot, *cBmax,*cR2max;
+    vector<Double_t>  r2val;
     Coordinate *cellcm;
     Node *root;
-    Node **nodelist, **npomp;
-    Int_t **marktreecell,**markleafcell;
+    Node **nodelist;
+    Node* npomp;
+    vector<Int_t> marktreecell, markleafcell;
     bool runomp = false;
 #ifdef USEOPENMP
     runomp = (nbodies > POTOMPCALCNUM);
     #pragma omp parallel
-        {
-        if (omp_get_thread_num()==0) maxnthreads=nthreads=omp_get_num_threads();
-        }
+    {
+        if (omp_get_thread_num() == 0) maxnthreads = nthreads = omp_get_num_threads();
+    }
 #endif
 
     ncell=tree->GetNumNodes();
@@ -1190,14 +1192,6 @@ void PotentialTree(Options &opt, Int_t nbodies, Particle *&Part, KDTree* &tree)
     cellcm=new Coordinate[ncell];
     //to store note list
     nodelist=new Node*[ncell];
-
-    //search tree
-    marktreecell=new Int_t*[nthreads];
-    markleafcell=new Int_t*[nthreads];
-    r2val=new Double_t*[nthreads];
-    npomp=new Node*[nthreads];
-    for (auto j=0;j<nthreads;j++) {marktreecell[j]=new Int_t[ncell];markleafcell[j]=new Int_t[ncell];}
-    for (auto j=0;j<nthreads;j++) {r2val[j]=new Double_t[ncell];}
 
     //from root node calculate cm for each node
     //start at root node and recursively move through list
@@ -1239,27 +1233,29 @@ void PotentialTree(Options &opt, Int_t nbodies, Particle *&Part, KDTree* &tree)
     //for marked cells calculate pp, for every other cell just use the CM of the cell to calculate the potential.
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(ntreecell,nleafcell,r2) if (runomp)
+private(marktreecell, markleafcell, r2val, npomp, ntreecell, nleafcell, r2) \
+if (runomp)
 {
+#endif
+    r2val.resize(ncell);
+    marktreecell.resize(ncell);
+    markleafcell.resize(ncell);
+#ifdef USEOPENMP
     #pragma omp for schedule(static)
 #endif
     for (auto j=0;j<nbodies;j++) {
-        int tid;
-#ifdef USEOPENMP
-        tid=omp_get_thread_num();
-#else
-        tid=0;
-#endif
-        npomp[tid]=tree->GetRoot();
+        npomp=tree->GetRoot();
         Part[j].SetPotential(0.);
         ntreecell=nleafcell=0;
         Coordinate xpos(Part[j].GetPosition());
-        MarkCell(npomp[tid],marktreecell[tid], markleafcell[tid],ntreecell,nleafcell,r2val[tid],bsize, cR2max, cellcm, cmtot, xpos, eps2);
+        MarkCell(npomp, marktreecell.data(), markleafcell.data(), 
+            ntreecell, nleafcell, r2val.data(), 
+            bsize, cR2max, cellcm, cmtot, xpos, eps2);
         for (auto k=0;k<ntreecell;k++) {
-          Part[j].SetPotential(Part[j].GetPotential()-Part[j].GetMass()*r2val[tid][k]);
+          Part[j].SetPotential(Part[j].GetPotential()-Part[j].GetMass()*r2val[k]);
         }
         for (auto k=0;k<nleafcell;k++) {
-            for (auto l=start[markleafcell[tid][k]];l<end[markleafcell[tid][k]];l++) {
+            for (auto l=start[markleafcell[k]];l<end[markleafcell[k]];l++) {
                 if (j!=l) {
                     r2=0.;
                     for (auto n=0;n<3;n++) r2+=pow(Part[j].GetPosition(n)-Part[l].GetPosition(n),(Double_t)2.0);
@@ -1285,11 +1281,6 @@ private(ntreecell,nleafcell,r2) if (runomp)
     delete[] cR2max;
     delete[] cellcm;
     delete[] nodelist;
-    for (auto j=0;j<nthreads;j++) {delete[] marktreecell[j]; delete[] markleafcell[j]; delete[] r2val[j];}
-    delete[] marktreecell;
-    delete[] markleafcell;
-    delete[] r2val;
-    delete[] npomp;
 }
 
 void PotentialInterpolate(Options &opt, const Int_t nbodies, Particle *&Part, Particle *&interpolatepart, KDTree *&tree, double massratio, int nsearch)

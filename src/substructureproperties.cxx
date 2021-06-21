@@ -3156,7 +3156,6 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
             radii[j]=sqrt(radii[j]);
         }
         taggedparts.clear();
-        taggedparts.shrink_to_fit();
 #ifdef USEMPI
         if (NProcs>1) {
             //if halo has overlap then search the imported particles as well, add them to the radii and mass vectors
@@ -3205,6 +3204,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
             }
         }
 #endif
+        taggedparts.shrink_to_fit();
         //get incides
         indices.resize(radii.size());
         n=0;generate(indices.begin(), indices.end(), [&]{ return n++; });
@@ -6943,7 +6943,8 @@ void CalculateExtraSphericalOverdensityProperties(Options &opt, PropData &pdata,
     pdata.L_200mean_gas = zero;
     pdata.M_BN98_gas = 0;
     pdata.L_BN98_gas = zero;
-    for (auto iso=0;iso<opt.SOnum;iso++) {
+    for (auto iso=0;iso<opt.SOnum;iso++) 
+    {
         pdata.SO_mass_gas[iso] = 0;
         pdata.SO_angularmomentum_gas[iso] = zero;
     }
@@ -6955,7 +6956,8 @@ void CalculateExtraSphericalOverdensityProperties(Options &opt, PropData &pdata,
     pdata.L_200mean_star = zero;
     pdata.M_BN98_star = 0;
     pdata.L_BN98_star = zero;
-    for (auto iso=0;iso<opt.SOnum;iso++) {
+    for (auto iso=0;iso<opt.SOnum;iso++) 
+    {
         pdata.SO_mass_star[iso] = 0;
         pdata.SO_angularmomentum_star[iso] = zero;
     }
@@ -6966,17 +6968,15 @@ void CalculateExtraSphericalOverdensityProperties(Options &opt, PropData &pdata,
     pdata.M_BN98_interloper = 0;
     for (auto iso=0;iso<opt.SOnum;iso++)
     {
-                pdata.SO_mass_interloper[iso] = 0;
+        pdata.SO_mass_interloper[iso] = 0;
     }
 #endif
 
-    Double_t massval;
+    Double_t massval = opt.MassValue;
     for (Int_t j=0;j<radii.size();j++)
     {
 #ifndef NOMASS
         massval = masses[indices[j]];
-#else
-        massval = opt.MassValue;
 #endif
         auto jj = indices[j];
         auto typeval = typeparts[jj];
