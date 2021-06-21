@@ -485,6 +485,7 @@ class H5OutputFile
 {
     protected:
 
+    bool verbose = false;
     hid_t file_id;
 #ifdef USEPARALLELHDF
     hid_t parallel_access_id;
@@ -507,6 +508,11 @@ class H5OutputFile
 #ifdef USEPARALLELHDF
         parallel_access_id = -1;
 #endif
+    }
+
+    void set_verbose(bool verbose)
+    {
+        this->verbose = verbose;
     }
 
     // Create a new file
