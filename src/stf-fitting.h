@@ -65,7 +65,7 @@ inline int SkewGaussGSL(const gsl_vector *param, void *data, gsl_vector *f){
     gsl_fitting_data *fitdata = (gsl_fitting_data *)data;
     auto params = to_vector(param, fitdata);
     double x, y;
-    for (int i=0; i<fitdata->n; i++) {
+    for (std::size_t i = 0; i < fitdata->n; i++) {
         x = fitdata ->x[i];
         if (x<=params[1]) y = params[0]*exp(-0.5*(x-params[1])*(x-params[1])/(params[2]*params[3]));
         else y = params[0]*exp(-0.5*(x-params[1])*(x-params[1])/(params[2]));
@@ -80,7 +80,7 @@ inline int DiffSkewGaussAmpGSL(const gsl_vector *param, void *data, gsl_vector *
     double ivar=1.0/params[2];
     double is2=1.0/params[3];
     double x, y, dx2;
-    for (int i=0; i<fitdata->n; i++) {
+    for (std::size_t i = 0; i < fitdata->n; i++) {
         x = fitdata->x[i];
         dx2=(x-params[1])*(x-params[1]);
         if (x<=params[1]) y = exp(-0.5*dx2*ivar*is2);
@@ -96,7 +96,7 @@ inline int DiffSkewGaussMeanGSL(const gsl_vector *param, void *data, gsl_vector 
     double ivar=1.0/params[2];
     double is2=1.0/params[3];
     double x, y, dx2;
-    for (int i=0; i<fitdata->n; i++) {
+    for (std::size_t i = 0; i < fitdata->n; i++) {
         x = fitdata->x[i];
         dx2=(x-params[1])*(x-params[1]);
         if (x<params[1]) y = params[0]*exp(-0.5*dx2*ivar*is2)*(x-params[1])*ivar*is2;
@@ -113,7 +113,7 @@ inline int DiffSkewGaussVarGSL(const gsl_vector *param, void *data, gsl_vector *
     double ivar=1.0/params[2];
     double is2=1.0/params[3];
     double x, y, dx2;
-    for (int i=0; i<fitdata->n; i++) {
+    for (std::size_t i = 0; i < fitdata->n; i++) {
         x = fitdata->x[i];
         dx2=(x-params[1])*(x-params[1]);
         if (x<=params[1]) y = params[0]*exp(-0.5*dx2*ivar*is2)*dx2*ivar*ivar*is2*0.5;
@@ -129,7 +129,7 @@ inline int DiffSkewGaussSkewGSL(const gsl_vector *param, void *data, gsl_vector 
     double ivar=1.0/params[2];
     double is2=1.0/params[3];
     double x, y, dx2;
-    for (int i=0; i<fitdata->n; i++) {
+    for (std::size_t i = 0; i < fitdata->n; i++) {
         x = fitdata->x[i];
         dx2=(x-params[1])*(x-params[1]);
         if (x<=params[1]) y = params[0]*exp(-0.5*dx2*ivar*is2)*dx2*ivar*is2*is2*0.5;
@@ -142,7 +142,7 @@ inline int DiffSkewGaussSkewGSL(const gsl_vector *param, void *data, gsl_vector 
 inline int DiffSkewGaussGSL(const gsl_vector *param, void *data, gsl_matrix *J){
     gsl_fitting_data *fitdata = (gsl_fitting_data *)data;
     gsl_vector * f = gsl_vector_alloc(fitdata->n);
-    for (int iparam = 0; iparam < fitdata->npar; iparam++) {
+    for (std::size_t iparam = 0; iparam < fitdata->npar; iparam++) {
         int activeparam = fitdata->iparindex[iparam];
         switch(activeparam)
         {
@@ -159,7 +159,7 @@ inline int DiffSkewGaussGSL(const gsl_vector *param, void *data, gsl_matrix *J){
                 DiffSkewGaussSkewGSL(param, data, f);
                 break;
         }
-        for (int i=0;i<fitdata->n;i++) {
+        for (std::size_t i = 0; i < fitdata->n; i++) {
             gsl_matrix_set (J, i, iparam, gsl_vector_get(f,i));
         }
     }
