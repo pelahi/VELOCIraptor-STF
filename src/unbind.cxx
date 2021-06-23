@@ -49,7 +49,8 @@ inline void MarkCell(Node *np, Int_t *marktreecell, Int_t *markleafcell, Int_t &
 
 //@{
 inline bool CheckGroupForBoundness(Options &opt, Double_t &Efrac, Double_t &maxE, Int_t ning) {
-    bool unbindcheck;
+    bool unbindcheck=false;
+
     if (opt.uinfo.unbindtype==USYSANDPART) {
         if(((Efrac<opt.uinfo.minEfrac)||(maxE>0))&&(ning>=opt.MinSize)) unbindcheck=true;
         else unbindcheck=false;
@@ -57,6 +58,10 @@ inline bool CheckGroupForBoundness(Options &opt, Double_t &Efrac, Double_t &maxE
     else if (opt.uinfo.unbindtype==UPART) {
         if ((maxE>0)&&(ning>=opt.MinSize))unbindcheck=true;
         else unbindcheck=false;
+    }
+    else if (opt.uinfo.unbindtype==2) {
+	if ((Efrac<opt.uinfo.minEfrac)&&(ning>=opt.MinSize)) unbindcheck=true;
+	else unbindcheck=false;
     }
     return unbindcheck;
 }
@@ -91,6 +96,19 @@ inline void FillUnboundArrays(Options &opt, int maxunbindsize,
             else break;
         }
     }
+    else if (opt.uinfo.unbindtype==2) {
+	Int_t nEfrac=0;
+	if (Efrac<opt.uinfo.minEfrac) nEfrac=(opt.uinfo.minEfrac-Efrac)*ning;
+	for (auto j=0;j<maxunbindsize;j++) {
+	    if (nEplus<nEfrac)
+	    {
+		    nEplusid[nEplus++]=ning-1-j;
+		    Eplusflag[ning-1-j]=1;
+	    }
+	    else break;
+	}
+    }
+
     //if number of unbound particles is much less than total number of particles
     //which can be unbound in one go, set unbinding check to false
     if (nEplus < opt.uinfo.maxallowedunboundfrac*ning) {
@@ -143,7 +161,11 @@ inline void UpdatePotentialForUnboundParticlesPP(Options &opt,
 {
     //if keeping background then do nothing
     if (opt.uinfo.bgpot!=0) return;
-    Double_t r2, pot, poti, eps2=opt.uinfo.eps*opt.uinfo.eps,mv2=opt.MassValue*opt.MassValue;
+    //Double_t r2, pot, poti, eps2=opt.uinfo.eps*opt.uinfo.eps,mv2=opt.MassValue*opt.MassValue;
+    Double_t r2, poti, eps2=opt.uinfo.eps*opt.uinfo.eps;
+#ifdef NOMASS
+    Double_t mv2=opt.MassValue*opt.MassValue;
+#endif
     for (auto k=0;k<nEplus;k++) {
         for (auto j=0;j<nig;j++) {
             if (j!=nEplusid[k]) {
@@ -166,7 +188,11 @@ inline void UpdatePotentialForUnboundParticles(Options &opt,
     Int_t &nEplus, Int_t *&nEplusid, int *&Eplusflag)
 {
     int iunbindsizeflag;
-    Double_t r2, pot, poti, eps2=opt.uinfo.eps*opt.uinfo.eps,mv2=opt.MassValue*opt.MassValue;
+    //Double_t r2, pot, poti, eps2=opt.uinfo.eps*opt.uinfo.eps,mv2=opt.MassValue*opt.MassValue;
+    Double_t r2, poti, eps2=opt.uinfo.eps*opt.uinfo.eps;
+#ifdef NOMASS
+    Double_t mv2=opt.MassValue*opt.MassValue;
+#endif
 
     if (opt.uinfo.bgpot!=0) return;
     //if ignore the background then adjust the potential energy of the particles
@@ -419,6 +445,7 @@ inline void CalculatePotentials(Options &opt, Particle **gPart, Int_t &numgroups
 #ifdef USEOPENMP
 }
 #endif
+
     //reset number of threads to maximum number
 #ifdef USEOPENMP
 #pragma omp master

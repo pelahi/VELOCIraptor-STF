@@ -2092,6 +2092,7 @@ private(i,tid,Pval,D2,dval,mval,pid,weight)
                     for (int j=2;j<=numgroupsbg;j++) {
                         if (mcore[j]>0 && corelevel[j]>=iloop){
                             weight = 1.0/sqrt(mcore[j]/mval);
+			    //weight = 1.0/(log(mcore[j]/mval)/log(10.0));
                             for (int k=0;k<6;k++) dist[tid](k,0)=Pval->GetPhase(k)-cmphase[j](k,0);
                             D2=(dist[tid].Transpose()*invdisp[j]*dist[tid])(0,0) * weight;
                             if (dval*dispfac[pfofbg[pid]]>D2*dispfac[j]) {
@@ -2125,6 +2126,7 @@ private(i,tid,Pval,D2,dval,mval,pid,weight)
                     for (int j=2;j<=numgroupsbg;j++) {
                         if (mcore[j]>0 && corelevel[j]>=iloop){
                             weight = 1.0/sqrt(mcore[j]/mval);
+			    //weight = 1.0/(log(mcore[j]/mval)/log(10.0));
                             for (int k=0;k<6;k++) dist[tid](k,0)=Pval->GetPhase(k)-cmphase[j](k,0);
                             D2=(dist[tid].Transpose()*invdisp[j]*dist[tid])(0,0) * weight;
                             if (dval*dispfac[pfofbg[pid]]>D2*dispfac[j]) {
@@ -3249,6 +3251,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
     //unbind halo population
     if (!opt.iSingleHalo&&opt.iBoundHalos>1&&!opt.iBaryonSearch) {
         //begin by storing information of the current hierarchy
+	//
         Int_t nhaloidoffset=0,nhierarchy,gidval;
         Int_t *nsub,*parentgid,*uparentgid,*stype;
         StrucLevelData *ppsldata,**papsldata;
