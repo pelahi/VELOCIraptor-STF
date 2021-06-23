@@ -100,21 +100,23 @@
 #define HDF5_FILE_GROUP_COMMON_BASE H5::CommonFG
 #endif
 
-template <typename ReturnT, typename F, typename ... Ts>
-ReturnT safe_hdf5(F function, Ts ... args)
+template <typename F, typename ... Args>
+auto _safe_hdf5(F function, const std::string &fname, Args ... args) -> decltype(function(std::forward<Args>(args)...))
 {
-       ReturnT status = function(std::forward<Ts>(args)...);
-       if (status < 0) {
-           cerr<<"Error in HDF routine "<<endl;//<<function.__PRETTY_FUNCTION__
-           //throw std::runtime_error("Error in HDF routine.");
+    using ReturnT = decltype(function(std::forward<Args>(args)...));
+    ReturnT ret = function(std::forward<Args>(args)...);
+    if (ret < 0) {
+        LOG(error) << "Error in HDF routine " << fname << ", aborting";
 #ifdef USEMPI
-           MPI_Abort(MPI_COMM_WORLD,1);
+        MPI_Abort(MPI_COMM_WORLD, 1);
 #else
-           exit(1);
+        abort();
 #endif
-       }
-       return status;
+    }
+    return ret;
 }
+
+#define safe_hdf5(F, ...) _safe_hdf5(F, # F, __VA_ARGS__)
 
 // Overloaded function to return HDF5 type given a C type
 static inline hid_t hdf5_type(float dummy)              {return H5T_NATIVE_FLOAT;}
@@ -307,10 +309,10 @@ static std::string get_hdf5_name(const hid_t object_id)
 
 template<typename T> const T read_attribute(const std::string &filename, const std::string &name) {
     LOG_RANK0(debug) << "Reading attribute " << name;
-    safe_hdf5<herr_t>(H5Fopen, filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+    safe_hdf5(H5Fopen, filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
     hid_t file_id = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
     T attr = read_attribute<T>(file_id, name);
-    safe_hdf5<herr_t>(H5Fclose,file_id);
+    safe_hdf5(H5Fclose,file_id);
     return attr;
 }
 
@@ -326,7 +328,7 @@ static inline hid_t HDF5OpenGroup(const hid_t &file, string name){
 }
 static inline hid_t HDF5OpenDataSet(const hid_t &id, string name){
     LOG_RANK0(debug) << "Opening Dataset " << get_hdf5_name(id) << '/' << name;
-    hid_t idval = safe_hdf5<hid_t>(H5Dopen2,id,name.c_str(),H5P_DEFAULT);
+    hid_t idval = safe_hdf5(H5Dopen2, id, name.c_str(), H5P_DEFAULT);
     return idval;
 }
 static inline hid_t HDF5OpenDataSpace(const hid_t &id){
@@ -413,7 +415,7 @@ static inline void HDF5ReadHyperSlabReal(double *buffer,
     }
     H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, start.data(), stride.data(), count.data(), block.data());
     memspace = H5Screate_simple (1, memdims.data(), NULL);
-    safe_hdf5<herr_t>(H5Dread, dataset, H5T_NATIVE_DOUBLE, memspace, dataspace, plist_id, buffer);
+    safe_hdf5(H5Dread, dataset, H5T_NATIVE_DOUBLE, memspace, dataspace, plist_id, buffer);
 
 }
 
@@ -478,7 +480,7 @@ static inline void HDF5ReadHyperSlabInteger(long long *buffer,
     }
     H5Sselect_hyperslab(dataspace, H5S_SELECT_SET, start.data(), stride.data(), count.data(), block.data());
     memspace = H5Screate_simple (1, memdims.data(), NULL);
-    safe_hdf5<herr_t>(H5Dread, dataset, H5T_NATIVE_LONG, memspace, dataspace, plist_id, buffer);
+    safe_hdf5(H5Dread, dataset, H5T_NATIVE_LONG, memspace, dataspace, plist_id, buffer);
 }
 
 ///\name HDF class to manage writing information
