@@ -859,29 +859,26 @@ class H5OutputFile
 #ifdef USEPARALLELHDF
         if ((flag_parallel) & (opt.mpinprocswritesize>1)) {
             // set up the collective transfer properties list
-            prop_id = H5Pcreate(H5P_DATASET_XFER);
+            prop_id = safe_hdf5(H5Pcreate, H5P_DATASET_XFER);
             //if all tasks are participating in the writes
-            if (flag_collective) ret = H5Pset_dxpl_mpio(prop_id, H5FD_MPIO_COLLECTIVE);
-            else ret = H5Pset_dxpl_mpio(prop_id, H5FD_MPIO_INDEPENDENT);
+            safe_hdf5(H5Pset_dxpl_mpio, prop_id, flag_collective ? H5FD_MPIO_COLLECTIVE : H5FD_MPIO_INDEPENDENT);
             if (flag_hyperslab) {
-                H5Sselect_hyperslab(dspace_id, H5S_SELECT_SET, dims_offset.data(), NULL, dims, NULL);
+                safe_hdf5(H5Sselect_hyperslab, dspace_id, H5S_SELECT_SET, dims_offset.data(), nullptr, dims, nullptr);
                 if (dims[0] == 0) {
-                    H5Sselect_none(dspace_id);
-                    H5Sselect_none(memspace_id);
+                    safe_hdf5(H5Sselect_none, dspace_id);
+                    safe_hdf5(H5Sselect_none, memspace_id);
                 }
 
             }
             if (mpi_hdf_dims_tot[0] > 0) {
                 // Write the data
-                ret = H5Dwrite(dset_id, memtype_id, memspace_id, dspace_id, prop_id, data);
-                if (ret < 0) io_error(string("Failed to write dataset: ")+name);
+                safe_hdf5(H5Dwrite, dset_id, memtype_id, memspace_id, dspace_id, prop_id, data);
             }
         }
         else if (dims[0] > 0)
         {
             // Write the data
-            ret = H5Dwrite(dset_id, memtype_id, memspace_id, dspace_id, prop_id, data);
-            if (ret < 0) io_error(string("Failed to write dataset: ")+name);
+            safe_hdf5(H5Dwrite, dset_id, memtype_id, memspace_id, dspace_id, prop_id, data);
         }
 
 #else
@@ -893,12 +890,12 @@ class H5OutputFile
 #endif
 
         // Clean up (note that dtype_id is NOT a new object so don't need to close it)
-        H5Pclose(prop_id);
-#ifdef USEPARALLELHDF
-        if (flag_hyperslab && flag_parallel && (opt.mpinprocswritesize>1)) H5Sclose(memspace_id);
-#endif
-        H5Sclose(dspace_id);
-        H5Dclose(dset_id);
+        safe_hdf5(H5Pclose, prop_id);
+        if (memspace_id != dspace_id) {
+            safe_hdf5(H5Sclose, memspace_id);
+        }
+        safe_hdf5(H5Sclose, dspace_id);
+        safe_hdf5(H5Dclose, dset_id);
     }
 
     /// write an attribute
