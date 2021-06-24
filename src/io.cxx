@@ -19,6 +19,7 @@
 #ifdef USEADIOS
 #include "adios.h"
 #endif
+#include "io.h"
 #include "ioutils.h"
 #include "logging.h"
 #include "timer.h"

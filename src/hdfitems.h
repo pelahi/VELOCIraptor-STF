@@ -11,6 +11,7 @@
 
 #include <hdf5.h>
 
+#include "io.h"
 #include "ioutils.h"
 #include "logging.h"
 
@@ -486,32 +487,30 @@ static inline void HDF5ReadHyperSlabInteger(long long *buffer,
 ///\name HDF class to manage writing information
 class H5OutputFile
 {
-    protected:
+public:
+    constexpr static int ALL_RANKS = -1;
 
+private:
     bool verbose = false;
-    hid_t file_id;
-#ifdef USEPARALLELHDF
-    hid_t parallel_access_id;
-#endif
+    hid_t file_id = -1;
+    int writing_rank = ALL_RANKS;
 
     // Called if a HDF5 call fails (might need to MPI_Abort)
     void io_error(std::string message) {
-    std::cerr << message << std::endl;
+        std::cerr << message << std::endl;
 #ifdef USEMPI
-    MPI_Abort(MPI_COMM_WORLD, 1);
+        MPI_Abort(MPI_COMM_WORLD, 1);
 #endif
-    abort();
+        abort();
     }
 
-    public:
+    void truncate(const std::string &filename, hid_t access_plist);
+    void open(const std::string &filename, hid_t access_plist);
 
-    // Constructor
-    H5OutputFile() {
-        file_id = -1;
-#ifdef USEPARALLELHDF
-        parallel_access_id = -1;
-#endif
-    }
+    template <typename CreationFunction>
+    void create(CreationFunction file_creator, hid_t flag, int rank);
+
+public:
 
     void set_verbose(bool verbose)
     {
@@ -520,95 +519,13 @@ class H5OutputFile
 
     // Create a new file
     void create(std::string filename, hid_t flag = H5F_ACC_TRUNC,
-        int taskID = -1, bool iparallelopen = true)
-    {
-        if(file_id >= 0)io_error("Attempted to create file when already open!");
-#ifdef USEPARALLELHDF
-        MPI_Comm comm = mpi_comm_write;
-        MPI_Info info = MPI_INFO_NULL;
-        if (iparallelopen && taskID ==-1) {
-            parallel_access_id = H5Pcreate (H5P_FILE_ACCESS);
-            if (parallel_access_id < 0) io_error("Parallel access creation failed");
-            herr_t ret = H5Pset_fapl_mpio(parallel_access_id, comm, info);
-            if (ret < 0) io_error("Parallel access failed");
-            // create the file collectively
-            file_id = H5Fcreate(filename.c_str(), flag, H5P_DEFAULT, parallel_access_id);
-            if (file_id < 0) io_error(string("Failed to create output file: ")+filename);
-            ret = H5Pclose(parallel_access_id);
-            if (ret < 0) io_error("Parallel release failed");
-            parallel_access_id = -1;
-        }
-        else {
-            if (taskID <0 || taskID > NProcsWrite) io_error(string("MPI Task ID asked to create file out of range. Task ID is ")+to_string(taskID));
-            if (ThisWriteTask == taskID) {
-                file_id = H5Fcreate(filename.c_str(), flag, H5P_DEFAULT, H5P_DEFAULT);
-                if (file_id < 0) io_error(string("Failed to create output file: ")+filename);
-                parallel_access_id = -1;
-            }
-            else {
-                parallel_access_id = -2;
-            }
-            MPI_Barrier(comm);
-        }
-#else
-        file_id = H5Fcreate(filename.c_str(), flag, H5P_DEFAULT, H5P_DEFAULT);
-        if(file_id < 0)io_error(string("Failed to create output file: ")+filename);
-#endif
-
-    }
+        int taskID = ALL_RANKS, bool iparallelopen = true);
 
     void append(std::string filename, hid_t flag = H5F_ACC_RDWR,
-        int taskID = -1, bool iparallelopen = true)
-    {
-        if(file_id >= 0)io_error("Attempted to open and append to file when already open!");
-#ifdef USEPARALLELHDF
-        MPI_Comm comm = mpi_comm_write;
-        MPI_Info info = MPI_INFO_NULL;
-        if (iparallelopen && taskID ==-1) {
-            parallel_access_id = H5Pcreate (H5P_FILE_ACCESS);
-            if (parallel_access_id < 0) io_error("Parallel access creation failed");
-            herr_t ret = H5Pset_fapl_mpio(parallel_access_id, comm, info);
-            if (ret < 0) io_error("Parallel access failed");
-            // create the file collectively
-            file_id = H5Fopen(filename.c_str(), flag, parallel_access_id);
-            if (file_id < 0) io_error(string("Failed to create output file: ")+filename);
-            ret = H5Pclose(parallel_access_id);
-            if (ret < 0) io_error("Parallel release failed");
-            parallel_access_id = -1;
-        }
-        else {
-            if (taskID <0 || taskID > NProcsWrite) io_error(string("MPI Task ID asked to create file out of range. Task ID is ")+to_string(taskID));
-            if (ThisWriteTask == taskID) {
-                file_id = H5Fopen(filename.c_str(),flag, H5P_DEFAULT);
-                if (file_id < 0) io_error(string("Failed to create output file: ")+filename);
-                parallel_access_id = -1;
-            }
-            else {
-                parallel_access_id = -2;
-            }
-            MPI_Barrier(comm);
-        }
-#else
-        file_id = H5Fopen(filename.c_str(), flag, H5P_DEFAULT);
-        if (file_id < 0) io_error(string("Failed to create output file: ")+filename);
-#endif
-    }
+        int taskID = ALL_RANKS, bool iparallelopen = true);
 
     // Close the file
-    void close()
-    {
-#ifdef USEPARALLELHDF
-        if(file_id < 0 && parallel_access_id == -1) io_error("Attempted to close file which is not open!");
-        if (parallel_access_id == -1) H5Fclose(file_id);
-#else
-        if(file_id < 0) io_error("Attempted to close file which is not open!");
-        H5Fclose(file_id);
-#endif
-        file_id = -1;
-#ifdef USEPARALLELHDF
-        parallel_access_id = -1;
-#endif
-    }
+    void close();
 
     hid_t create_group(string groupname) {
         hid_t group_id = H5Gcreate(file_id, groupname.c_str(),

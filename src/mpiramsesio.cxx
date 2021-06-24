@@ -8,6 +8,7 @@
 
 #include "stf.h"
 
+#include "io.h"
 #include "ramsesitems.h"
 #include "endianutils.h"
 
