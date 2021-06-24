@@ -42,13 +42,10 @@ inline void WriteHeaderUnitEntry(Options & opt, H5OutputFile & hfile, string dat
 ///If success file obviously exists.
 ///If failure may mean that we don't have permission to access the folder which contains this file or doesn't exist.
 ///If we need to do that level of checking, lookup return values of stat which will give you more details on why stat failed.
-bool FileExists(const char *fname) {
+bool FileExists(const char *fname)
+{
   struct stat stFileInfo;
-  bool blnReturn;
-  int intStat;
-  intStat = stat(fname,&stFileInfo);
-  if(intStat == 0) return  true;
-  else return false;
+  return stat(fname, &stFileInfo) == 0;
 }
 
 ///\name Read particle data files
