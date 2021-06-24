@@ -493,10 +493,12 @@ if (opt.iextragasoutput) {
 #ifdef GASON
     val=M_gas_incl;
     Fout.write((char*)&val,sizeof(val));
+#ifdef STARON
     val=M_gas_nsf_incl;
     Fout.write((char*)&val,sizeof(val));
     val=M_gas_sf_incl;
     Fout.write((char*)&val,sizeof(val));
+#endif
 #endif
 #if STARON
     val=M_star_incl;
@@ -1149,8 +1151,10 @@ if (opt.iextragasoutput) {
     Fout<<M_tot_incl<<" ";
 #ifdef GASON
     Fout<<M_gas_incl<<" ";
+#ifdef STARON
     Fout<<M_gas_nsf_incl<<" ";
     Fout<<M_gas_sf_incl<<" ";
+#endif
 #endif
 #ifdef STARON
     Fout<<M_star_incl<<" ";
@@ -2180,10 +2184,12 @@ if (opt.iextragasoutput) {
 #ifdef GASON
     headerdatainfo.push_back("Mass_gas_incl");
     sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
+#ifdef STARON
     headerdatainfo.push_back("Mass_gas_nsf_incl");
     sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
     headerdatainfo.push_back("Mass_gas_sf_incl");
     sizeval = unitdatainfo.size(); for (int i=sizeval;i<headerdatainfo.size();i++) unitdatainfo.push_back(HeaderUnitInfo(1));
+#endif
 #endif
 #ifdef STARON
     headerdatainfo.push_back("Mass_star_incl");

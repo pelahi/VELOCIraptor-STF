@@ -1552,7 +1552,10 @@ struct PropData
     //@{
     Double_t M_tot_incl;
 #ifdef GASON 
-    Double_t M_gas_incl, M_gas_nsf_incl, M_gas_sf_incl;
+    Double_t M_gas_incl;
+#ifdef STARON
+    Double_t M_gas_nsf_incl, M_gas_sf_incl;
+#endif
 #endif
 #ifdef STARON
     Double_t M_star_incl;
@@ -1793,7 +1796,10 @@ struct PropData
 #endif
 	M_tot_incl=0;
 #ifdef GASON
-        M_gas_incl=M_gas_nsf_incl=M_gas_sf_incl=0;
+        M_gas_incl=0;
+#ifdef STARON
+	M_gas_nsf_incl=M_gas_sf_incl=0;
+#endif
 #endif
 #ifdef STARON	
 	M_star_incl=0;
@@ -2459,8 +2465,10 @@ struct PropData
 	M_tot_incl*=opt.h;
 #ifdef GASON
 	M_gas_incl*=opt.h;
+#ifdef STARON
 	M_gas_nsf_incl*=opt.h;
 	M_gas_sf_incl*=opt.h;
+#endif
 #endif
 #ifdef STARON
 	M_star_incl*opt.h;

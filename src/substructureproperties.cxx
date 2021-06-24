@@ -3103,20 +3103,25 @@ private(i,j,k)
 #ifdef GASON
 	    if(Pval->GetType()==GASTYPE){
    		   pdata[i].M_gas_incl += massval;
-		   auto sfr = Pval->GetSFR();
+         Double_t sfr = 0;
+#ifdef STARON
+		   sfr = Pval->GetSFR();
 		   if(sfr > 0){
 		      pdata[i].M_gas_sf_incl += massval;
 		   } 
 		   else{
 		      pdata[i].M_gas_nsf_incl += massval;
 		   }
+#endif // STARON
 #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
 		   auto temp = Pval->GetTemperature();
                    /*select hot gas particles and add up their mass and compute mass-weighted quantities*/
                    if (temp > opt.temp_max_cut && sfr <= 0) {
                        pdata[i].M_gas_highT_incl += massval;
                        pdata[i].Temp_mean_gas_highT_incl += massval * temp;
+#ifdef STARON
                        pdata[i].Z_mean_gas_highT_incl += massval * Pval->GetZmet();
+#endif
                    }
 #endif
 	    }
@@ -3168,8 +3173,10 @@ void GetFOFMass(Options &opt, Int_t ngroup, Int_t *&numingroup, PropData *&pdata
 	    pdata[hostindex].M_tot_incl += pdata[i].gmass;
 #ifdef GASON
 	    pdata[hostindex].M_gas_incl += pdata[i].M_gas;
+#ifdef STARON
 	    pdata[hostindex].M_gas_nsf_incl += pdata[i].M_gas_nsf;
 	    pdata[hostindex].M_gas_sf_incl += pdata[i].M_gas_sf;
+#endif
 #endif
 #ifdef STARON
 	    pdata[hostindex].M_star_incl += pdata[i].M_star;
@@ -3186,8 +3193,10 @@ void GetFOFMass(Options &opt, Int_t ngroup, Int_t *&numingroup, PropData *&pdata
 	    pdata[i].M_tot_incl += pdata[i].gmass;
 #ifdef GASON
             pdata[i].M_gas_incl += pdata[i].M_gas;
+#ifdef STARON
             pdata[i].M_gas_nsf_incl += pdata[i].M_gas_nsf;
             pdata[i].M_gas_sf_incl += pdata[i].M_gas_sf;
+#endif
 #endif
 #ifdef STARON
             pdata[i].M_star_incl += pdata[i].M_star;
@@ -3384,13 +3393,17 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
 #endif
 
 #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
-        vector<Double_t> sfr;
         vector<Double_t> temp;
+#ifdef STARON
+        vector<Double_t> sfr;
         vector<Double_t> Zgas;
+#endif
         if (sonum_hotgas > 0) {
-            sfr.resize(taggedparts.size());
             temp.resize(taggedparts.size());
+#ifdef STARON
+            sfr.resize(taggedparts.size());
             Zgas.resize(taggedparts.size());
+#endif
         }
 #endif
         if (opt.iSphericalOverdensityPartList) {
@@ -3412,9 +3425,11 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
 #endif
 #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
            if (sonum_hotgas > 0 && typeparts[j] == GASTYPE) {
-               sfr[j] = Part[taggedparts[j]].GetSFR();
                temp[j] = Part[taggedparts[j]].GetTemperature();
+#ifdef STARON
+               sfr[j] = Part[taggedparts[j]].GetSFR();
                Zgas[j] = Part[taggedparts[j]].GetZmet();
+#endif
            }
 #endif
 
@@ -3456,9 +3471,11 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
 #endif
 #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
                    if (sonum_hotgas > 0) {
-                       sfr.resize(typeparts.size()+taggedparts.size());
                        temp.resize(typeparts.size()+taggedparts.size());
+#ifdef STARON
+                       sfr.resize(typeparts.size()+taggedparts.size());
                        Zgas.resize(typeparts.size()+taggedparts.size());
+#endif
                    }
 #endif
 
@@ -3480,9 +3497,11 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
 #endif
 #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
                         if (sonum_hotgas > 0 && typeparts[offset+j] == GASTYPE) {
-                            sfr[offset+j] = PartDataGet[taggedparts[j]].GetSFR();
                             temp[offset+j] = PartDataGet[taggedparts[j]].GetTemperature();
+#ifdef STARON
+                            sfr[offset+j] = PartDataGet[taggedparts[j]].GetSFR();
                             Zgas[offset+j] = PartDataGet[taggedparts[j]].GetZmet();
+#endif
                         }
 #endif
 
@@ -3614,10 +3633,16 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
 		   for (int r_ap = 0; r_ap < sonum_hotgas; r_ap++){
     		        if(rc < SOlg_radii_highT[r_ap]){
 			   if(typeval == GASTYPE){
-                    		if(temp[jj] > opt.temp_max_cut && sfr[jj] <= 0){
+                        Double_t sfr_local = 0;
+#ifdef STARON
+                        sfr_local = sfr[jj];
+#endif
+                        if(temp[jj] > opt.temp_max_cut && sfr_local <= 0){
                          		pdata[i].SO_mass_highT[r_ap] += massval;
                          		pdata[i].SO_Temp_mean_gas_highT[r_ap] += massval * temp[jj];
+#ifdef STARON
                          		pdata[i].SO_Z_mean_gas_highT[r_ap] += massval * Zgas[jj];
+#endif
                     		}
                 	   }
 			}
@@ -4430,8 +4455,10 @@ void CopyMasses(Options &opt, const Int_t nhalos, PropData *&pold, PropData *&pn
 	pnew[i].M_tot_incl = pold[i].M_tot_incl;
 #ifdef GASON
 	pnew[i].M_gas_incl = pold[i].M_gas_incl;
+#ifdef STARON
 	pnew[i].M_gas_nsf_incl = pold[i].M_gas_nsf_incl;
 	pnew[i].M_gas_sf_incl = pold[i].M_gas_sf_incl;
+#endif
 #endif
 #ifdef STARON
 	pnew[i].M_star_incl = pold[i].M_star_incl;
