@@ -756,7 +756,7 @@ void GetParamFile(Options &opt)
 #endif
     }
     paramfile.open(opt.pname, ios::in);
-    unsigned j,k;
+    std::string::size_type j;
     //first find output name, determine the number of valid entries in
     if (paramfile.is_open())
     {
@@ -764,7 +764,8 @@ void GetParamFile(Options &opt)
             getline(paramfile,line);
             //if line is not commented out or empty
             if (line[0]!='#'&&line.length()!=0) {
-                if (j=line.find(sep)){
+                j = line.find(sep);
+                if (j != std::string::npos) {
                     //clean up string
                     tag=line.substr(0,j);
                     strcpy(buff, tag.c_str());
