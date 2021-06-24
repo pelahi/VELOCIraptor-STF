@@ -696,6 +696,7 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
         inreadsend=0;
 #endif
     //read particle files consists of positions,velocities, mass, id, and level (along with ages and met if some flags set)
+    //
     for (i=0;i<opt.num_files;i++) {
     if (ireadfile[i]) {
         sprintf(buf1,"%s/part_%s.out%05d",opt.fname,opt.ramsessnapname,i+1);
@@ -789,7 +790,6 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
         mettempchunk = new RAMSESFLOAT  [chunksize];
 	famtempchunk = new int [chunksize];
 	famtempchunk2= new char [chunksize];
-
         for(idim=0;idim<header[ifirstfile].ndim;idim++)
         {
             RAMSES_fortran_read(Fpart[i],&xtempchunk[idim*nchunk]);
@@ -843,8 +843,18 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
 */
 #ifdef USEMPI
             //determine processor this particle belongs on based on its spatial position
-            ibuf=MPIGetParticlesProcessor(opt, xtemp[0],xtemp[1],xtemp[2]);
-            ibufindex=ibuf*BufSize+Nbuf[ibuf];
+            if(opt.partsearchtype==PSTALL){
+	    	ibuf=MPIGetParticlesProcessor(opt, xtemp[0],xtemp[1],xtemp[2]);
+		ibufindex=ibuf*BufSize+Nbuf[ibuf];
+	    }
+	    else{
+		if((opt.partsearchtype==PSTDARK && typeval==DARKTYPE) ||
+		(opt.partsearchtype==PSTSTAR && typeval==STARTYPE))
+		{
+	    	  ibuf=MPIGetParticlesProcessor(opt, xtemp[0],xtemp[1],xtemp[2]);
+		  ibufindex=ibuf*BufSize+Nbuf[ibuf];
+		}
+	    }
 #endif
             //reset hydro quantities of buffer
 #ifdef USEMPI

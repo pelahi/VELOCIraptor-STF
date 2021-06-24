@@ -52,6 +52,12 @@ void MPIInitialDomainDecomposition(Options &opt)
         MPIInitialDomainDecompositionWithMesh(opt);
         return;
     }
+
+    if(opt.impiusetree) {
+	MPIInitialDomainDecompositionWithTree(opt);
+	return;
+    }
+
     Int_t i,j,k,n,m,temp,count,count2,pc,pc_new, Ntot;
     int Nsplit,isplit;
     Int_t nbins1d,nbins3d, ibin[3];
@@ -253,6 +259,11 @@ void MPIInitialDomainDecompositionWithMesh(Options &opt){
 
 }
 
+void MPIInitialDomainDecompositionWithTree(Options &opt){
+    if (ThisTask==0) {
+    }
+}
+
 //find min/max, average and std
 inline double MPILoadBalanceWithMesh(Options &opt) {
     //calculate imbalance based on min and max in mpi domains
@@ -371,7 +382,6 @@ void MPINumInDomain(Options &opt)
     //adjust the memory allocated to allow some buffer room.
     Nmemlocal=Nlocal*(1.0+opt.mpipartfac);
     if (opt.iBaryonSearch) Nmemlocalbaryon=Nlocalbaryon[0]*(1.0+opt.mpipartfac);
-
 }
 
 void MPIDomainExtent(Options &opt)
@@ -424,7 +434,35 @@ void MPIAdjustDomainWithMesh(Options &opt)
     }
 }
 
+void MPIDomainDecompositionWithTree_SetBnd(Node *node, Int_t &index, Double_t &lscale)
+{
+	if(node->GetLeaf()>0){
+		Int_t bstart, bend;
+		bstart	= node->GetStart();
+		bend	= node->GetEnd();
 
+		//Double_t impi_bnd[3][2];
+		//for(int i=0; i<3; i++){
+		//	impi_bnd[i][0] = node->GetBoundary(i,0);
+		//	impi_bnd[i][1] = node->GetBoundary(i,1);
+		//}
+
+		for(int i=0; i<3; i++){
+			mpi_domain[index].bnd[i][0] = node->GetBoundary(i,0) / lscale;
+			mpi_domain[index].bnd[i][1] = node->GetBoundary(i,1) / lscale;
+			cout<<"%123123	: "<<mpi_domain[index].bnd[i][0]<<" - "<<mpi_domain[index].bnd[i][1]<<" / "<<node->GetCount()<<endl;
+		}
+		index ++;
+	}
+	else
+	{
+		Node *left, *right;
+		left = ((SplitNode *) node)->GetLeft();
+		right = ((SplitNode *) node)->GetRight();
+		MPIDomainDecompositionWithTree_SetBnd(left, index, lscale);
+		MPIDomainDecompositionWithTree_SetBnd(right, index, lscale);
+	}
+}
 
 ///given a position and a mpi thread domain information, determine which processor a particle is assigned to
 int MPIGetParticlesProcessor(Options &opt, Double_t x, Double_t y, Double_t z){

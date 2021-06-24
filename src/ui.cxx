@@ -992,6 +992,8 @@ void GetParamFile(Options &opt)
                         opt.mpinprocswritesize = atoi(vbuff);
                     else if (strcmp(tbuff, "MPI_use_zcurve_mesh_decomposition")==0)
                         opt.impiusemesh = (atoi(vbuff)>0);
+		    else if (strcmp(tbuff, "MPI_use_tree_decomposition")==0)
+		        opt.impiusetree = (atoi(vbuff)>0);
                     else if (strcmp(tbuff, "MPI_zcurve_mesh_decomposition_min_num_cells_per_dim")==0)
                         opt.minnumcellperdim = atoi(vbuff);
                     ///OpenMP related

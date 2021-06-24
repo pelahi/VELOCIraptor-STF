@@ -468,6 +468,9 @@ struct Options
     /// is this to ^3
     int mpinumtoplevelcells;
 
+    /// Tree based MPI decomposition related options
+    Int_t impiusetree_nbodies;
+
     /// run FOF using OpenMP
     int iopenmpfof;
     /// size of openmp FOF region
@@ -720,6 +723,7 @@ struct Options
 
     ///whether using mesh decomposition
     bool impiusemesh;
+    bool impiusetree;
 
     //@}
 
@@ -1106,9 +1110,11 @@ struct Options
         mpiparticlebufsize=-1;
         mpinprocswritesize=1;
 #ifdef SWIFTINTERFACE
-        impiusemesh = true;
+        impiusemesh = false;
+	impiusetree = true;
 #else
-        impiusemesh = true;
+        impiusemesh = false;
+	impiusetree = true;
         mpimeshimbalancelimit = 0.1;
         minnumcellperdim = 8;
 #endif

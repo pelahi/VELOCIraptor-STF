@@ -508,6 +508,12 @@ void MPIDomainDecomposition(Options &opt);
 void MPIInitialDomainDecompositionWithMesh(Options &opt);
 ///z-curve repartitioning of cells
 bool MPIRepartitionDomainDecompositionWithMesh(Options &opt);
+///KDTree Domain Decomposition
+void MPIInitialDomainDecompositionWithTree(Options &opt);
+void MPIDomainDecompositionWithTree(Options &opt);
+void MPIDomainDecompositionWithTree_GetNodeID(Node *node, Int_t *impi_leafID, Int_t &impi_index);
+void MPIDomainDecompositionWithTree_CloseNode(Node *node, Int_t &impi_nodeid, Int_t &impi_nleaf);
+void MPIDomainDecompositionWithTree_SetBnd(Node *node, Int_t &impi_index, Double_t &lscale);
 
 ///Determine Domain Extent for tipsy input
 void MPIDomainExtentTipsy(Options &opt);

@@ -202,6 +202,7 @@ int main(int argc,char **argv)
         //otherwise just base on total number of particles * some factor and initialise the domains
         MPIDomainExtent(opt);
         MPIDomainDecomposition(opt);
+
         Nlocal=nbodies/NProcs*MPIProcFac;
         Nmemlocal=Nlocal;
         Nlocalbaryon[0]=nbaryons/NProcs*MPIProcFac;
