@@ -13,7 +13,7 @@
 */
 void GetDenVRatio(Options &opt, const Int_t nbodies, Particle *Part, 
     Int_t ngrid, GridCell *grid, Coordinate *gvel, Matrix *gveldisp, 
-    int nthreads)
+    VROMPThreadPool *vromp)
 {
     Int_t i;
     int tid;
@@ -21,7 +21,8 @@ void GetDenVRatio(Options &opt, const Int_t nbodies, Particle *Part,
     int ThisTask=0;
 #endif
 #ifdef USEOPENMP
-    if (nthreads == -1) nthreads=omp_get_max_threads();
+    if (vromp == nullptr) nthreads=omp_get_max_threads();
+    else nthreads = vromp->nthreads;
 #else 
     nthreads = 1;
 #endif
@@ -75,7 +76,7 @@ schedule(static) num_threads(nthreads) if (nbodies > ompsubsearchnum)
 #pragma omp parallel for default(shared) \
 private(w,wsum,sv,vsv,fbg,vp,maxdist,vmweighted,isvweighted,tid,tempdenv) \
 schedule(static) \
-num_threads(nthreads) if (nbodies > ompsubsearchnum)
+num_threads(nthreads) if (nbodies > ompsubsearchnum && nthreads > 1)
 #endif
     for (i=0;i<nbodies;i++)
     {
@@ -129,7 +130,7 @@ num_threads(nthreads) if (nbodies > ompsubsearchnum)
 
 void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *Part, 
     Double_t &meanr,Double_t &sdlow,Double_t &sdhigh, 
-    int sublevel, int nthreads)
+    int sublevel, VROMPThreadPool *vromp)
 {
     Int_t i,nbins,iprob,jprob;
     Double_t mtot,mtotpeak,deltar,maxprob,minprob,rmin,rmax;
@@ -143,7 +144,8 @@ void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *
     nbins = max((int)ceil(log10((Double_t)nbodies)/log10(2.0)+1)*4, MINBIN);
 
 #ifdef USEOPENMP
-    if (nthreads == -1) nthreads=omp_get_max_threads();
+    if (vromp == nullptr) nthreads=omp_get_max_threads();
+    else nthreads = vromp->nthreads;
 #else 
     nthreads = 1;
 #endif
@@ -154,7 +156,7 @@ void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *
     #pragma omp parallel for default(shared) \
     schedule(static) \
     reduction(min:rmin) reduction(max:rmax) \
-    num_threads(nthreads) if (nbodies > ompperiodnum)
+    num_threads(nthreads) if (nbodies > ompperiodnum && nthreads > 1)
 #endif
     for (i=1;i<nbodies;i++) {
         if (rmin>Part[i].GetPotential())rmin=Part[i].GetPotential();
@@ -371,14 +373,15 @@ void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *
 
 */
 Int_t GetOutliersValues(Options &opt, const Int_t nbodies, Particle *Part, int sublevel,
-    int nthreads)
+    VROMPThreadPool *vromp)
 {
     Int_t nsubset = 0;
 #ifndef USEMPI
     int ThisTask=0;
 #endif
 #ifdef USEOPENMP
-    if (nthreads == -1) nthreads = omp_get_max_threads();
+    if (vromp == nullptr) nthreads = omp_get_max_threads();
+    else nthreads = vromp->nthreads;
 #else 
     nthreads = 1;
 #endif
@@ -387,7 +390,7 @@ Int_t GetOutliersValues(Options &opt, const Int_t nbodies, Particle *Part, int s
     //printf("Using GLOBAL values to characterize the distribution and determine the normalized values used to determine outlier likelihood\n");
     Double_t globalmostprob,globalsdlow,globalsdhigh;
 
-    DetermineDenVRatioDistribution(opt,nbodies,Part,globalmostprob,globalsdlow,globalsdhigh, sublevel, nthreads);
+    DetermineDenVRatioDistribution(opt,nbodies,Part,globalmostprob,globalsdlow,globalsdhigh, sublevel, VROMPThreadPool *vromp);
 
     Double_t temp2,temp3, tempell;
     temp2=1.0/(globalsdhigh);
@@ -396,7 +399,7 @@ Int_t GetOutliersValues(Options &opt, const Int_t nbodies, Particle *Part, int s
     #pragma omp parallel for default(shared) \
     private(tempell) \
     reduction(+:nsubset) \
-    num_threads(nthreads) if (nbodies > ompsubsearchnum)
+    num_threads(nthreads) if (nbodies > ompsubsearchnum && nthreads > 1)
 #endif
     for (auto i=0;i<nbodies;i++) {
         tempell=(Part[i].GetPotential()-globalmostprob);

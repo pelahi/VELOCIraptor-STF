@@ -378,9 +378,25 @@ void OpenMPHeadNextUpdate(const Int_t nbodies, vector<Particle> &Part, const Int
 
 //@}
 
+//@{ 
+void VROMPThreadPool::VROMPThreadPool() 
+{
+    nthreads = 1; ngpus = 0;
+#ifdef USEOPENMP
+    nthreads = omp_get_max_threads();
+    for (unsigned int i=0;i<nthreads;i++) idlethreadids.push_back(i);
+    nactivethreads = 0;
+#ifdef USEOPENMPTARGET 
+    ngpus = omp_get_num_devices(); 
+    for (unsigned int i=0;i<ngpus;i++) idlegpuids.push_back(i);
+    nactivegpus = 0;
+#endif 
+#endif 
+}
+
 /// setting the thread pool
-void VROMPThreadPool::Init() {
-    nthreads = ngpus = 0;
+{
+    nthreads = 1; ngpus = 0;
 #ifdef USEOPENMP
     nthreads = omp_get_max_threads();
     for (unsigned int i=0;i<nthreads;i++) idlethreadids.push_back(i);
@@ -521,9 +537,6 @@ void VROMPThreadPool::Print(){
     cout<<"VELOCIraptor/STF running with OpenMP version "<< _OPENMP << endl;
 #endif
 }
-
-
-///structure to keep track of thread and gpu pool accessible to local mpi task 
-//VROMPThreadPool vrotp;
+//@}
 
 #endif

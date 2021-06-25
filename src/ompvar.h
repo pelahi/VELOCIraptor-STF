@@ -72,7 +72,7 @@ class VROMPThreadPool
 
         /// \name Constructors 
         //@{
-        VROMPThreadPool() = default;
+        VROMPThreadPool();
         VROMPThreadPool(const VROMPThreadPool &) = default;
         VROMPThreadPool(VROMPThreadPool &&) = default;
         VROMPThreadPool& operator=(const VROMPThreadPool&) = default;

@@ -15,7 +15,8 @@
     \todo velocity density function is NOT mass weighted. Might want to alter this.
     \todo there is a seg fault memory error when searching for NN in large sims using \em SINGLEPRECISION flag. I don't know why.
 */
-void GetVelocityDensity(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree)
+void GetVelocityDensity(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree, 
+    VROMPThreadPool *vromp)
 {
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
@@ -37,7 +38,8 @@ void GetVelocityDensity(Options &opt, const Int_t nbodies, Particle *Part, KDTre
     cout<<ThisTask<<": finished calculation in "<<MyElapsedTime(time1)<<endl;
 }
 
-void GetVelocityDensityOld(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree)
+void GetVelocityDensityOld(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree, 
+    VROMPThreadPool *vromp)
 {
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
@@ -420,7 +422,8 @@ private(i,tid)
 }
 
 //start halo only density calculations, where particles are localized to single halo
-void GetVelocityDensityHaloOnlyDen(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree)
+void GetVelocityDensityHaloOnlyDen(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree,
+    VROMPThreadPool *vromp)
 {
     Int_t i,j;
     int nthreads;
@@ -482,7 +485,8 @@ private(i,tid)
 }
 
 ///Exact calculation of velocity density at a particle's position
-void GetVelocityDensityExact(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree)
+void GetVelocityDensityExact(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree,
+    VROMPThreadPool *vromp)
 {
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
@@ -720,7 +724,8 @@ private(i,j,k,tid,pid,pid2,v2,nnids,nnr2,nnidsneighbours,nnr2neighbours,weight,p
     if (period!=NULL) delete[] period;
 }
 
-void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree)
+void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree,
+    VROMPThreadPool *vromp)
 {
 #ifndef USEMPI
     int ThisTask=0, NProcs=1;

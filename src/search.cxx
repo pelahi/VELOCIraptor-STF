@@ -1979,7 +1979,8 @@ Int_t * SearchSingleHalo(Options &opt, const Int_t nbodies, vector<Particle> &Pa
 //search for unassigned background particles if cores have been found.
 void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t *&pfofbg, Int_t &numgroupsbg, Double_t param[], vector<Double_t> &dispfac,
     int numactiveloops, vector<int> &corelevel,
-    int nthreads){
+    VROMPThreadPool *vromp)
+{
     //for simplicity make a new particle array storing core particles
     Int_t nincore=0,nbucket=opt.Bsize,pid, pidcore;
     Particle *Pcore,*Pval;
@@ -1998,6 +1999,11 @@ void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, In
     PriorityQueue *pq;
     Int_t nactivepart=nsubset;
     vector<Int_t> noffset(numgroupsbg+1,0);
+#ifdef USEOPENMP 
+    int nthreads;
+    if (vromp == nullptr) nthreads = omp_get_max_threads();
+    else nthreads = vromp->nthreads;
+#endif
 
     //determine the weights for the cores dispersions factors
     for (i=0;i<nsubset;i++) {
@@ -2076,7 +2082,7 @@ void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, In
             if (nactivepart>ompperiodnum) {
             int nreduce=0;
 #pragma omp parallel default(shared) \
-private(i,tid,Pval,D2,dval,mval,pid,weight)
+private(i,tid,Pval,D2,dval,mval,pid,weight) if (nthreads > 1)
 {
 #pragma omp for reduction(+:nreduce)
             for (i=0;i<nsubset;i++)
@@ -2734,7 +2740,14 @@ int setNthreads(){
     return 0;
 }
 
-///copy data for subsubset search 
+#ifdef USEOPENMP 
+/// how number of threads used in workshare parallel for should be scaled 
+/// based on size of object being searched 
+inline int SubSubSearchScaleThreads(int nsize, int curmaxnthreads) {
+    return min(static_cast<unsigned int>(max(static_cast<unsigned int>(floor(nsize/static_cast<double>(ompsubsearchnum))),1u)), maxnthreads);
+} 
+#endif 
+
 inline Particle *subPartCopy(Options &opt, Int_t subnumingroup, vector<Particle> &Partsubset, Int_t *subpglist) 
 {
     Particle *subPart = new Particle[subnumingroup];
@@ -2760,13 +2773,16 @@ inline Particle *subPartCopy(Options &opt, Int_t subnumingroup, vector<Particle>
 }
 
 ///adjust to phase centre
-inline void AdjustSubPartToPhaseCM(Int_t num, Particle *subPart, GMatrix &cmphase, int nthreads = -1)
+inline void AdjustSubPartToPhaseCM(Int_t num, Particle *subPart, GMatrix &cmphase, 
+    VROMPThreadPool *vromp = nullptr)
 {
 #ifdef USEOPENMP
-    if (nthreads == -1) nthreads = omp_get_max_threads();
+    int nthreads;
+    if (vromp == nullptr) nthreads = omp_get_max_threads();
+    else nthreads = vromp->nthreads;
 #pragma omp parallel for \
 default(shared)  \
-num_threads(nthreads) if (num > ompperiodnum)
+num_threads(nthreads) if (num > ompperiodnum && nthreads > 1)
 #endif
     for (auto j=0;j<num;j++)
     {
@@ -2776,13 +2792,15 @@ num_threads(nthreads) if (num > ompperiodnum)
 
 ///Pre-calcualtions for searching for substructure
 inline void PreCalcSearchSubSet(Options &opt, Int_t subnumingroup,  Particle *&subPart, Int_t sublevel, 
-    int nthreads = -1)
+    VROMPThreadPool *vromp = nullptr)
 {
 #ifndef USEMPI
     int ThisTask = 0;
 #endif
 #ifdef USEOPENMP 
-    if (nthreads == -1) nthreads = omp_get_max_threads();
+    int nthreads;
+    if (vromp == nullptr) nthreads = omp_get_max_threads();
+    else nthreads = vromp->nthreads;
 #endif 
     KDTree *tree;
     Int_t ngrid;
@@ -2801,30 +2819,30 @@ inline void PreCalcSearchSubSet(Options &opt, Int_t subnumingroup,  Particle *&s
         ngrid=tree->GetNumLeafNodes();
         grid=new GridCell[ngrid];
         FillTreeGrid(opt, subnumingroup, ngrid, tree, subPart, grid);
-        gvel=GetCellVel(opt, subnumingroup, subPart, ngrid, grid, nthreads);
-        gveldisp=GetCellVelDisp(opt, subnumingroup, subPart, ngrid, grid, gvel, nthreads);
+        gvel=GetCellVel(opt, subnumingroup, subPart, ngrid, grid, vromp);
+        gveldisp=GetCellVelDisp(opt, subnumingroup, subPart, ngrid, grid, gvel, vromp);
 
         opt.HaloLocalSigmaV=0;
         for (auto j=0;j<ngrid;j++) opt.HaloLocalSigmaV+=pow(gveldisp[j].Det(),1./3.);opt.HaloLocalSigmaV/=(double)ngrid;
 
         Matrix eigvec(0.),I(0.);
         Double_t sigma2x,sigma2y,sigma2z;
-        CalcVelSigmaTensor(subnumingroup, subPart, sigma2x, sigma2y, sigma2z, eigvec, I, -1, nthreads);
+        CalcVelSigmaTensor(subnumingroup, subPart, sigma2x, sigma2y, sigma2z, eigvec, I, -1, vromp);
         //\todo need to update this
         opt.HaloSigmaV=pow(sigma2x*sigma2y*sigma2z,1.0/3.0);
         if (opt.HaloSigmaV>opt.HaloVelDispScale) opt.HaloVelDispScale=opt.HaloSigmaV;
 #ifdef HALOONLYDEN
         GetVelocityDensity(opt,subnumingroup,subPart);
 #endif
-        GetDenVRatio(opt,subnumingroup, subPart, ngrid, grid, gvel, gveldisp, nthreads);
-        GetOutliersValues(opt,subnumingroup, subPart, sublevel, nthreads);
+        GetDenVRatio(opt,subnumingroup, subPart, ngrid, grid, gvel, gveldisp, vromp);
+        GetOutliersValues(opt,subnumingroup, subPart, sublevel, vromp);
         opt.idenvflag++;//largest field halo used to deteremine statistics of ratio
     }
     //otherwise only need to calculate a velocity scale for merger separation
     else {
         Matrix eigvec(0.),I(0.);
         Double_t sigma2x,sigma2y,sigma2z;
-        CalcVelSigmaTensor(subnumingroup, subPart, sigma2x, sigma2y, sigma2z, eigvec, I, -1, nthreads);
+        CalcVelSigmaTensor(subnumingroup, subPart, sigma2x, sigma2y, sigma2z, eigvec, I, -1, vromp);
         opt.HaloLocalSigmaV=opt.HaloSigmaV=pow(sigma2x*sigma2y*sigma2z,1.0/3.0);
     }
 }
@@ -2834,7 +2852,8 @@ inline void CleanAndUpdateGroupsFromSubSearch(Options &opt,
     Int_t &subngroup, Int_t *&subsubnumingroup,
     Int_t **&subsubpglist, Int_t &numcores,
     Int_t *&subpglist,
-    Int_t *&pfof, Int_t &ngroup, Int_t &ngroupidoffset)
+    Int_t *&pfof, Int_t &ngroup, Int_t &ngroupidoffset, 
+    VROMPThreadPool *vromp = nullptr)
 {
     bool iunbindflag;
     Int_t ng=subngroup;
@@ -2854,7 +2873,7 @@ inline void CleanAndUpdateGroupsFromSubSearch(Options &opt,
             coreflag=NULL;
         }
         iunbindflag = CheckUnboundGroups(opt, subnumingroup, subPart,
-            subngroup, subpfof, subsubnumingroup, subsubpglist, 1, coreflag);
+            subngroup, subpfof, subsubnumingroup, subsubpglist, 1, coreflag, nthreads);
         if (iunbindflag) {
             for (auto j=1;j<=ng;j++) delete[] subsubpglist[j];
             delete[] subsubnumingroup;
@@ -3037,26 +3056,32 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
 #ifdef USEOPENMP 
         // if running with openmp simple parallel for over small groups
         //store larger group size index 
+        // initialize the thread pool 
         VROMPThreadPool vrotp, vrotp_child;
         vrotp.Init();
         auto maxnthreads = vrotp.nthreads;
         int chunksize = max(1, static_cast<int>(oldnsubsearch / static_cast<double>(maxnthreads*5)));
-        vector<Int_t> indexsmall, indexlarge;
-        indexsmall.reserve(oldnsubsearch);
-        indexlarge.reserve(oldnsubsearch);
+        // determine which groups should be parallelised by simple parallel for
+        // and others that should be handled by tasks 
+        vector<Int_t> indexsmall(oldnsubsearch), indexlarge(oldnsubsearch);
+        int nsmall = 0, nlarge = 0;
         for (Int_t i=1;i<=oldnsubsearch;i++) 
         {
-            if (subnumingroup[i] >= ompsplitsubsearchnum) indexlarge.push_back(i);
-            else indexsmall.push_back(i);
+            if (subnumingroup[i] >= ompsplitsubsearchnum) indexlarge[nlarge++] = i;
+            else indexsmall[nsmall++] = i;
         }
-        #pragma omp parallel for \
-        default(shared) private(subPart, subpfof, opt2) schedule(dynamic,chunksize) \
-        reduction(+:ns)
-        for (Int_t iomp=0;iomp<indexsmall.size();iomp++) {
-            auto i=indexsmall[iomp];
+        indexsmall.resize(nsmall);
+        indexlarge.resize(nlarge);
+        // run over all small groups which can be run in simple parallel for loop
+        #pragma omp taskloop \
+        default(shared) private(subPart, subpfof, opt2) \
+        grainsize(chunksize) \
+        reduction(+:ns) if (maxnthreads > 1)
+        for (auto i: indexsmall) 
 #else 
-        for (Int_t i=1;i<=oldnsubsearch;i++) {
+        for (Int_t i=1;i<=oldnsubsearch;i++) 
 #endif 
+        {
             opt2 = opt;
             subpfofold[i]=pfof[subpglist[i][0]];
             subPart = subPartCopy(opt2, subnumingroup[i], Partsubset, subpglist[i]);
@@ -3082,31 +3107,38 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
         // if run with openmp, simple static parallel for run over small groups
         // now run larger groups using tasks 
         // determine the thread pool 
-        omp_set_nested(true);
+        omp_set_max_active_levels(3);
         auto oldns = ns;
         ns = 0;
-        // begin launching tasks
+        // begin launching tasks by opening a parallel reigon with 
+        // a single launching tasks. 
         #pragma omp parallel \
         default(none) \
         shared(pfof, subpfofold, subpglist,  subsubpglist, subnumingroup, subsubnumingroup, subngroup, numcores, vrotp, opt, Partsubset, oldnsubsearch, ngroup, ns, ngroupidoffset_old, maxnthreads, indexlarge) \
         private(opt2, vrotp_child, subPart, subpfof) \
         firstprivate(sublevel) \
-        num_threads(maxnthreads)
+        if (nlarge > maxnthreads && maxnthreads > 1)
         #pragma omp single
         {
             //run loop and launch tasks, with task running loop able to yield to tasks running 
-            //the actual compute by untying it.  
-            #pragma omp task untied
-            for (auto iomp=0;iomp<indexlarge.size();iomp++) {
-                auto i=indexlarge[i];
-                // use size to scale the number of threads taken, scaling threads based on a min level for 
-                unsigned int ncurthreads = min(static_cast<unsigned int>(max(static_cast<unsigned int>(floor(subnumingroup[i]/static_cast<double>(ompsubsearchnum))),1u)), maxnthreads);
+            //the actual compute by untying it. 
+            // use task group to define a task wait and reduction
+            #pragma omp taskgroup task_reduction(+:ns)
+            {
+            // had a task launching tasks that was untied
+            // BUT apparently untied is not respected by older compilers
+            // so using an unitied task to launch tasks in for loop 
+            // is not ideal for older compilers. So may not be useful 
+            //#pragma omp task untied 
+            for (auto i: indexlarge) {
+                // scale the number of threads to be used in parallel for
+                unsigned int ncurthreads = SubSubSearchScaleThreads(subnumingroup[i], maxnthreads); 
                 // currently functions do not use GPUs
                 unsigned int ncurgpus=0;
                 vrotp_child.nthreads = ncurthreads;
                 vrotp_child.ngpus = ncurgpus;
                 // launch task that identifies substructures 
-                #pragma omp task 
+                #pragma omp task in_reduction(+:ns)
                 {
                     opt2 = opt;
                     subpfofold[i] = pfof[subpglist[i][0]];
@@ -3115,31 +3147,31 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                     if (opt.icmrefadjust) 
                     {
                         //this routine is in substructureproperties.cxx. Has internal parallelisation
-                        GMatrix cmphase = CalcPhaseCM(subnumingroup[i], subPart, -1, vrotp_child.nthreads);
+                        GMatrix cmphase = CalcPhaseCM(subnumingroup[i], subPart, -1, &vrotp_child);
                         //this routine is within this file, also has internal parallelisation
-                        AdjustSubPartToPhaseCM(subnumingroup[i], subPart, cmphase, vrotp_child.nthreads);
+                        AdjustSubPartToPhaseCM(subnumingroup[i], subPart, cmphase, &vrotp_child);
                     }
-                    PreCalcSearchSubSet(opt2, subnumingroup[i], subPart, sublevel, vrotp_child.nthreads);
+                    PreCalcSearchSubSet(opt2, subnumingroup[i], subPart, sublevel, &vrotp_child);
                     subpfof = SearchSubset(opt2, subnumingroup[i], subnumingroup[i], subPart,
-                        subngroup[i], sublevel, &numcores[i], vrotp_child.nthreads);
+                        subngroup[i], sublevel, &numcores[i], &vrotp_child);
                     CleanAndUpdateGroupsFromSubSearch(opt2, subnumingroup[i], subPart, subpfof,
                             subngroup[i], subsubnumingroup[i], subsubpglist[i], numcores[i],
-                            subpglist[i], pfof, ngroup, ngroupidoffset_old[i], vrotp_child.nthreads);
+                            subpglist[i], pfof, ngroup, ngroupidoffset_old[i], &vrotp_child);
                     delete[] subpfof;
                     delete[] subPart;
                     // once the task has completed, updated ns 
-                    #pragma omp critical 
-                    {
+                    // #pragma omp critical 
+                    // {
                         ns += subngroup[i];
-                    }
+                    // }
                 }
-
+            }
             }
             // wait till all the tasks are done here 
-            #pragma omp taskwait
+            //#pragma omp taskwait
         }
         ns += oldns;
-        omp_set_nested(false);
+        omp_set_max_active_levels(1);
 #endif
 
         UpdateGroupIDsFromSubstructure(oldnsubsearch, ngroup,

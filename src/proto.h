@@ -151,9 +151,12 @@ void FillTreeGrid(Options &opt, const Int_t nbodies, const Int_t ngrid, KDTree *
 //@{
 
 ///Calculate CM vel of cell
-Coordinate *GetCellVel(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngrid, GridCell *grid, int nthreads = -1);
+Coordinate *GetCellVel(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngrid, GridCell *grid,  
+    VROMPThreadPool *vromp = nullptr);
 ///Calculate velocity dispersion tensor of cell
-Matrix *GetCellVelDisp(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngrid, GridCell *grid, Coordinate *gvel, int nthreads = -1);
+Matrix *GetCellVelDisp(Options &opt, const Int_t nbodies, Particle *Part, 
+    Int_t ngrid, GridCell *grid, Coordinate *gvel, 
+    VROMPThreadPool *vromp = nullptr);
 //@}
 
 /// \name Subroutines to calculate local velocity density
@@ -161,15 +164,20 @@ Matrix *GetCellVelDisp(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
 //@{
 
 ///Calculate local velocity density
-void GetVelocityDensity(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree=NULL);
+void GetVelocityDensity(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree=NULL,
+    VROMPThreadPool *vromp = nullptr);
 ///sub interfaces depending on type of velocity density desired.
-void GetVelocityDensityOld(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree);
+void GetVelocityDensityOld(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree,
+    VROMPThreadPool *vromp = nullptr);
 ///Velocity density where only particles in a halo (which is localised to an mpi domain) are within the tree
-void GetVelocityDensityHaloOnlyDen(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree);
+void GetVelocityDensityHaloOnlyDen(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree,
+    VROMPThreadPool *vromp = nullptr);
 ///exact velocity density, finds for each particle nearest physical neighbours and estimates velocity
-void GetVelocityDensityExact(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree);
+void GetVelocityDensityExact(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree, 
+    VROMPThreadPool *vromp = nullptr);
 ///optimised search for cosmological simulations
-void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree);
+void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree, 
+    VROMPThreadPool *vromp = nullptr);
 //@}
 
 /// \name Suboutines that compare local velocity density to background
@@ -179,14 +187,14 @@ void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle
 ///Calculate logarithmic contrast between local velocity density and background velocity density
 void GetDenVRatio(Options &opt, const Int_t nbodies, Particle *Part, 
     Int_t ngrid, GridCell *grid, Coordinate *gvel, Matrix *gveldisp, 
-    int nthreads = -1);
+    VROMPThreadPool *vromp = nullptr);
 ///Characterize the ratio distribution to estimate intrinsic scatter in this estimator
 void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *Part, 
     Double_t &meanr,Double_t &sdlow,Double_t &sdhigh, 
-    int subleve=0, int nthreads = -1);
+    int subleve=0, VROMPThreadPool *vromp = nullptr);
 ///Calculate normalized residual
 Int_t GetOutliersValues(Options &opt, const Int_t nbodies, Particle *Part, 
-    int sublevel=0, int nthreads = -1);
+    int sublevel=0, VROMPThreadPool *vromp = nullptr);
 
 //@}
 
@@ -214,23 +222,41 @@ Int_t *SearchSingleHalo(Options &opt, const Int_t nbodies, vector<Particle> &Par
 Int_t *SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Particle *Partsubset, Int_t &numgroups, Int_t sublevel=0, Int_t *pnumcores=NULL);
 ///Search for subsubstructures
 void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubset, Int_t *&pfof, Int_t &ngroup, Int_t &nhalos, PropData *pdata=NULL);
+
 ///Given a set of tagged core particles, assign surroundings
-void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t *&pfofbg, Int_t &numgroupsbg, Double_t param[], vector<Double_t> &dispfac,
-    int numactiveloops, vector<int> &corelevel, int nthreads);
+void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, 
+    Int_t *&pfof, Int_t *&pfofbg, Int_t &numgroupsbg, Double_t param[], vector<Double_t> &dispfac,
+    int numactiveloops, vector<int> &corelevel, 
+    VROMPThreadPool *vromp = nullptr);
 ///merge substructures and cores if phase-space positions overlap
-void MergeSubstructuresCoresPhase(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t &numsubs, Int_t &numcores);
+void MergeSubstructuresCoresPhase(Options &opt, const Int_t nsubset, Particle *&Partsubset, 
+    Int_t *&pfof, Int_t &numsubs, Int_t &numcores, 
+    VROMPThreadPool *vromp = nullptr);
 ///merge substructures if phase-space positions overlap
-void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t &numgroups, Int_t &numsubs, Int_t &numcores);
+void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Partsubset, 
+    Int_t *&pfof, Int_t &numgroups, Int_t &numsubs, Int_t &numcores, 
+    VROMPThreadPool *vromp = nullptr);
 ///remove spurious dynamical substructures that comprise most of their host halo
-void RemoveSpuriousDynamicalSubstructures(Options &opt, const Int_t nsubset, Int_t *&pfof, Int_t &numgroups, Int_t &numsubs, Int_t &numcores);
+void RemoveSpuriousDynamicalSubstructures(Options &opt, const Int_t nsubset, Int_t *&pfof, 
+    Int_t &numgroups, Int_t &numsubs, Int_t &numcores, 
+    VROMPThreadPool *vromp = nullptr);
 ///Check significance of each group
-int CheckSignificance(Options &opt, const Int_t nsubset, Particle *Partsubset, Int_t &numgroups, Int_t *numingroups, Int_t *pfof, Int_t **pglist);
+int CheckSignificance(Options &opt, const Int_t nsubset, Particle *Partsubset, 
+    Int_t &numgroups, Int_t *numingroups, Int_t *pfof, Int_t **pglist, 
+    VROMPThreadPool *vromp = nullptr);
 ///Search for Baryonic structures associated with dark matter structures in phase-space
-Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const Int_t ndark, vector<Particle> &Partsubset, Int_t *&pfofdark, Int_t &ngroupdark, Int_t &nhalos, int ihaloflag=0, int iinclusive=0, PropData *phalos=NULL);
+Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, 
+    const Int_t ndark, vector<Particle> &Partsubset, 
+    Int_t *&pfofdark, Int_t &ngroupdark, Int_t &nhalos, 
+    int ihaloflag=0, int iinclusive=0, PropData *phalos=NULL, 
+    VROMPThreadPool *vromp = nullptr);
+
 ///Get the hierarchy of structures found
 Int_t GetHierarchy(Options &opt, Int_t ngroups, Int_t *nsub, Int_t *parentgid, Int_t *uparentgid, Int_t *stype);
 ///Copy hierarchy to PropData structure
 void CopyHierarchyToPropData(Options &opt, PropData *pdata,Int_t ngroups, Int_t *nsub, Int_t *parentgid, Int_t *uparentgid, Int_t *stype);
+
+
 ///Adjust particles in structures for period such that all substructure searches no longer have to run periodic searches
 void AdjustStructureForPeriod(Options &opt, const Int_t nbodies, vector<Particle> &Part, Int_t numgroups, Int_t *pfof);
 ///Adjust halo (object) positions back to inside the periodic volume.
@@ -281,19 +307,30 @@ void GetNodeList(Node *np, Int_t &ncell, Node **nodelist, const Int_t bsize);
 inline void MarkCell(Node *np, Int_t *marktreecell, Int_t *markleafcell, Int_t &ntreecell, Int_t &nleafcell, const Int_t bsize, Double_t *cR2max, Coordinate *cm, Double_t *cmtot, Coordinate xpos, Double_t eps2);
 
 ///Interface for unbinding proceedure
-int CheckUnboundGroups(Options opt, const Int_t nbodies, Particle *Part, Int_t &ngroup, Int_t *&pfof, Int_t *numingroup=NULL, Int_t **pglist=NULL,int ireorder=1, Int_t *groupflag=NULL);
+int CheckUnboundGroups(Options opt, const Int_t nbodies, Particle *Part, 
+    Int_t &ngroup, Int_t *&pfof, Int_t *numingroup=NULL, Int_t **pglist=NULL,
+    int ireorder=1, Int_t *groupflag=NULL, 
+    VROMPThreadPool *vromp = nullptr);
 ///check if group self-bound
-int Unbind(Options &opt, Particle **gPartList, Int_t &numgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist, int ireorder=1);
-int Unbind(Options &opt, Particle *Part, Int_t &numgroups, Int_t *&numingroup, Int_t *&noffset, Int_t *&pfof);
+int Unbind(Options &opt, Particle **gPartList, Int_t &numgroups, Int_t *numingroup, Int_t *pfof, 
+    Int_t **pglist, int ireorder=1, 
+    VROMPThreadPool *vromp = nullptr);
+int Unbind(Options &opt, Particle *Part, Int_t &numgroups, Int_t *&numingroup, Int_t *&noffset, 
+    Int_t *&pfof, 
+    VROMPThreadPool *vromp = nullptr);
 ///calculate the potential of an array of particles
 void Potential(Options &opt, Int_t nbodies, Particle *Part, Double_t *potV);
-void Potential(Options &opt, Int_t nbodies, Particle *Part);
+void Potential(Options &opt, Int_t nbodies, Particle *Part, 
+    VROMPThreadPool *vromp = nullptr);
 void ParticleSubSample(Options &opt, const Int_t nbodies, Particle *&Part,
     Int_t &newnbodies, Particle *&newpart, double &mr);
-void PotentialTree(Options &opt, Int_t nbodies, Particle *&Part, KDTree* &tree);
-void PotentialInterpolate(Options &opt, const Int_t nbodies, Particle *&Part, Particle *&interolateparts, KDTree *&tree, double massratio, int nsearch);
+void PotentialTree(Options &opt, Int_t nbodies, Particle *&Part, KDTree* &tree, 
+    VROMPThreadPool *vromp = nullptr);
+void PotentialInterpolate(Options &opt, const Int_t nbodies, Particle *&Part, Particle *&interolateparts, KDTree *&tree, double massratio, int nsearch,
+    VROMPThreadPool *vromp = nullptr);
 
-void PotentialPP(Options &opt, Int_t nbodies, Particle *Part);
+void PotentialPP(Options &opt, Int_t nbodies, Particle *Part,
+    VROMPThreadPool *vromp = nullptr);
 //@}
 
 /// \name Routines to determine bulk quantities of halo and adjust halo
