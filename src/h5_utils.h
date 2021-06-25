@@ -43,6 +43,13 @@ auto _safe_hdf5(F function, const std::string &fname, Args ... args) -> decltype
 /// Wrapper around _safe_hdf5, this is what users should invoke
 #define safe_hdf5(F, ...) ::vr::_safe_hdf5(F, # F, __VA_ARGS__)
 
+/**
+ * Get a string with information about the given dataset.
+ * @param dataspace_id The dataset ID
+ * @return A string with information about the given dataset.
+ */
+std::string dataspace_information(hid_t dataspace_id);
+
 } // namespace vr
 
 #endif // USEHDF
