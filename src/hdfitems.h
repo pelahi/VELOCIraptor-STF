@@ -771,6 +771,10 @@ public:
 
             }
             if (mpi_hdf_dims_tot[0] > 0) {
+                if (verbose) {
+                    LOG(debug) << vr::dataspace_information(dspace_id);
+                    LOG(debug) << vr::dataspace_information(memspace_id);
+                }
                 // Write the data
                 safe_hdf5(H5Dwrite, dset_id, memtype_id, memspace_id, dspace_id, prop_id, data);
             }
