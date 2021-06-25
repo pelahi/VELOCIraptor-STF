@@ -11,6 +11,7 @@
 
 #include <hdf5.h>
 
+#include "h5_utils.h"
 #include "io.h"
 #include "ioutils.h"
 #include "logging.h"
@@ -100,24 +101,6 @@
 #else
 #define HDF5_FILE_GROUP_COMMON_BASE H5::CommonFG
 #endif
-
-template <typename F, typename ... Args>
-auto _safe_hdf5(F function, const std::string &fname, Args ... args) -> decltype(function(std::forward<Args>(args)...))
-{
-    using ReturnT = decltype(function(std::forward<Args>(args)...));
-    ReturnT ret = function(std::forward<Args>(args)...);
-    if (ret < 0) {
-        LOG(error) << "Error in HDF routine " << fname << ", aborting";
-#ifdef USEMPI
-        MPI_Abort(MPI_COMM_WORLD, 1);
-#else
-        abort();
-#endif
-    }
-    return ret;
-}
-
-#define safe_hdf5(F, ...) _safe_hdf5(F, # F, __VA_ARGS__)
 
 // Overloaded function to return HDF5 type given a C type
 static inline hid_t hdf5_type(float dummy)              {return H5T_NATIVE_FLOAT;}

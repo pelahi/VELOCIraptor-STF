@@ -22,6 +22,7 @@ set(VR_SOURCES
     haloproperties.cxx
     hdfio.cxx
     h5_output_file.cxx
+    h5_utils.cxx
     io.cxx
     localbgcomp.cxx
     localfield.cxx
