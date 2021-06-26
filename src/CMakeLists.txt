@@ -47,9 +47,9 @@ set(VR_SOURCES
 )
 
 add_library(velociraptor STATIC ${VR_SOURCES})
-target_compile_definitions(velociraptor PRIVATE ${VR_DEFINES})
+target_compile_definitions(velociraptor PUBLIC ${VR_DEFINES})
 if (VR_CXX_FLAGS)
-	set_target_properties(velociraptor PROPERTIES COMPILE_FLAGS ${VR_CXX_FLAGS})
+	target_compile_options(velociraptor PUBLIC ${VR_CXX_FLAGS})
 endif()
 set_target_properties(velociraptor PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
@@ -60,10 +60,6 @@ target_link_libraries(velociraptor nbodylib_iface)
 add_executable(stf main.cxx)
 target_link_libraries(stf velociraptor ${VR_LIBS})
 
-target_compile_definitions(stf PRIVATE ${VR_DEFINES})
-if (VR_CXX_FLAGS)
-	set_target_properties(stf PROPERTIES COMPILE_FLAGS ${VR_CXX_FLAGS})
-endif()
 if (VR_LINK_FLAGS)
 	set_target_properties(stf PROPERTIES LINK_FLAGS ${VR_LINK_FLAGS})
 endif()
