@@ -30,6 +30,9 @@ set(CMAKE_CXX_STANDARD 11)
 # Set the code to always produce position independent code by default
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+include(CTest)
+enable_testing()
+
 # Let the *_ROOT variables indicate where to find packages (cmake >= 3.12)
 if (POLICY CMP0074)
 	cmake_policy(SET CMP0074 NEW)

@@ -64,3 +64,7 @@ if (VR_LINK_FLAGS)
 	set_target_properties(stf PROPERTIES LINK_FLAGS ${VR_LINK_FLAGS})
 endif()
 set_target_properties(stf PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+
+if (BUILD_TESTING)
+	add_subdirectory(tests)
+endif()
