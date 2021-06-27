@@ -534,7 +534,7 @@ public:
         int rank = 1;
         hsize_t dims[1] = {len};
         if (memtype_id == -1) memtype_id = hdf5_type(T{});
-        write_dataset_nd(opt, name, rank, dims, data, memtype_id, filetype_id, flag_parallel, flag_hyperslab, flag_collective);
+        write_dataset_nd(opt, name, rank, dims, data, memtype_id, filetype_id, flag_parallel, true, flag_hyperslab, flag_collective);
     }
     void write_dataset(Options opt, string name, hsize_t len, string data, bool flag_parallel = true, bool flag_collective = true)
     {

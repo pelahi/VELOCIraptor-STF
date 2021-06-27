@@ -55,7 +55,7 @@ set_target_properties(velociraptor PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_B
 
 
 # Bringing NBodyLib objects into the velociraptor library
-target_link_libraries(velociraptor nbodylib_iface)
+target_link_libraries(velociraptor PUBLIC nbodylib_iface)
 
 add_executable(stf main.cxx)
 target_link_libraries(stf velociraptor ${VR_LIBS})
