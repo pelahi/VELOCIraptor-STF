@@ -13,16 +13,17 @@
 */
 void GetDenVRatio(Options &opt, const Int_t nbodies, Particle *Part, 
     Int_t ngrid, GridCell *grid, Coordinate *gvel, Matrix *gveldisp, 
-    VROMPThreadPool *vromp)
+    VROMPThreadPool *vromptp)
 {
+    int nthreads;
     Int_t i;
     int tid;
 #ifndef USEMPI
     int ThisTask=0;
 #endif
 #ifdef USEOPENMP
-    if (vromp == nullptr) nthreads=omp_get_max_threads();
-    else nthreads = vromp->nthreads;
+    if (vromptp == nullptr) nthreads=omp_get_max_threads();
+    else nthreads = vromptp->nthreads;
 #else 
     nthreads = 1;
 #endif
@@ -130,7 +131,7 @@ num_threads(nthreads) if (nbodies > ompsubsearchnum && nthreads > 1)
 
 void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *Part, 
     Double_t &meanr,Double_t &sdlow,Double_t &sdhigh, 
-    int sublevel, VROMPThreadPool *vromp)
+    int sublevel, VROMPThreadPool *vromptp)
 {
     Int_t i,nbins,iprob,jprob;
     Double_t mtot,mtotpeak,deltar,maxprob,minprob,rmin,rmax;
@@ -142,10 +143,11 @@ void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *
     const int MINBIN = 5;
     //to determine initial number of bins using modified Sturges' formula
     nbins = max((int)ceil(log10((Double_t)nbodies)/log10(2.0)+1)*4, MINBIN);
+    int nthreads;
 
 #ifdef USEOPENMP
-    if (vromp == nullptr) nthreads=omp_get_max_threads();
-    else nthreads = vromp->nthreads;
+    if (vromptp == nullptr) nthreads=omp_get_max_threads();
+    else nthreads = vromptp->nthreads;
 #else 
     nthreads = 1;
 #endif
@@ -373,15 +375,16 @@ void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *
 
 */
 Int_t GetOutliersValues(Options &opt, const Int_t nbodies, Particle *Part, int sublevel,
-    VROMPThreadPool *vromp)
+    VROMPThreadPool *vromptp)
 {
     Int_t nsubset = 0;
+    int nthreads;
 #ifndef USEMPI
     int ThisTask=0;
 #endif
 #ifdef USEOPENMP
-    if (vromp == nullptr) nthreads = omp_get_max_threads();
-    else nthreads = vromp->nthreads;
+    if (vromptp == nullptr) nthreads = omp_get_max_threads();
+    else nthreads = vromptp->nthreads;
 #else 
     nthreads = 1;
 #endif
@@ -390,7 +393,7 @@ Int_t GetOutliersValues(Options &opt, const Int_t nbodies, Particle *Part, int s
     //printf("Using GLOBAL values to characterize the distribution and determine the normalized values used to determine outlier likelihood\n");
     Double_t globalmostprob,globalsdlow,globalsdhigh;
 
-    DetermineDenVRatioDistribution(opt,nbodies,Part,globalmostprob,globalsdlow,globalsdhigh, sublevel, VROMPThreadPool *vromp);
+    DetermineDenVRatioDistribution(opt,nbodies,Part,globalmostprob,globalsdlow,globalsdhigh, sublevel, vromptp);
 
     Double_t temp2,temp3, tempell;
     temp2=1.0/(globalsdhigh);

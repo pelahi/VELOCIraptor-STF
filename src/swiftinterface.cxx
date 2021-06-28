@@ -151,9 +151,10 @@ int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthrea
 #endif
 #ifdef USEOPENMP
     omp_set_num_threads(numthreads);
-    vrotp.Init();
+    VROMPThreadPool vromptp;
+    vromptp.Init();
 #endif
-    if(ThisTask == 0) vrotp.Print();
+    if(ThisTask == 0) vromptp.Print();
 
     //set the gsl handler
     gsl_set_error_handler_off();
@@ -241,9 +242,10 @@ int InitVelociraptorExtra(const int iextra, char* configname, unitinfo u, siminf
 #endif
 #ifdef USEOPENMP
     omp_set_num_threads(numthreads);
-    vrotp.Init();
+    VROMPThreadPool vromptp;
+    vromptp.Init();
 #endif
-    if(ThisTask == 0) vrotp.Print();
+    if(ThisTask == 0) vromptp.Print();
 
     int iconfigflag;
     ///read the parameter file

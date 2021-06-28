@@ -63,10 +63,10 @@ int main(int argc,char **argv)
 #ifdef USEOPENMP
     //initialise the vr thread/gpu pool class
     if (ThisTask==0) {
-        VROMPThreadPool vrotp;
-        vrotp.Init(); 
-        vrotp.Print();
-        vrotp.Close();
+        VROMPThreadPool vromptp;
+        vromptp.Init(); 
+        vromptp.Print();
+        vromptp.Close();
     }
     nthreads = omp_get_max_threads();
 #else

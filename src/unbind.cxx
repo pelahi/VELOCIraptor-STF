@@ -275,7 +275,9 @@ inline void GetBoundFractionAndMaxE(Options &opt,
     This arrays may have been constructed prior to the unbinding call and so can be passed to the routine
     if this is called it uses Particle array then deletes it.
 */
-int CheckUnboundGroups(Options opt, const Int_t nbodies, Particle *Part, Int_t &ngroup, Int_t *&pfof, Int_t *numingroup, Int_t **pglist, int ireorder, Int_t *groupflag)
+int CheckUnboundGroups(Options opt, const Int_t nbodies, Particle *Part, 
+    Int_t &ngroup, Int_t *&pfof, Int_t *numingroup, Int_t **pglist, int ireorder, Int_t *groupflag, 
+    VROMPThreadPool *vromptp)
 {
     bool ningflag=false, pglistflag=false;
     int iflag;
@@ -317,7 +319,7 @@ int CheckUnboundGroups(Options opt, const Int_t nbodies, Particle *Part, Int_t &
 #endif
 
 #ifdef SAVEMEM
-    iflag=Unbind(opt, Part, ngroup, numingroup,noffset,pfof);
+    iflag=Unbind(opt, Part, ngroup, numingroup, noffset, pfof);
     //if keeping track of a flag, set flag to 0 if group no longer present
     if (groupflag!=NULL) {
         for (Int_t i=0;i<=ng;i++) if (numingroup[i]==0) groupflag[i]=0;
@@ -352,8 +354,8 @@ int CheckUnboundGroups(Options opt, const Int_t nbodies, Particle *Part, Int_t &
 #else
 
     //if groupflags are provided then explicitly reorder here if required, otherwise internal reordering within unbind.
-    if (groupflag!=NULL) iflag = Unbind(opt, gPart, ngroup, numingroup,pfof,pglist,0);
-    else iflag = Unbind(opt, gPart, ngroup, numingroup,pfof,pglist,ireorder);
+    if (groupflag!=NULL) iflag = Unbind(opt, gPart, ngroup, numingroup, pfof, pglist, 0, vromptp);
+    else iflag = Unbind(opt, gPart, ngroup, numingroup, pfof, pglist, ireorder, vromptp);
 
     //if keeping track of a flag, set flag to 0 if group no longer present
     if (ireorder==1 && iflag&&ngroup>0) {
@@ -388,9 +390,10 @@ int CheckUnboundGroups(Options opt, const Int_t nbodies, Particle *Part, Int_t &
 }
 
 ///Calculate potential of groups
-inline void CalculatePotentials(Options &opt, Particle **gPart, Int_t &numgroups, Int_t *numingroup)
+inline void CalculatePotentials(Options &opt, Particle **gPart, 
+    Int_t &numgroups, Int_t *numingroup, 
+    VROMPThreadPool *vromptp = nullptr)
 {
-    int maxnthreads,nthreads=1;
 
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
@@ -398,44 +401,49 @@ inline void CalculatePotentials(Options &opt, Particle **gPart, Int_t &numgroups
 
     if (!opt.uinfo.icalculatepotential) return;
 
-    //for parallel environment store maximum number of threads
-    nthreads=1;
 #ifdef USEOPENMP
-#pragma omp parallel
-    {
-    if (omp_get_thread_num()==0) maxnthreads=nthreads=omp_get_num_threads();
+    // get number of threads available and number of nested levels allowed
+    int nthreads, nactivelevels;
+    if (vromptp == nullptr) nthreads = omp_get_max_threads();
+    else nthreads = vromptp->nthreads;
+    // if openmp use nested parallelism and task loop, Increase active levels 
+    // if more than 1 thread available. 
+    if (vromptp == nullptr && nthreads > 1) {
+        nactivelevels = omp_get_max_active_levels();
     }
+    else if (vromptp->nthreads > 1) {
+        nactivelevels = omp_get_max_active_levels();
+    }
+    else {
+        nactivelevels = 0;
+    }
+    omp_set_max_active_levels(nactivelevels+1);
 #endif
 
     //for each group calculate potential
     //if group is small calculate potentials using PP
     //here openmp is over groups since each group is small
 #ifdef USEOPENMP
-#pragma omp parallel default(shared)
-{
-    #pragma omp for schedule(dynamic,1) nowait
+#pragma omp parallel for default(shared) schedule(dynamic,1) \
+num_threads(nthreads) if (nthreads > 1)
 #endif
     for (auto i=1;i<=numgroups;i++)
     {
         if (numingroup[i]<=POTPPCALCNUM) {
-            if (numingroup[i]<0) continue;
+            if (numingroup[i]<=0) continue;
             PotentialPP(opt, numingroup[i], gPart[i]);
         }
     }
+
 #ifdef USEOPENMP
-}
-#endif
-    //reset number of threads to maximum number
-#ifdef USEOPENMP
-#pragma omp master
-    {
-        omp_set_num_threads(maxnthreads);
-    }
-    nthreads=maxnthreads;
+#pragma omp parallel 
+#pragma omp single 
+#pragma omp taskloop default(shared) \
+num_tasks(nthreads) if (nthreads > 1 && nactivelevels > 0)
 #endif
     for (auto i=1;i<=numgroups;i++)
     {
-        if (numingroup[i]<0) continue;
+        if (numingroup[i]<=0) continue;
         if (numingroup[i]>POTPPCALCNUM) {
             Potential(opt, numingroup[i], gPart[i]);
         }
@@ -444,30 +452,40 @@ inline void CalculatePotentials(Options &opt, Particle **gPart, Int_t &numgroups
 
 ///Calculate potential of groups, assumes particle list is ordered by group
 ///and accessed by numingroup and noffset;
-inline void CalculatePotentials(Options &opt, Particle *gPart, Int_t &numgroups, Int_t *numingroup, Int_t *noffset)
+inline void CalculatePotentials(Options &opt, Particle *gPart, 
+    Int_t &numgroups, Int_t *numingroup, Int_t *noffset, 
+    VROMPThreadPool *vromptp = nullptr)
 {
-    int maxnthreads,nthreads=1;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
     if (!opt.uinfo.icalculatepotential) return;
 
-    //for parallel environment store maximum number of threads
-    nthreads=1;
 #ifdef USEOPENMP
-#pragma omp parallel
-    {
-    if (omp_get_thread_num()==0) maxnthreads=nthreads=omp_get_num_threads();
+    // get number of threads available and number of nested levels allowed
+    int nthreads, nactivelevels;
+    if (vromptp == nullptr) nthreads = omp_get_max_threads();
+    else nthreads = vromptp->nthreads;
+    // if openmp use nested parallelism and task loop, Increase active levels 
+    // if more than 1 thread available. 
+    if (vromptp == nullptr && nthreads > 1) {
+        nactivelevels = omp_get_max_active_levels();
     }
+    else if (vromptp->nthreads > 1) {
+        nactivelevels = omp_get_max_active_levels();
+    }
+    else {
+        nactivelevels = 0;
+    }
+    omp_set_max_active_levels(nactivelevels+1);
 #endif
 
     //for each group calculate potential
     //if group is small calculate potentials using PP
     //here openmp is over groups since each group is small
 #ifdef USEOPENMP
-#pragma omp parallel default(shared)
-{
-    #pragma omp for schedule(dynamic,1) nowait
+#pragma omp parallel for default(shared) schedule(dynamic,1) \
+num_threads(nthreads) if (nthreads > 1 && nactivelevels > 0)
 #endif
     for (auto i=1;i<=numgroups;i++)
     {
@@ -476,16 +494,13 @@ inline void CalculatePotentials(Options &opt, Particle *gPart, Int_t &numgroups,
             PotentialPP(opt, numingroup[i], &gPart[noffset[i]]);
         }
     }
-#ifdef USEOPENMP
-}
-#endif
+
     //reset number of threads to maximum number
 #ifdef USEOPENMP
-#pragma omp master
-    {
-        omp_set_num_threads(maxnthreads);
-    }
-    nthreads=maxnthreads;
+#pragma omp parallel 
+#pragma omp single 
+#pragma omp taskloop default(shared) \
+num_tasks(nthreads) if (nthreads > 1 && nactivelevels > 0)
 #endif
     for (auto i=1;i<=numgroups;i++)
     {
@@ -499,40 +514,57 @@ inline void CalculatePotentials(Options &opt, Particle *gPart, Int_t &numgroups,
 ///loop over groups and get velocity frame
 inline void CalculateBindingReferenceFrame(Options &opt,
     Particle **gPart, Int_t &numgroups, Int_t *numingroup,
-    Double_t *&gmass, Coordinate *&cmvel)
+    Double_t *&gmass, Coordinate *&cmvel, 
+    VROMPThreadPool *vromptp = nullptr)
 {
     Double_t potmin,menc;
     Int_t npot,ipotmin;
     Coordinate potpos;
     Int_t *storeval;
 
+#ifdef USEOPENMP
+    // get number of threads available and number of nested levels allowed
+    int nthreads, nactivelevels;
+    if (vromptp == nullptr) nthreads = omp_get_max_threads();
+    else nthreads = vromptp->nthreads;
+    // if openmp use nested parallelism and task loop, Increase active levels 
+    // if more than 1 thread available. 
+    if (vromptp == nullptr && nthreads > 1) {
+        nactivelevels = omp_get_max_active_levels();
+    }
+    else if (vromptp->nthreads > 1) {
+        nactivelevels = omp_get_max_active_levels();
+    }
+    else {
+        nactivelevels = 0;
+    }
+    omp_set_max_active_levels(nactivelevels+1);
+#endif
+
     //if using standard frame, then using CMVEL of the entire structure
     if (opt.uinfo.fracpotref==1.0) {
 #ifdef USEOPENMP
-#pragma omp parallel default(shared)
-{
-#pragma omp for schedule(dynamic,1) nowait
+#pragma omp parallel for default(shared) \
+schedule(dynamic,1) \
+num_threads(nthreads) if (nthreads > 1 && nactivelevels > 0)
 #endif
-            for (auto i=1;i<=numgroups;i++)
-            {
-                for (auto k=0;k<3;k++) cmvel[i][k]=0;
-                for (auto j=0;j<numingroup[i];j++) {
-                    gmass[i]+=gPart[i][j].GetMass();
-                    for (auto k=0;k<3;k++) cmvel[i][k]+=gPart[i][j].GetVelocity(k)*gPart[i][j].GetMass();
-                }
-                cmvel[i] *= 1.0/gmass[i];
+        for (auto i=1;i<=numgroups;i++)
+        {
+            for (auto k=0;k<3;k++) cmvel[i][k]=0;
+            for (auto j=0;j<numingroup[i];j++) {
+                gmass[i]+=gPart[i][j].GetMass();
+                for (auto k=0;k<3;k++) cmvel[i][k]+=gPart[i][j].GetVelocity(k)*gPart[i][j].GetMass();
             }
-#ifdef USEOPENMP
-}
-#endif
+            cmvel[i] *= 1.0/gmass[i];
+        }
     }
     else {
         if (opt.uinfo.cmvelreftype==CMVELREF) {
 #ifdef USEOPENMP
-#pragma omp parallel default(shared)  \
-private(npot,menc,potpos,storeval)
-{
-#pragma omp for schedule(dynamic,1) nowait
+#pragma omp parallel for default(shared)  \
+private(npot,menc,potpos,storeval) \
+schedule(dynamic,1) \
+num_threads(nthreads) if (nthreads > 1 && nactivelevels > 0)
 #endif
             for (auto i=1;i<=numgroups;i++)
             {
@@ -569,18 +601,15 @@ private(npot,menc,potpos,storeval)
                 }
                 delete[] storeval;
             }
-#ifdef USEOPENMP
-}
-#endif
         }
         //if using potential then must identify minimum potential.
         //Note that  most computations involve sorts, so parallize over groups
         else if (opt.uinfo.cmvelreftype==POTREF) {
 #ifdef USEOPENMP
-#pragma omp parallel default(shared)  \
-private(npot,menc,potmin,ipotmin,potpos,storeval)
-{
-#pragma omp for schedule(dynamic,1) nowait
+#pragma omp parallel for default(shared)  \
+private(npot,menc,potmin,ipotmin,potpos,storeval) \
+schedule(dynamic,1) \
+num_threads(nthreads) if (nthreads > 1 && nactivelevels > 0)
 #endif
             for (auto i=1;i<=numgroups;i++) {
                 if (numingroup[i]<0) continue;
@@ -610,9 +639,6 @@ private(npot,menc,potmin,ipotmin,potpos,storeval)
                 for (auto j=0;j<numingroup[i];j++) gPart[i][j].SetID(storeval[j]);
                 delete[] storeval;
             }
-#ifdef USEOPENMP
-}
-#endif
         }
     }
 }
@@ -620,39 +646,56 @@ private(npot,menc,potmin,ipotmin,potpos,storeval)
 ///loop over groups and get velocity frame
 inline void CalculateBindingReferenceFrame(Options &opt,
     Particle *gPart, Int_t &numgroups, Int_t *numingroup, Int_t *noffset,
-    Double_t *&gmass, Coordinate *&cmvel)
+    Double_t *&gmass, Coordinate *&cmvel, 
+    VROMPThreadPool *vromptp = nullptr)
 {
     Double_t potmin,menc;
     Int_t npot,ipotmin;
     Coordinate potpos;
     Int_t *storeval;
+#ifdef USEOPENMP
+    // get number of threads available and number of nested levels allowed
+    int nthreads, nactivelevels;
+    if (vromptp == nullptr) nthreads = omp_get_max_threads();
+    else nthreads = vromptp->nthreads;
+    // if openmp use nested parallelism and task loop, Increase active levels 
+    // if more than 1 thread available. 
+    if (vromptp == nullptr && nthreads > 1) {
+        nactivelevels = omp_get_max_active_levels();
+    }
+    else if (vromptp->nthreads > 1) {
+        nactivelevels = omp_get_max_active_levels();
+    }
+    else {
+        nactivelevels = 0;
+    }
+    omp_set_max_active_levels(nactivelevels+1);
+#endif
+
     //if using standard frame, then using CMVEL of the entire structure
     if (opt.uinfo.fracpotref==1.0) {
 #ifdef USEOPENMP
-#pragma omp parallel default(shared)
-{
-#pragma omp for schedule(dynamic,1) nowait
+#pragma omp parallel for default(shared) \
+schedule(dynamic,1) \
+num_threads(nthreads) if (nthreads > 1 && nactivelevels > 0)
 #endif
-            for (auto i=1;i<=numgroups;i++)
-            {
-                for (auto k=0;k<3;k++) cmvel[i][k]=0;
-                for (auto j=0;j<numingroup[i];j++) {
-                    gmass[i]+=gPart[noffset[i]+j].GetMass();
-                    for (auto k=0;k<3;k++) cmvel[i][k]+=gPart[noffset[i]+j].GetVelocity(k)*gPart[noffset[i]+j].GetMass();
-                }
-                cmvel[i] *= 1.0/gmass[i];
+        for (auto i=1;i<=numgroups;i++)
+        {
+            for (auto k=0;k<3;k++) cmvel[i][k]=0;
+            for (auto j=0;j<numingroup[i];j++) {
+                gmass[i]+=gPart[noffset[i]+j].GetMass();
+                for (auto k=0;k<3;k++) cmvel[i][k]+=gPart[noffset[i]+j].GetVelocity(k)*gPart[noffset[i]+j].GetMass();
             }
-#ifdef USEOPENMP
-}
-#endif
+            cmvel[i] *= 1.0/gmass[i];
+        }
     }
     else {
         if (opt.uinfo.cmvelreftype==CMVELREF) {
 #ifdef USEOPENMP
-#pragma omp parallel default(shared)  \
-private(npot,menc,potpos,storeval)
-{
-#pragma omp for schedule(dynamic,1) nowait
+#pragma omp parallel for default(shared)  \
+private(npot,menc,potpos,storeval) \
+schedule(dynamic,1) \
+num_threads(nthreads) if (nthreads > 1 && nactivelevels > 0)
 #endif
             for (auto i=1;i<=numgroups;i++)
             {
@@ -689,18 +732,15 @@ private(npot,menc,potpos,storeval)
                 }
                 delete[] storeval;
             }
-#ifdef USEOPENMP
-}
-#endif
         }
         //if using potential then must identify minimum potential.
         //Note that  most computations involve sorts, so parallize over groups
         else if (opt.uinfo.cmvelreftype==POTREF) {
 #ifdef USEOPENMP
-#pragma omp parallel default(shared)  \
-private(npot,menc,potmin,ipotmin,potpos,storeval)
-{
-#pragma omp for schedule(dynamic,1) nowait
+#pragma omp parallel for default(shared)  \
+private(npot,menc,potmin,ipotmin,potpos,storeval) \
+schedule(dynamic,1) \
+num_threads(nthreads) if (nthreads > 1 && nactivelevels > 0)
 #endif
             for (auto i=1;i<=numgroups;i++) {
                 if (numingroup[i]<0) continue;
@@ -730,13 +770,9 @@ private(npot,menc,potmin,ipotmin,potpos,storeval)
                 for (auto j=0;j<numingroup[i];j++) gPart[noffset[i]+j].SetID(storeval[j]);
                 delete[] storeval;
             }
-#ifdef USEOPENMP
-}
-#endif
         }
     }
 }
-
 
 /*!
     Unbinding algorithm that checks to see if a group is self-bound. For small groups the potential is calculated using a PP algorithm, for large groups a tree-potential using kd-tree and monopole is calculated. \n
@@ -751,7 +787,9 @@ private(npot,menc,potmin,ipotmin,potpos,storeval)
 
     Finally, this routines assumes that the pglist passed to the routine is for a gPart array that was build in id order from pfof and a local particle array.
 */
-int Unbind(Options &opt, Particle **gPart, Int_t &numgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist, int ireorder)
+int Unbind(Options &opt, Particle **gPart, 
+    Int_t &numgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist, int ireorder, 
+    VROMPThreadPool *vromptp)
 {
     //flag which is changed if any groups are altered as groups may need to be reordered.
     int iunbindflag=0;
@@ -791,18 +829,18 @@ int Unbind(Options &opt, Particle **gPart, Int_t &numgroups, Int_t *numingroup, 
         if (opt.uinfo.icalculatepotential) {
             for (j=0;j<numingroup[i];j++) gPart[i][j].SetPotential(0);
         }
-        #ifdef SWIFTINTERFACE
+#ifdef SWIFTINTERFACE
         else {
             for (j=0;j<numingroup[i];j++) gPart[i][j].SetPotential(gPart[i][j].GetGravityPotential());
         }
-        #endif
+#endif
     }
 
     //if calculate potential
-    CalculatePotentials(opt, gPart, numgroups, numingroup);
+    CalculatePotentials(opt, gPart, numgroups, numingroup, vromptp);
 
     //Now set the kinetic reference frame
-    CalculateBindingReferenceFrame(opt, gPart, numgroups, numingroup, gmass, cmvel);
+    CalculateBindingReferenceFrame(opt, gPart, numgroups, numingroup, gmass, cmvel, vromptp);
 
     //now go through groups and begin unbinding by finding least bound particle
     //again for small groups multithread over groups
@@ -939,13 +977,13 @@ private(i,j,k,n,maxE,maxunbindsize,nEplus,nEplusid,Eplusflag,v2,Ti,unbindcheck,E
 
 /// Calculates the gravitational potential using a kd-tree and monopole expansion
 ///\todo need ewald correction for periodic systems and also use more than monopole.
-void Potential(Options &opt, Int_t nbodies, Particle *Part, Double_t *potV)
+void Potential(Options &opt, Int_t nbodies, Particle *Part, Double_t *potV, VROMPThreadPool *vromptp)
 {
-    Potential(opt, nbodies, Part);
+    Potential(opt, nbodies, Part, vromptp);
     for (auto i=0;i<nbodies;i++) potV[i]=Part[i].GetPotential();
 }
 
-void Potential(Options &opt, Int_t nbodies, Particle *Part)
+void Potential(Options &opt, Int_t nbodies, Particle *Part, VROMPThreadPool *vromptp)
 {
     Int_t oldnbodies;
     KDTree *tree;
@@ -959,19 +997,19 @@ void Potential(Options &opt, Int_t nbodies, Particle *Part)
 
     //if approximate potential calculated, subsample partile distribution
     oldnbodies = nbodies;
-    ParticleSubSample(opt, oldnbodies, Part, nbodies, part, mr);
+    ParticleSubSample(opt, oldnbodies, Part, nbodies, part, mr, vromptp);
     if (part != Part) bsize = ceil(bsize*opt.uinfo.approxpotnumfrac);
 
     //build tree and calculate a tree based potential
     tree = new KDTree(part, nbodies, bsize, tree->TPHYS, tree->KEPAN,
         100, 0, 0, 0, NULL, NULL, runomp);
     if (part != Part) tree->OverWriteInputOrder();
-    PotentialTree(opt, nbodies, part, tree);
+    PotentialTree(opt, nbodies, part, tree, vromptp);
     //and assign potentials back if running approximate potential calculation
     //i.e., particle pointer does not point to original particle pointer
     if (part != Part) {
         nsearch = min(4,(int)ceil(mr+1));
-        PotentialInterpolate(opt, oldnbodies, Part, part, tree, mr, nsearch);
+        PotentialInterpolate(opt, oldnbodies, Part, part, tree, mr, nsearch, vromptp);
     }
     delete tree;
 
@@ -1080,7 +1118,7 @@ void Potential(Options &opt, Int_t nbodies, Particle *Part)
 }
 
 void ParticleSubSample(Options &opt, const Int_t nbodies, Particle *&Part,
-    Int_t &newnbodies, Particle *&newpart, double &mr)
+    Int_t &newnbodies, Particle *&newpart, double &mr, VROMPThreadPool *vromptp)
 {
     //if approximate potential calculated, subsample partile distribution
     newnbodies = nbodies;
@@ -1152,7 +1190,7 @@ void ParticleSubSample(Options &opt, const Int_t nbodies, Particle *&Part,
     }
 }
 
-void PotentialTree(Options &opt, Int_t nbodies, Particle *&Part, KDTree* &tree)
+void PotentialTree(Options &opt, Int_t nbodies, Particle *&Part, KDTree* &tree, VROMPThreadPool *vromptp)
 {
     Int_t ntreecell, nleafcell;
     Double_t r2, eps2=opt.uinfo.eps*opt.uinfo.eps;
@@ -1283,7 +1321,7 @@ if (runomp)
     delete[] nodelist;
 }
 
-void PotentialInterpolate(Options &opt, const Int_t nbodies, Particle *&Part, Particle *&interpolatepart, KDTree *&tree, double massratio, int nsearch)
+void PotentialInterpolate(Options &opt, const Int_t nbodies, Particle *&Part, Particle *&interpolatepart, KDTree *&tree, double massratio, int nsearch, VROMPThreadPool *vromptp)
 {
     bool runomp = false;
     vector<Int_t> nn;

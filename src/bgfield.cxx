@@ -146,7 +146,7 @@ void FillTreeGrid(Options &opt, const Int_t nbodies, const Int_t ngrid, KDTree *
 
 ///Calculate CM vel of cell
 Coordinate* GetCellVel(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngrid, GridCell *grid, 
-VROMPThreadPool *vromp=nullptr)
+VROMPThreadPool *vromptp)
 {
     Int_t i;
     Double_t mtot;
@@ -154,8 +154,9 @@ VROMPThreadPool *vromp=nullptr)
     gvel=new Coordinate[ngrid];
     if (opt.iverbose>=2) cout<<"Calculating Grid Mean Velocity"<<endl;
 #ifdef USEOPENMP
-    if (vromp == nullptr) nthreads = omp_get_max_threads();
-    else nthreads = vromp->nthreads;
+    int nthreads;
+    if (vromptp == nullptr) nthreads = omp_get_max_threads();
+    else nthreads = vromptp->nthreads;
 #pragma omp parallel default(shared) \
 private(i,mtot) num_threads(nthreads) if (nbodies > ompsubsearchnum && nthreads > 1)
 {
@@ -177,7 +178,7 @@ private(i,mtot) num_threads(nthreads) if (nbodies > ompsubsearchnum && nthreads 
 }
 
 ///Calculate velocity dispersion tensor of cell
-Matrix* GetCellVelDisp(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngrid, GridCell *grid, Coordinate *gvel, VROMPThreadPool *vromp)
+Matrix* GetCellVelDisp(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngrid, GridCell *grid, Coordinate *gvel, VROMPThreadPool *vromptp)
 {
     Int_t i;
     Double_t mtot;
@@ -185,8 +186,9 @@ Matrix* GetCellVelDisp(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
     gveldisp=new Matrix[ngrid];
     if (opt.iverbose>=2) cout<<"Calculating Grid Velocity Dispersion"<<endl;
 #ifdef USEOPENMP
-    if (vromp == nullptr) nthreads = omp_get_max_threads();
-    else nthreads = vromp->nthreads;
+    int nthreads;
+    if (vromptp == nullptr) nthreads = omp_get_max_threads();
+    else nthreads = vromptp->nthreads;
 #pragma omp parallel default(shared) \
 private(i,mtot) num_threads(nthreads) if (nbodies > ompsubsearchnum && nthreads > 1)
 {

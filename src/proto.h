@@ -152,11 +152,11 @@ void FillTreeGrid(Options &opt, const Int_t nbodies, const Int_t ngrid, KDTree *
 
 ///Calculate CM vel of cell
 Coordinate *GetCellVel(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngrid, GridCell *grid,  
-    VROMPThreadPool *vromp = nullptr);
+    VROMPThreadPool *vromptptp = nullptr);
 ///Calculate velocity dispersion tensor of cell
 Matrix *GetCellVelDisp(Options &opt, const Int_t nbodies, Particle *Part, 
     Int_t ngrid, GridCell *grid, Coordinate *gvel, 
-    VROMPThreadPool *vromp = nullptr);
+    VROMPThreadPool *vromptptp = nullptr);
 //@}
 
 /// \name Subroutines to calculate local velocity density
@@ -165,19 +165,19 @@ Matrix *GetCellVelDisp(Options &opt, const Int_t nbodies, Particle *Part,
 
 ///Calculate local velocity density
 void GetVelocityDensity(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree=NULL,
-    VROMPThreadPool *vromp = nullptr);
+    VROMPThreadPool *vromptp = nullptr);
 ///sub interfaces depending on type of velocity density desired.
 void GetVelocityDensityOld(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree,
-    VROMPThreadPool *vromp = nullptr);
+    VROMPThreadPool *vromptp = nullptr);
 ///Velocity density where only particles in a halo (which is localised to an mpi domain) are within the tree
 void GetVelocityDensityHaloOnlyDen(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree,
-    VROMPThreadPool *vromp = nullptr);
+    VROMPThreadPool *vromptp = nullptr);
 ///exact velocity density, finds for each particle nearest physical neighbours and estimates velocity
 void GetVelocityDensityExact(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree, 
-    VROMPThreadPool *vromp = nullptr);
+    VROMPThreadPool *vromptp = nullptr);
 ///optimised search for cosmological simulations
 void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle *Part, KDTree *tree, 
-    VROMPThreadPool *vromp = nullptr);
+    VROMPThreadPool *vromptp = nullptr);
 //@}
 
 /// \name Suboutines that compare local velocity density to background
@@ -187,14 +187,14 @@ void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle
 ///Calculate logarithmic contrast between local velocity density and background velocity density
 void GetDenVRatio(Options &opt, const Int_t nbodies, Particle *Part, 
     Int_t ngrid, GridCell *grid, Coordinate *gvel, Matrix *gveldisp, 
-    VROMPThreadPool *vromp = nullptr);
+    VROMPThreadPool *vromptp = nullptr);
 ///Characterize the ratio distribution to estimate intrinsic scatter in this estimator
 void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *Part, 
     Double_t &meanr,Double_t &sdlow,Double_t &sdhigh, 
-    int subleve=0, VROMPThreadPool *vromp = nullptr);
+    int subleve=0, VROMPThreadPool *vromptp = nullptr);
 ///Calculate normalized residual
 Int_t GetOutliersValues(Options &opt, const Int_t nbodies, Particle *Part, 
-    int sublevel=0, VROMPThreadPool *vromp = nullptr);
+    int sublevel=0, VROMPThreadPool *vromptp = nullptr);
 
 //@}
 
@@ -219,7 +219,10 @@ Int_t *SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
 ///Search for substructure only as input consists of single halo 
 Int_t *SearchSingleHalo(Options &opt, const Int_t nbodies, vector<Particle> &Part, Int_t &numgroups);
 ///Search the outliers
-Int_t *SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Particle *Partsubset, Int_t &numgroups, Int_t sublevel=0, Int_t *pnumcores=NULL);
+Int_t *SearchSubset(Options &opt, const Int_t nbodies, 
+    const Int_t nsubset, Particle *Partsubset, Int_t &numgroups, 
+    Int_t sublevel=0, Int_t *pnumcores=NULL, 
+    VROMPThreadPool *vromptp = nullptr);
 ///Search for subsubstructures
 void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubset, Int_t *&pfof, Int_t &ngroup, Int_t &nhalos, PropData *pdata=NULL);
 
@@ -227,29 +230,26 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
 void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, 
     Int_t *&pfof, Int_t *&pfofbg, Int_t &numgroupsbg, Double_t param[], vector<Double_t> &dispfac,
     int numactiveloops, vector<int> &corelevel, 
-    VROMPThreadPool *vromp = nullptr);
+    VROMPThreadPool *vromptp = nullptr);
 ///merge substructures and cores if phase-space positions overlap
 void MergeSubstructuresCoresPhase(Options &opt, const Int_t nsubset, Particle *&Partsubset, 
-    Int_t *&pfof, Int_t &numsubs, Int_t &numcores, 
-    VROMPThreadPool *vromp = nullptr);
+    Int_t *&pfof, Int_t &numsubs, Int_t &numcores);
 ///merge substructures if phase-space positions overlap
 void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Partsubset, 
-    Int_t *&pfof, Int_t &numgroups, Int_t &numsubs, Int_t &numcores, 
-    VROMPThreadPool *vromp = nullptr);
+    Int_t *&pfof, Int_t &numgroups, Int_t &numsubs, Int_t &numcores);
 ///remove spurious dynamical substructures that comprise most of their host halo
 void RemoveSpuriousDynamicalSubstructures(Options &opt, const Int_t nsubset, Int_t *&pfof, 
-    Int_t &numgroups, Int_t &numsubs, Int_t &numcores, 
-    VROMPThreadPool *vromp = nullptr);
+    Int_t &numgroups, Int_t &numsubs, Int_t &numcores);
 ///Check significance of each group
 int CheckSignificance(Options &opt, const Int_t nsubset, Particle *Partsubset, 
     Int_t &numgroups, Int_t *numingroups, Int_t *pfof, Int_t **pglist, 
-    VROMPThreadPool *vromp = nullptr);
+    VROMPThreadPool *vromptp = nullptr);
 ///Search for Baryonic structures associated with dark matter structures in phase-space
 Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, 
     const Int_t ndark, vector<Particle> &Partsubset, 
     Int_t *&pfofdark, Int_t &ngroupdark, Int_t &nhalos, 
     int ihaloflag=0, int iinclusive=0, PropData *phalos=NULL, 
-    VROMPThreadPool *vromp = nullptr);
+    VROMPThreadPool *vromptp = nullptr);
 
 ///Get the hierarchy of structures found
 Int_t GetHierarchy(Options &opt, Int_t ngroups, Int_t *nsub, Int_t *parentgid, Int_t *uparentgid, Int_t *stype);
@@ -310,27 +310,28 @@ inline void MarkCell(Node *np, Int_t *marktreecell, Int_t *markleafcell, Int_t &
 int CheckUnboundGroups(Options opt, const Int_t nbodies, Particle *Part, 
     Int_t &ngroup, Int_t *&pfof, Int_t *numingroup=NULL, Int_t **pglist=NULL,
     int ireorder=1, Int_t *groupflag=NULL, 
-    VROMPThreadPool *vromp = nullptr);
+    VROMPThreadPool *vromptp = nullptr);
 ///check if group self-bound
 int Unbind(Options &opt, Particle **gPartList, Int_t &numgroups, Int_t *numingroup, Int_t *pfof, 
     Int_t **pglist, int ireorder=1, 
-    VROMPThreadPool *vromp = nullptr);
+    VROMPThreadPool *vromptp = nullptr);
 int Unbind(Options &opt, Particle *Part, Int_t &numgroups, Int_t *&numingroup, Int_t *&noffset, 
     Int_t *&pfof, 
-    VROMPThreadPool *vromp = nullptr);
+    VROMPThreadPool *vromptp = nullptr);
 ///calculate the potential of an array of particles
-void Potential(Options &opt, Int_t nbodies, Particle *Part, Double_t *potV);
+void Potential(Options &opt, Int_t nbodies, Particle *Part, Double_t *potV, 
+    VROMPThreadPool *vromptp = nullptr);
 void Potential(Options &opt, Int_t nbodies, Particle *Part, 
-    VROMPThreadPool *vromp = nullptr);
+    VROMPThreadPool *vromptp = nullptr);
 void ParticleSubSample(Options &opt, const Int_t nbodies, Particle *&Part,
-    Int_t &newnbodies, Particle *&newpart, double &mr);
+    Int_t &newnbodies, Particle *&newpart, double &mr, 
+    VROMPThreadPool *vromptp = nullptr);
 void PotentialTree(Options &opt, Int_t nbodies, Particle *&Part, KDTree* &tree, 
-    VROMPThreadPool *vromp = nullptr);
-void PotentialInterpolate(Options &opt, const Int_t nbodies, Particle *&Part, Particle *&interolateparts, KDTree *&tree, double massratio, int nsearch,
-    VROMPThreadPool *vromp = nullptr);
-
-void PotentialPP(Options &opt, Int_t nbodies, Particle *Part,
-    VROMPThreadPool *vromp = nullptr);
+    VROMPThreadPool *vromptp = nullptr);
+void PotentialInterpolate(Options &opt, const Int_t nbodies, Particle *&Part, 
+    Particle *&interolateparts, KDTree *&tree, double massratio, int nsearch,
+    VROMPThreadPool *vromptp = nullptr);
+void PotentialPP(Options &opt, Int_t nbodies, Particle *Part);
 //@}
 
 /// \name Routines to determine bulk quantities of halo and adjust halo
@@ -391,25 +392,25 @@ void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *Part, Int_t n
 
 
 ///Get Morphology properties (since this is for a particular system just use pointer interface)
-void GetGlobalSpatialMorphology(const Int_t nbodies, Particle *p, Double_t& q, Double_t& s, Double_t Error, Matrix& eigenvec, int imflag=0, int itype=-1, int iiterate=1);
+void GetGlobalSpatialMorphology(const Int_t nbodies, Particle *p, Double_t& q, Double_t& s, Double_t Error, Matrix& eigenvec, int imflag=0, int itype=-1, int iiterate=1, VROMPThreadPool *vromptp = nullptr);
 ///Calculate inertia tensor and eigvector
-void CalcITensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t &c, Matrix& eigenvec, Matrix &I, int itype);
+void CalcITensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t &c, Matrix& eigenvec, Matrix &I, int itype, VROMPThreadPool *vromptp = nullptr);
 ///Calculate position dispersion tensor and eigvector
-void CalcPosSigmaTensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t &c, Matrix& eigenvec, Matrix &I, int itype=-1);
+void CalcPosSigmaTensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t &c, Matrix& eigenvec, Matrix &I, int itype=-1, VROMPThreadPool *vromptp = nullptr);
 ///Calculate velocity dispersion tensor and eigvector
-void CalcVelSigmaTensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t &c, Matrix& eigenvec, Matrix &I, int itype=-1, int nthreads = -1);
+void CalcVelSigmaTensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t &c, Matrix& eigenvec, Matrix &I, int itype=-1, VROMPThreadPool *vromptp = nullptr);
 ///Calculate phase-space dispersion tensor and eigvector
-void CalcPhaseSigmaTensor(const Int_t n, Particle *p, GMatrix &eigenvalues, GMatrix& eigenvec, GMatrix &I, int itype=-1);
+void CalcPhaseSigmaTensor(const Int_t n, Particle *p, GMatrix &eigenvalues, GMatrix& eigenvec, GMatrix &I, int itype=-1, VROMPThreadPool *vromptp = nullptr);
 ///Calculate phase-space dispersion tensor
-void CalcPhaseSigmaTensor(const Int_t n, Particle *p, GMatrix &I, int itype=-1);
+void CalcPhaseSigmaTensor(const Int_t n, Particle *p, GMatrix &I, int itype=-1, VROMPThreadPool *vromptp = nullptr);
 ///Calculate the reduced weighted inertia tensor used to determine the spatial morphology
-void CalcMTensor(Matrix& M, const Double_t q, const Double_t s, const Int_t n, Particle *p, int itype);
+void CalcMTensor(Matrix& M, const Double_t q, const Double_t s, const Int_t n, Particle *p, int itype, VROMPThreadPool *vromptp = nullptr);
 ///Same as \ref CalcMTensor but include mass
-void CalcMTensorWithMass(Matrix& M, const Double_t q, const Double_t s, const Int_t n, Particle *p, int itype);
+void CalcMTensorWithMass(Matrix& M, const Double_t q, const Double_t s, const Int_t n, Particle *p, int itype, VROMPThreadPool *vromptp = nullptr);
 ///Rotate particles to some coordinate frame
-void RotParticles(const Int_t n, Particle *p, Matrix &R);
+void RotParticles(const Int_t n, Particle *p, Matrix &R, VROMPThreadPool *vromptp = nullptr);
 ///get phase-space center-of-mass
-GMatrix CalcPhaseCM(const Int_t n, Particle *p, int itype=-1, int nthreads = -1);
+GMatrix CalcPhaseCM(const Int_t n, Particle *p, int itype=-1, VROMPThreadPool *vromptp = nullptr);
 
 ///get concentration routines associted with finding concentrations via root finding
 void CalcConcentration(PropData &p);

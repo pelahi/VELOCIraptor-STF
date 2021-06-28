@@ -54,6 +54,12 @@ struct OMP_ImportInfo {
 class VROMPThreadPool
 {
     public :
+        /// allow for parallel omp
+        bool allowomp, allowoffload;
+        /// total number of levels 
+        unsigned int nlevels;
+        /// current omp levle 
+        unsigned int ncurlevel; 
         ///total number of threads 
         unsigned int nthreads;
         ///number of active idle threads that can be given tasks to do 
@@ -75,6 +81,9 @@ class VROMPThreadPool
         VROMPThreadPool();
         VROMPThreadPool(const VROMPThreadPool &) = default;
         VROMPThreadPool(VROMPThreadPool &&) = default;
+        /// build pool based on input VROMPThreadPool pointer or 
+        /// system defaults if pointer to thread pool null 
+        VROMPThreadPool(VROMPThreadPool *);
         VROMPThreadPool& operator=(const VROMPThreadPool&) = default;
         VROMPThreadPool& operator=(VROMPThreadPool&&) = default;
         //@}
@@ -96,11 +105,15 @@ class VROMPThreadPool
         void ActivateGPU(unsigned int nactivate=1);
         ///  deactivate a GPU and move it to idle pool  
         void DeactivateGPU(unsigned int ndeactivate=1);
+
         /// close pool 
         void Close();
+
+
         //@}
 
         void Print();
+
 };
 
 #endif

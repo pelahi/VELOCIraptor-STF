@@ -997,7 +997,9 @@ private(i,j,diff,gid)
     how the search should be localized. It should definitely be localized prior to CheckSignificance and the search window across mpi domains should use the larger
     physical search window used by the iterative search if that has been called.
  */
-Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Particle *Partsubset, Int_t &numgroups, Int_t sublevel, Int_t *pnumcores)
+Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, 
+    Particle *Partsubset, Int_t &numgroups, Int_t sublevel, Int_t *pnumcores,
+    VROMPThreadPool *vromptp)
 {
     KDTree *tree;
     Int_t *pfof, i, ii;
@@ -1411,7 +1413,7 @@ private(i,tid)
         numingroup=BuildNumInGroup(nsubset, numgroups, pfof);
         //pglist is constructed without assuming particles are in index order
         pglist=BuildPGList(nsubset, numgroups, numingroup, pfof, Partsubset);
-        CheckSignificance(opt,nsubset,Partsubset,numgroups,numingroup,pfof,pglist);
+        CheckSignificance(opt,nsubset,Partsubset,numgroups,numingroup,pfof,pglist,vromptp);
         for (i=1;i<=numgroups;i++) delete[] pglist[i];
         delete[] pglist;
         delete[] numingroup;
@@ -1800,7 +1802,8 @@ private(i,tid)
             //tagged neighbour in phase-space.
             if(pnumcores!=NULL) *pnumcores=numgroupsbg;
             if (opt.iHaloCoreSearch>=2) {
-                HaloCoreGrowth(opt, nsubset, Partsubset, pfof, pfofbg, numgroupsbg, param,dispfac,numactiveloops,corelevel,nthreads);
+                HaloCoreGrowth(opt, nsubset, Partsubset, pfof, pfofbg, numgroupsbg, 
+                    param, dispfac, numactiveloops, corelevel, vromptp);
                 if(pnumcores!=NULL) *pnumcores=numgroupsbg;
                 if (numgroupsbg>=bgoffset+1) {
                     for (i=0;i<nsubset;i++) if (pfofbg[i]>bgoffset) pfof[i]=numgroups+(pfofbg[i]-bgoffset);
@@ -1979,7 +1982,7 @@ Int_t * SearchSingleHalo(Options &opt, const Int_t nbodies, vector<Particle> &Pa
 //search for unassigned background particles if cores have been found.
 void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, Int_t *&pfof, Int_t *&pfofbg, Int_t &numgroupsbg, Double_t param[], vector<Double_t> &dispfac,
     int numactiveloops, vector<int> &corelevel,
-    VROMPThreadPool *vromp)
+    VROMPThreadPool *vromptp)
 {
     //for simplicity make a new particle array storing core particles
     Int_t nincore=0,nbucket=opt.Bsize,pid, pidcore;
@@ -2001,8 +2004,8 @@ void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, In
     vector<Int_t> noffset(numgroupsbg+1,0);
 #ifdef USEOPENMP 
     int nthreads;
-    if (vromp == nullptr) nthreads = omp_get_max_threads();
-    else nthreads = vromp->nthreads;
+    if (vromptp == nullptr) nthreads = omp_get_max_threads();
+    else nthreads = vromptp->nthreads;
 #endif
 
     //determine the weights for the cores dispersions factors
@@ -2743,8 +2746,8 @@ int setNthreads(){
 #ifdef USEOPENMP 
 /// how number of threads used in workshare parallel for should be scaled 
 /// based on size of object being searched 
-inline int SubSubSearchScaleThreads(int nsize, int curmaxnthreads) {
-    return min(static_cast<unsigned int>(max(static_cast<unsigned int>(floor(nsize/static_cast<double>(ompsubsearchnum))),1u)), maxnthreads);
+inline unsigned int SubSubSearchScaleThreads(Int_t nsize, unsigned int curmaxnthreads) {
+    return min(static_cast<unsigned int>(max(static_cast<unsigned int>(floor(static_cast<double>(nsize)/static_cast<double>(ompsubsearchnum))),1u)), curmaxnthreads);
 } 
 #endif 
 
@@ -2774,12 +2777,12 @@ inline Particle *subPartCopy(Options &opt, Int_t subnumingroup, vector<Particle>
 
 ///adjust to phase centre
 inline void AdjustSubPartToPhaseCM(Int_t num, Particle *subPart, GMatrix &cmphase, 
-    VROMPThreadPool *vromp = nullptr)
+    VROMPThreadPool *vromptp = nullptr)
 {
 #ifdef USEOPENMP
     int nthreads;
-    if (vromp == nullptr) nthreads = omp_get_max_threads();
-    else nthreads = vromp->nthreads;
+    if (vromptp == nullptr) nthreads = omp_get_max_threads();
+    else nthreads = vromptp->nthreads;
 #pragma omp parallel for \
 default(shared)  \
 num_threads(nthreads) if (num > ompperiodnum && nthreads > 1)
@@ -2792,15 +2795,15 @@ num_threads(nthreads) if (num > ompperiodnum && nthreads > 1)
 
 ///Pre-calcualtions for searching for substructure
 inline void PreCalcSearchSubSet(Options &opt, Int_t subnumingroup,  Particle *&subPart, Int_t sublevel, 
-    VROMPThreadPool *vromp = nullptr)
+    VROMPThreadPool *vromptp = nullptr)
 {
 #ifndef USEMPI
     int ThisTask = 0;
 #endif
 #ifdef USEOPENMP 
     int nthreads;
-    if (vromp == nullptr) nthreads = omp_get_max_threads();
-    else nthreads = vromp->nthreads;
+    if (vromptp == nullptr) nthreads = omp_get_max_threads();
+    else nthreads = vromptp->nthreads;
 #endif 
     KDTree *tree;
     Int_t ngrid;
@@ -2819,30 +2822,30 @@ inline void PreCalcSearchSubSet(Options &opt, Int_t subnumingroup,  Particle *&s
         ngrid=tree->GetNumLeafNodes();
         grid=new GridCell[ngrid];
         FillTreeGrid(opt, subnumingroup, ngrid, tree, subPart, grid);
-        gvel=GetCellVel(opt, subnumingroup, subPart, ngrid, grid, vromp);
-        gveldisp=GetCellVelDisp(opt, subnumingroup, subPart, ngrid, grid, gvel, vromp);
+        gvel=GetCellVel(opt, subnumingroup, subPart, ngrid, grid, vromptp);
+        gveldisp=GetCellVelDisp(opt, subnumingroup, subPart, ngrid, grid, gvel, vromptp);
 
         opt.HaloLocalSigmaV=0;
         for (auto j=0;j<ngrid;j++) opt.HaloLocalSigmaV+=pow(gveldisp[j].Det(),1./3.);opt.HaloLocalSigmaV/=(double)ngrid;
 
         Matrix eigvec(0.),I(0.);
         Double_t sigma2x,sigma2y,sigma2z;
-        CalcVelSigmaTensor(subnumingroup, subPart, sigma2x, sigma2y, sigma2z, eigvec, I, -1, vromp);
+        CalcVelSigmaTensor(subnumingroup, subPart, sigma2x, sigma2y, sigma2z, eigvec, I, -1, vromptp);
         //\todo need to update this
         opt.HaloSigmaV=pow(sigma2x*sigma2y*sigma2z,1.0/3.0);
         if (opt.HaloSigmaV>opt.HaloVelDispScale) opt.HaloVelDispScale=opt.HaloSigmaV;
 #ifdef HALOONLYDEN
         GetVelocityDensity(opt,subnumingroup,subPart);
 #endif
-        GetDenVRatio(opt,subnumingroup, subPart, ngrid, grid, gvel, gveldisp, vromp);
-        GetOutliersValues(opt,subnumingroup, subPart, sublevel, vromp);
+        GetDenVRatio(opt,subnumingroup, subPart, ngrid, grid, gvel, gveldisp, vromptp);
+        GetOutliersValues(opt,subnumingroup, subPart, sublevel, vromptp);
         opt.idenvflag++;//largest field halo used to deteremine statistics of ratio
     }
     //otherwise only need to calculate a velocity scale for merger separation
     else {
         Matrix eigvec(0.),I(0.);
         Double_t sigma2x,sigma2y,sigma2z;
-        CalcVelSigmaTensor(subnumingroup, subPart, sigma2x, sigma2y, sigma2z, eigvec, I, -1, vromp);
+        CalcVelSigmaTensor(subnumingroup, subPart, sigma2x, sigma2y, sigma2z, eigvec, I, -1, vromptp);
         opt.HaloLocalSigmaV=opt.HaloSigmaV=pow(sigma2x*sigma2y*sigma2z,1.0/3.0);
     }
 }
@@ -2853,7 +2856,7 @@ inline void CleanAndUpdateGroupsFromSubSearch(Options &opt,
     Int_t **&subsubpglist, Int_t &numcores,
     Int_t *&subpglist,
     Int_t *&pfof, Int_t &ngroup, Int_t &ngroupidoffset, 
-    VROMPThreadPool *vromp = nullptr)
+    VROMPThreadPool *vromptp = nullptr)
 {
     bool iunbindflag;
     Int_t ng=subngroup;
@@ -2873,7 +2876,7 @@ inline void CleanAndUpdateGroupsFromSubSearch(Options &opt,
             coreflag=NULL;
         }
         iunbindflag = CheckUnboundGroups(opt, subnumingroup, subPart,
-            subngroup, subpfof, subsubnumingroup, subsubpglist, 1, coreflag, nthreads);
+            subngroup, subpfof, subsubnumingroup, subsubpglist, 1, coreflag, vromptp);
         if (iunbindflag) {
             for (auto j=1;j<=ng;j++) delete[] subsubpglist[j];
             delete[] subsubnumingroup;
@@ -3429,7 +3432,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
     Check significance of group using significance parameter.  A group is considered significant if (ave/expected ave) (and possibly (max-min)/varexpected] is significant relative to Poisson noise.
     If a group is not start removing particle with lowest ell value.
 */
-int CheckSignificance(Options &opt, const Int_t nsubset, Particle *Partsubset, Int_t &numgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist)
+int CheckSignificance(Options &opt, const Int_t nsubset, Particle *Partsubset, Int_t &numgroups, Int_t *numingroup, Int_t *pfof, Int_t **pglist, VROMPThreadPool *vromptp)
 {
     Int_t i;
     Double_t ellaveexp, ellvallim;
@@ -3536,7 +3539,7 @@ private(i)
  *
  * \todo might use full phase-space tensor association.
 */
-Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const Int_t ndark, vector<Particle> &Part, Int_t *&pfofdark, Int_t &ngroupdark, Int_t &nhalos, int ihaloflag, int iinclusive, PropData *pdata)
+Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const Int_t ndark, vector<Particle> &Part, Int_t *&pfofdark, Int_t &ngroupdark, Int_t &nhalos, int ihaloflag, int iinclusive, PropData *pdata, VROMPThreadPool *vromptp)
 {
     KDTree *tree;
     Double_t *period;

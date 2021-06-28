@@ -3106,7 +3106,9 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
 
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typeparts,n,dx,EncMass,J,rc,rhoval,rhoval2,tid,SOpids,iSOfound, massval)
+private(i,j,k, taggedparts, radii, masses, indices, posref, \
+posparts, velparts, typeparts, n, dx, EncMass, J, rc, \
+rhoval, rhoval2, tid, SOpids, iSOfound, massval)
 {
 #pragma omp for schedule(dynamic) nowait
 #endif
@@ -3304,7 +3306,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
 ///\name Routines to calculate specific property of a set of particles
 //@{
 ///Get spatial morphology using iterative procedure
-void GetGlobalSpatialMorphology(const Int_t nbodies, Particle *p, Double_t& q, Double_t& s, Double_t Error, Matrix& eigenvec, int imflag, int itype, int iiterate)
+void GetGlobalSpatialMorphology(const Int_t nbodies, Particle *p, Double_t& q, Double_t& s, Double_t Error, Matrix& eigenvec, int imflag, int itype, int iiterate, VROMPThreadPool *vromptp)
 {
     // Calculate the axial ratios q and s.
     int MAXIT=10;
@@ -3320,7 +3322,7 @@ void GetGlobalSpatialMorphology(const Int_t nbodies, Particle *p, Double_t& q, D
     {
         M = Matrix(0.0);
         eigenvecp=Matrix(0.);
-        if (imflag==1)CalcMTensorWithMass(M, q, s, nbodies, p,itype);
+        if (imflag==1) CalcMTensorWithMass(M, q, s, nbodies, p, itype, vromptp);
         else CalcMTensor(M, q, s, nbodies, p,itype);
         e = M.Eigenvalues();
         oldq = q;olds = s;
@@ -3332,11 +3334,11 @@ void GetGlobalSpatialMorphology(const Int_t nbodies, Particle *p, Double_t& q, D
     } while ((fabs(olds - s) > Error || fabs(oldq - q) > Error) && i<MAXIT);
     //rotate system back to original coordinate frame
     R=eigenvec.Transpose();
-    RotParticles(nbodies, p, R);
+    RotParticles(nbodies, p, R, vromptp);
     }
     else {
-        if (imflag==1)CalcMTensorWithMass(M, q, s, nbodies, p,itype);
-        else CalcMTensor(M, q, s, nbodies, p,itype);
+        if (imflag==1)CalcMTensorWithMass(M, q, s, nbodies, p, itype, vromptp);
+        else CalcMTensor(M, q, s, nbodies, p, itype, vromptp);
         e = M.Eigenvalues();
         oldq = q;olds = s;
         q = sqrt(e[1] / e[0]);s = sqrt(e[2] / e[0]);
@@ -3346,7 +3348,7 @@ void GetGlobalSpatialMorphology(const Int_t nbodies, Particle *p, Double_t& q, D
 }
 
 ///calculate the inertia tensor and return the dispersions (weight by 1/mtot)
-void CalcITensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t &c, Matrix& eigenvec, Matrix &I, int itype)
+void CalcITensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t &c, Matrix& eigenvec, Matrix &I, int itype, VROMPThreadPool *vromptp)
 {
     Double_t r2,Ixx,Iyy,Izz,Ixy,Ixz,Iyz, weight;
     Coordinate e;
@@ -3410,7 +3412,7 @@ private(i,r2,weight)
 }
 
 ///calculate the position dispersion tensor
-void CalcPosSigmaTensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t &c, Matrix& eigenvec, Matrix &I, int itype)
+void CalcPosSigmaTensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t &c, Matrix& eigenvec, Matrix &I, int itype, VROMPThreadPool *vromptp)
 {
     Double_t Ixx,Iyy,Izz,Ixy,Ixz,Iyz, weight;
     Coordinate e;
@@ -3472,7 +3474,7 @@ private(i,weight)
 }
 
 ///calculate the velocity dispersion tensor
-void CalcVelSigmaTensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t &c, Matrix& eigenvec, Matrix &I, int itype, int nthreads)
+void CalcVelSigmaTensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Double_t &c, Matrix& eigenvec, Matrix &I, int itype, VROMPThreadPool *vromptp)
 {
     Double_t Ixx,Iyy,Izz,Ixy,Ixz,Iyz, weight;
     Coordinate e;
@@ -3482,9 +3484,11 @@ void CalcVelSigmaTensor(const Int_t n, Particle *p, Double_t &a, Double_t &b, Do
     Double_t mtot=0;
 #ifdef USEOPENMP
     if (n>=ompunbindnum) {
-        if (nthreads == -1) nthreads = omp_get_max_threads();
+        int nthreads;
+        if (vromptp == nullptr) nthreads = omp_get_max_threads();
+        else nthreads = vromptp->nthreads;
 #pragma omp parallel default(shared) \
-private(i,weight) num_threads(nthreads)
+private(i,weight) num_threads(nthreads) if (nthreads > 1)
 {
 #pragma omp for schedule(dynamic) reduction(+:Ixx,Iyy,Izz,Ixy,Ixz,Iyz,mtot)
     for (i = 0; i < n; i++)
@@ -3536,13 +3540,13 @@ private(i,weight) num_threads(nthreads)
 }
 
 ///calculate the phase-space dispersion tensor
-void CalcPhaseSigmaTensor(const Int_t n, Particle *p, GMatrix &eigenvalues, GMatrix& eigenvec, GMatrix &I, int itype)
+void CalcPhaseSigmaTensor(const Int_t n, Particle *p, GMatrix &eigenvalues, GMatrix& eigenvec, GMatrix &I, int itype, VROMPThreadPool *vromptp)
 {
-    CalcPhaseSigmaTensor(n, p,  I, itype);
+    CalcPhaseSigmaTensor(n, p,  I, itype, vromptp);
     I.Eigenvalvec(eigenvalues, eigenvec);
 }
 
-void CalcPhaseSigmaTensor(const Int_t n, Particle *p, GMatrix &I, int itype) {
+void CalcPhaseSigmaTensor(const Int_t n, Particle *p, GMatrix &I, int itype, VROMPThreadPool *vromptp) {
     Double_t weight;
     Double_t Ixx,Iyy,Izz,Ixy,Ixz,Iyz;
     Double_t Ivxvx,Ivyvy,Ivzvz,Ivxvy,Ivxvz,Ivyvz;
@@ -3634,7 +3638,7 @@ private(i,weight)
 }
 
 ///calculate the weighted reduced inertia tensor assuming particles are the same mass
-void CalcMTensor(Matrix& M, const Double_t q, const Double_t s, const Int_t n, Particle *p, int itype)
+void CalcMTensor(Matrix& M, const Double_t q, const Double_t s, const Int_t n, Particle *p, int itype, VROMPThreadPool *vromptp)
 {
     Int_t i;
     int j,k;
@@ -3689,7 +3693,7 @@ private(i,a2,weight)
 }
 
 ///calculate the weighted reduced inertia tensor
-void CalcMTensorWithMass(Matrix& M, const Double_t q, const Double_t s, const Int_t n, Particle *p, int itype)
+void CalcMTensorWithMass(Matrix& M, const Double_t q, const Double_t s, const Int_t n, Particle *p, int itype, VROMPThreadPool *vromptp)
 {
     Int_t i;
     int j,k;
@@ -3744,7 +3748,7 @@ private(i,a2,weight)
 }
 
 ///rotate particles
-void RotParticles(const Int_t n, Particle *p, Matrix &R)
+void RotParticles(const Int_t n, Particle *p, Matrix &R, VROMPThreadPool *vromptp)
 {
     Int_t i;
     int j;
@@ -3787,7 +3791,7 @@ private(i,j,temp)
 }
 
 ///calculate the phase-space dispersion tensor
-GMatrix CalcPhaseCM(const Int_t n, Particle *p, int itype, int nthreads)
+GMatrix CalcPhaseCM(const Int_t n, Particle *p, int itype, VROMPThreadPool *vromptp)
 {
     Double_t weight;
     Double_t cmx,cmy,cmz,cmvx,cmvy,cmvz;
@@ -3796,10 +3800,12 @@ GMatrix CalcPhaseCM(const Int_t n, Particle *p, int itype, int nthreads)
     cmx=cmy=cmz=cmvx=cmvy=cmvz=0;
     Double_t mtot=0;
 #ifdef USEOPENMP
+    int nthreads;
     if (n>=ompunbindnum) {
-        if (nthreads == -1) nthreads = omp_get_max_threads();
+        if (vromptp == nullptr) nthreads = omp_get_max_threads();
+        else nthreads = vromptp->nthreads;
 #pragma omp parallel default(shared) \
-private(i,weight) num_threads(nthreads)
+private(i,weight) num_threads(nthreads) if (nthreads > 1)
 {
 #pragma omp for schedule(dynamic) reduction(+:cmx,cmy,cmz,cmvx,cmvy,cmvz,mtot)
     for (i = 0; i < n; i++)
