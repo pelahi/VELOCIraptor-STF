@@ -252,7 +252,7 @@ void OpenMPLinkAcross(Options &opt,
                         if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1)
                             if (!(fofcheck(Part[curIndex],param)==0 && fofcheck(*Pval,param)==0)) continue;
                         //if local group id is larger or if groups are equal in size, alter the local one if id is larger, change locally
-                        if ((Len[curIndex] < lengthcomp) || (Len[curIndex] == lengthcomp && pfof[orgIndex] > pfofcomp)) {
+                        if ((Len[curIndex] < lengthcomp && pfof[orgIndex] != pfofcomp) || (Len[curIndex] == lengthcomp && pfof[orgIndex] > pfofcomp)) {
                             Int_t ss = Head[curIndex];
                             do{
                                 orgIndex = storeorgIndex[Part[ss+ompdomain[i].noffset].GetID()+ompdomain[i].noffset];
