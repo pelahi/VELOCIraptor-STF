@@ -81,6 +81,32 @@ void H5OutputFile::close()
 }
 
 
+void H5OutputFile::write_dataset(Options opt, string name, hsize_t len, void *data,
+   hid_t memtype_id, hid_t filetype_id, bool flag_parallel)
+{
+    int rank = 1;
+    hsize_t dims[1] = {len};
+    write_dataset_nd(opt, name, rank, dims, data, memtype_id, filetype_id, flag_parallel);
+}
+
+void H5OutputFile::write_dataset(Options opt, string name, hsize_t len, string data,
+    bool flag_parallel)
+{
+#ifdef USEPARALLELHDF
+    assert(!flag_parallel);
+#endif
+    int rank = 1;
+    hsize_t dims[1] = {len};
+    auto memtype_id = safe_hdf5(H5Tcopy, H5T_C_S1);
+    safe_hdf5(H5Tset_size, memtype_id, data.size());
+    auto filetype_id = safe_hdf5(H5Tcopy, H5T_C_S1);
+    safe_hdf5(H5Tset_size, filetype_id, data.size());
+    write_dataset_nd(opt, name, rank, dims, data.data(), memtype_id, filetype_id, false);
+    safe_hdf5(H5Tclose, filetype_id);
+    safe_hdf5(H5Tclose, memtype_id);
+}
+
+
 static hid_t get_dataset_creation_property(int rank, hsize_t *dims)
 {
 #ifdef USEHDFCOMPRESSION

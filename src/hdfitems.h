@@ -531,70 +531,17 @@ public:
     template <typename T> void write_dataset(Options opt, std::string name, hsize_t len, T *data,
        hid_t memtype_id = -1, hid_t filetype_id=-1, bool flag_parallel = true)
     {
-        int rank = 1;
-        hsize_t dims[1] = {len};
-        if (memtype_id == -1) memtype_id = hdf5_type(T{});
-        write_dataset_nd(opt, name, rank, dims, data, memtype_id, filetype_id, flag_parallel);
+        assert(memtype_id == -1);
+        assert(filetype_id == -1);
+        memtype_id = hdf5_type(T{});
+        write_dataset(opt, name, len, static_cast<void *>(data),
+                      memtype_id, filetype_id, flag_parallel);
     }
-    void write_dataset(Options opt, string name, hsize_t len, string data, bool flag_parallel = true, bool flag_collective = true)
-    {
-        if (verbose && LOG_ENABLED(debug)) {
-            LOG(debug) << "Writing dataset " << name << " with " << len << " elements";
-        }
-#ifdef USEPARALLELHDF
-        MPI_Comm comm = mpi_comm_write;
-        MPI_Info info = MPI_INFO_NULL;
-#endif
-        int rank = 1;
-        hsize_t dims[1] = {len};
 
-        hid_t memtype_id, filetype_id, dspace_id, dset_id, xfer_plist;
-        herr_t status, ret;
-        memtype_id = H5Tcopy (H5T_C_S1);
-        status = H5Tset_size (memtype_id, data.size());
-        filetype_id = H5Tcopy (H5T_C_S1);
-        status = H5Tset_size (filetype_id, data.size());
-
-        // Create the dataspace
-        dspace_id = H5Screate_simple(rank, dims, NULL);
-
-        // Create the dataset
-        dset_id = H5Dcreate(file_id, name.c_str(), filetype_id, dspace_id,
-            H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-#ifdef USEPARALLELHDF
-        if ((flag_parallel) & (opt.mpinprocswritesize>1)) {
-            // set up the collective transfer properties list
-            xfer_plist = H5Pcreate(H5P_DATASET_XFER);
-            if (xfer_plist < 0) io_error(string("Failed to set up parallel transfer: ")+name);
-            if (flag_collective) ret = H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_COLLECTIVE);
-            else ret = H5Pset_dxpl_mpio(xfer_plist, H5FD_MPIO_INDEPENDENT);
-            if (ret < 0) io_error(string("Failed to set up parallel transfer: ")+name);
-            // the result of above should be that all processors write to the same
-            // point of the hdf file.
-        }
-#endif
-        // Write the data
-        if(H5Dwrite(dset_id, memtype_id, dspace_id, H5S_ALL, H5P_DEFAULT, data.c_str()) < 0)
-        io_error(string("Failed to write dataset: ")+name);
-
-        // Clean up (note that dtype_id is NOT a new object so don't need to close it)
-#ifdef USEPARALLELHDF
-        if ((flag_parallel) & (opt.mpinprocswritesize>1)) H5Pclose(xfer_plist);
-#endif
-        H5Sclose(dspace_id);
-        H5Dclose(dset_id);
-    }
     void write_dataset(Options opt, string name, hsize_t len, void *data,
-       hid_t memtype_id=-1, hid_t filetype_id=-1, bool flag_parallel = true)
-    {
-        int rank = 1;
-      	hsize_t dims[1] = {len};
-        if (memtype_id == -1) {
-            throw std::runtime_error("Write data set called with void pointer but no type info passed.");
-        }
-        write_dataset_nd(opt, name, rank, dims, data, memtype_id, filetype_id, flag_parallel);
-    }
+       hid_t memtype_id, hid_t filetype_id = -1, bool flag_parallel = true);
 
+    void write_dataset(Options opt, string name, hsize_t len, string data, bool flag_parallel = true);
 
     /// Write a multidimensional dataset. Data type of the new dataset is taken to be the type of
     /// the input data if not explicitly specified with the filetype_id parameter. This is just
@@ -604,13 +551,11 @@ public:
         hid_t memtype_id = -1, hid_t filetype_id = -1,
         bool flag_parallel = true)
     {
-
-      // Get HDF5 data type of the array in memory
-      if (memtype_id == -1) memtype_id = hdf5_type(T{});
-
-      // Write the data
-      write_dataset_nd(opt, name, rank, dims, (void *) data,
-                       memtype_id, filetype_id, flag_parallel);
+        if (memtype_id == -1) {
+            memtype_id = hdf5_type(T{});
+        }
+        write_dataset_nd(opt, name, rank, dims, (void *) data,
+                         memtype_id, filetype_id, flag_parallel);
     }
 
     void write_dataset_nd(Options opt, std::string name, int rank, hsize_t *dims, void *data,
