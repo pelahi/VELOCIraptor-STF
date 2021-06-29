@@ -118,9 +118,11 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
 
 #ifdef USEMPI
     //if using mpi no need to locally sort just yet and might as well return the Head, Len, Next arrays
-    Head=new Int_tree_t[nbodies];Next=new Int_tree_t[nbodies];
+    Head=new Int_tree_t[nbodies];
+    Next=new Int_tree_t[nbodies];
 #else
-    Head=NULL;Next=NULL;
+    Head=NULL;
+    Next=NULL;
 #endif
 
     //get memory usage
@@ -140,6 +142,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         Head = new Int_tree_t[nbodies];
         Next = new Int_tree_t[nbodies];
 #endif
+        Len = new Int_tree_t[nbodies];
         Int_t *omp_nrecv_total = new Int_t[numompregions];
         Int_t *omp_nrecv_offset = new Int_t[numompregions];
         OMP_ImportInfo *ompimport;
@@ -147,18 +150,18 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         //get fof in each region
         numgroups = OpenMPLocalSearch(opt,
             nbodies, Part, pfof, storeorgIndex,
-            Head, Next,
+            Head, Next, Len, 
             tree3dfofomp, param, rdist, ompminsize, fofcmp,
             numompregions, ompdomain);
         if (opt.iverbose) cout<<ThisTask<<": finished omp local search of "<<numompregions<<" containing total of "<<numgroups<<" groups "<<MyElapsedTime(time3)<<endl;
         if (numgroups > 0) {
 
         //then for each omp region determine the particles to "import" from other omp regions
-        ompimport = OpenMPImportParticles(opt, nbodies, Part, pfof, storeorgIndex,
+        ompimport = OpenMPImportParticles(opt, nbodies, Part, pfof, Len, storeorgIndex,
             numompregions, ompdomain, rdist,
             omp_nrecv_total, omp_nrecv_offset, omp_import_total);
         if (omp_import_total > 0) {
-            OpenMPLinkAcross(opt, nbodies, Part, pfof, storeorgIndex, Head, Next,
+            OpenMPLinkAcross(opt, nbodies, Part, pfof, storeorgIndex, Head, Next, Len,
                 param, fofcheck, numompregions, ompdomain, tree3dfofomp,
                 omp_nrecv_total, omp_nrecv_offset, ompimport);
 
@@ -170,6 +173,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         delete[] Head;
         delete[] Next;
 #endif
+        delete[] Len;
         delete[] omp_nrecv_total;
         delete[] omp_nrecv_offset;
 

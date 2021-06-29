@@ -46,7 +46,7 @@ struct OMP_Domain {
 
 ///structure relevant for exchanging particle information between openmp domains
 struct OMP_ImportInfo {
-    Int_t index, pfof;
+    Int_t index, pfof, length;
     int task;
 };
 #endif

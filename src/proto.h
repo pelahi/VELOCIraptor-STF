@@ -470,19 +470,20 @@ int OpenMPInDomain(Particle &Part, Double_t bnd[3][2], Double_t rdist);
 ///Search all OpenMP domains using FOF algorithm
 Int_t OpenMPLocalSearch(Options &opt,
     const Int_t nbodies, vector<Particle> &Part, Int_t * &pfof, Int_t *&storeorgIndex,
-    Int_tree_t *&Head, Int_tree_t *&Next,
+    Int_tree_t *&Head, Int_tree_t *&Next, Int_tree_t *&Len, 
     KDTree **&tree3dfofomp, Double_t *param, const Double_t rdist, const Int_t ompminsize, FOFcompfunc fofcomp,
     const Int_t numompregions, OMP_Domain *&ompdomain);
 
 ///determine particle to import from other OpenMP domains
-OMP_ImportInfo *OpenMPImportParticles(Options &opt, const Int_t nbodies, vector<Particle> &Part, Int_t * &pfof, Int_t *&storetype,
+OMP_ImportInfo *OpenMPImportParticles(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
+    Int_t * &pfof, Int_tree_t *&Len, Int_t *&storetype,
     const Int_t numompregions, OMP_Domain *&ompdomain, const Double_t rdist,
     Int_t *&omp_nrecv_total, Int_t *&omp_nrecv_offset, Int_t &omp_import_total);
 
 ///link across mpi domains
 void OpenMPLinkAcross(Options &opt,
     Int_t nbodies, vector<Particle> &Part, Int_t * &pfof,
-    Int_t *&storetype, Int_tree_t *&Head, Int_tree_t *&Next,
+    Int_t *&storetype, Int_tree_t *&Head, Int_tree_t *&Next, Int_tree_t *&Len, 
     Double_t *param, FOFcheckfunc &fofcheck,
     const Int_t numompregions, OMP_Domain *&ompdomain, KDTree **tree3dfofomp,
     Int_t *&omp_nrecv_total, Int_t *&omp_nrecv_offset, OMP_ImportInfo* &ompimport);
