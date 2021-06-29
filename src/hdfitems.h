@@ -529,12 +529,12 @@ public:
     /// Write a new 1D dataset. Data type of the new dataset is taken to be the type of
     /// the input data if not explicitly specified with the filetype_id parameter.
     template <typename T> void write_dataset(Options opt, std::string name, hsize_t len, T *data,
-       hid_t memtype_id = -1, hid_t filetype_id=-1, bool flag_parallel = true, bool flag_hyperslab = true, bool flag_collective = true)
+       hid_t memtype_id = -1, hid_t filetype_id=-1, bool flag_parallel = true)
     {
         int rank = 1;
         hsize_t dims[1] = {len};
         if (memtype_id == -1) memtype_id = hdf5_type(T{});
-        write_dataset_nd(opt, name, rank, dims, data, memtype_id, filetype_id, flag_parallel, true, flag_hyperslab, flag_collective);
+        write_dataset_nd(opt, name, rank, dims, data, memtype_id, filetype_id, flag_parallel);
     }
     void write_dataset(Options opt, string name, hsize_t len, string data, bool flag_parallel = true, bool flag_collective = true)
     {
@@ -585,14 +585,14 @@ public:
         H5Dclose(dset_id);
     }
     void write_dataset(Options opt, string name, hsize_t len, void *data,
-       hid_t memtype_id=-1, hid_t filetype_id=-1, bool flag_parallel = true, bool flag_first_dim_parallel = true, bool flag_hyperslab = true, bool flag_collective = true)
+       hid_t memtype_id=-1, hid_t filetype_id=-1, bool flag_parallel = true)
     {
         int rank = 1;
       	hsize_t dims[1] = {len};
         if (memtype_id == -1) {
             throw std::runtime_error("Write data set called with void pointer but no type info passed.");
         }
-      	write_dataset_nd(opt, name, rank, dims, data, memtype_id, filetype_id, flag_parallel, flag_first_dim_parallel, flag_hyperslab, flag_collective);
+        write_dataset_nd(opt, name, rank, dims, data, memtype_id, filetype_id, flag_parallel);
     }
 
 
@@ -602,8 +602,7 @@ public:
     /// if it's not set explicitly.
     template <typename T> void write_dataset_nd(Options opt, std::string name, int rank, hsize_t *dims, T *data,
         hid_t memtype_id = -1, hid_t filetype_id = -1,
-        bool flag_parallel = true, bool flag_first_dim_parallel = true,
-        bool flag_hyperslab = true, bool flag_collective = true)
+        bool flag_parallel = true)
     {
 
       // Get HDF5 data type of the array in memory
@@ -611,16 +610,15 @@ public:
 
       // Write the data
       write_dataset_nd(opt, name, rank, dims, (void *) data,
-                       memtype_id, filetype_id,
-                       flag_parallel, flag_first_dim_parallel,
-                       flag_hyperslab, flag_collective);
+                       memtype_id, filetype_id, flag_parallel);
     }
 
     void write_dataset_nd(Options opt, std::string name, int rank, hsize_t *dims, void *data,
-        hid_t memtype_id = -1, hid_t filetype_id=-1,
-        bool flag_parallel = true, bool flag_first_dim_parallel = true,
-        bool flag_hyperslab = true, bool flag_collective = true)
+        hid_t memtype_id = -1, hid_t filetype_id = -1, bool flag_parallel = true)
     {
+        bool flag_first_dim_parallel = true;
+        bool flag_hyperslab = true;
+        bool flag_collective = true;
         if (verbose && LOG_ENABLED(debug)) {
             std::ostringstream os;
             os << "Writing dataset " << name << " with dimensions ";
