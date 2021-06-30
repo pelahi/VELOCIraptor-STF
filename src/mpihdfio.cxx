@@ -51,7 +51,8 @@ void MPIDomainExtentHDF(Options &opt){
             Fhdf = H5Fopen(buf, H5F_ACC_RDONLY, H5P_DEFAULT);
             LOG(info) << "Loading HDF header info in header group: " << hdf_gnames.Header_name;
 
-            if (opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES)
+            if (opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES ||
+		opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES)
             {
                 /* SWIFT can have non-cubic boxes; but for cosmological runs they will always be cubes.
                 * This makes the BoxSize a vector attribute, with it containing three values, but they
@@ -234,7 +235,8 @@ void MPINumInDomainHDF(Options &opt)
             H5Pclose(plist_id);
 #endif
             //get number in file
-            if (opt.ihdfnameconvention==HDFSWIFTEAGLENAMES || opt.ihdfnameconvention==HDFOLDSWIFTEAGLENAMES) {
+            if (opt.ihdfnameconvention==HDFSWIFTEAGLENAMES || opt.ihdfnameconvention==HDFOLDSWIFTEAGLENAMES ||
+		opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES) {
                 vlongbuff = read_attribute_v<long long>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INuminFile]);
                 for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npart[k]=vlongbuff[k];
             }

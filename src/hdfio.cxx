@@ -2855,7 +2855,11 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         //self-energy
                         itemp++;
                         if (k == HDFGASTYPE) {
+			  if(opt.ihdfnameconvention != HDFSWIFTEAGLENAMES) {
                             HDF5ReadHyperSlabReal(udoublebuff,partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], 1, 1, nchunk, n, plist_id);
+			  } else {
+			    bzero(udoublebuff, chunksize * sizeof(double));
+			  }
                         }
 #ifdef STARON
                         //star formation rate
@@ -3534,7 +3538,11 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                       //self-energy
                       itemp++;
                       if (k == HDFGASTYPE) {
+			if(opt.ihdfnameconvention != HDFSWIFTEAGLENAMES) {
                           HDF5ReadHyperSlabReal(udoublebuff,partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], 1, 1, nchunk, n, plist_id);
+			} else {
+			  bzero(udoublebuff, chunksize * sizeof(double));
+			}
                       }
 #ifdef STARON
                       //star formation rate
