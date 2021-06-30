@@ -334,6 +334,8 @@ struct UnbindInfo
     //@}
     ///boolean as to whether code calculate potentials or potentials are externally provided
     bool icalculatepotential;
+    ///boolean to use (default) or not the internal energies when considering whether a gas element is bound.
+    bool iuseinternalenergy = true;
     ///fraction of potential energy that kinetic energy is allowed to be and consider particle bound
     Double_t Eratio;
     ///minimum bound mass fraction

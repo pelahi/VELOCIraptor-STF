@@ -246,7 +246,8 @@ inline void GetBoundFractionAndMaxE(Options &opt,
         v2=0.0;for (auto k=0;k<3;k++) v2+=pow(groupPart[j].GetVelocity(k)-cmvel[k],2.0);
         Ti=0.5*mass*v2;
 #ifdef GASON
-        Ti+=mass*groupPart[j].GetU();
+	if(opt.uinfo.iuseinternalenergy)
+	  Ti+=mass*groupPart[j].GetU();
 #endif
         totT+=Ti;
         groupPart[j].SetDensity(opt.uinfo.Eratio*Ti+groupPart[j].GetPotential());

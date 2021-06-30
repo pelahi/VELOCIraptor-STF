@@ -1007,6 +1007,8 @@ void GetParamFile(Options &opt)
                         opt.uinfo.unbindflag = atoi(vbuff);
                     else if (strcmp(tbuff, "Unbinding_type")==0)
                         opt.uinfo.unbindtype = atoi(vbuff);
+                    else if (strcmp(tbuff, "Unbinding_use_thermal_energy")==0)
+                        opt.uinfo.iuseinternalenergy = atoi(vbuff);
                     else if (strcmp(tbuff, "Bound_halos")==0)
                         opt.iBoundHalos = atoi(vbuff);
                     else if (strcmp(tbuff, "Allowed_kinetic_potential_ratio")==0)
