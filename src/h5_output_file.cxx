@@ -1,6 +1,9 @@
 /*! \file h5_output_file.cxx
  */
 
+#include <functional>
+#include <numeric>
+
 #include "hdfitems.h"
 #include "io.h"
 
@@ -130,6 +133,69 @@ static hid_t get_dataset_creation_property(int rank, hsize_t *dims)
     return H5P_DEFAULT;
 }
 
+static void write_in_chunks(const void *data, hsize_t *dims,
+    std::vector<hsize_t> &offsets,
+    hid_t dset_id, hid_t prop_id,
+    hid_t filespace_id, hid_t memtype_id,
+    bool write_in_parallel, bool verbose)
+{
+    // hdf5 has trouble writing >= 2GB at once, so we write in chunks
+    // We cut chunks on the first dimension, the rest are always taken fully
+    constexpr std::size_t MAX_HDF5_WRITE_SIZE = 2147483647;
+    auto type_size = safe_hdf5(H5Tget_size, memtype_id);
+    auto ndims = offsets.size();
+    auto slice_size =
+            std::accumulate(dims + 1, dims + ndims,
+                            std::size_t{1}, std::multiplies<std::size_t>{});
+    slice_size *= type_size;
+    if (slice_size > MAX_HDF5_WRITE_SIZE) {
+        throw std::runtime_error("Writing datasets with slices of size " + std::to_string(slice_size) + " is not supported");
+    }
+    auto max_chunk_count = MAX_HDF5_WRITE_SIZE / slice_size;
+    if (verbose) {
+        LOG(debug) << "Preparing to write in chunks. Type size: " << type_size <<  ", slice size: " << slice_size << ", max_chunk_count: " << max_chunk_count;
+    }
+
+    const char *start = static_cast<const char *>(data);
+    while (true) {
+
+        hsize_t nchunks = std::min(std::size_t{dims[0]}, max_chunk_count);
+        assert(nchunks * slice_size <= MAX_HDF5_WRITE_SIZE);
+
+        std::vector<hsize_t> chunk_dims(dims, dims + ndims);
+        chunk_dims[0] = nchunks;
+        hid_t memspace_id = H5Screate_simple(ndims, chunk_dims.data(), NULL);
+        if (nchunks == 0) {
+            safe_hdf5(H5Sselect_none, filespace_id);
+        }
+        else {
+            safe_hdf5(H5Sselect_hyperslab, filespace_id, H5S_SELECT_SET, offsets.data(), nullptr, chunk_dims.data(), nullptr);
+        }
+        if (verbose && LOG_ENABLED(debug)) {
+            LOG(debug) << vr::dataspace_information(filespace_id);
+        }
+        safe_hdf5(H5Dwrite, dset_id, memtype_id, memspace_id, filespace_id, prop_id, start);
+        safe_hdf5(H5Sclose, memspace_id);
+
+        // all written?
+        int done = nchunks == dims[0];
+#ifdef USEPARALLELHDF
+        if (write_in_parallel) {
+            MPI_Allreduce(MPI_IN_PLACE, &done, 1, MPI_INT, MPI_MIN, mpi_comm_write);
+        }
+#endif // USEPARALLELHDF
+        if (done) {
+            break;
+        }
+
+        // adjust for next round
+        offsets[0] += nchunks;
+        start += nchunks * slice_size;
+        dims[0] -= nchunks;
+    }
+};
+
+
 void H5OutputFile::write_dataset_nd(Options opt, std::string name,
     int ndims, hsize_t *dims, void *data,
     hid_t memtype_id, hid_t filetype_id,
@@ -157,9 +223,9 @@ void H5OutputFile::write_dataset_nd(Options opt, std::string name,
     // Get full extent of the dataset and calculate local offsets, if required.
     // Only the first dimension is written in parallel, it's assumed
     // all other dimensions are the same in all MPI ranks
+    std::vector<hsize_t> offsets(ndims);
 #ifdef USEPARALLELHDF
     std::vector<hsize_t> extended_dims(dims, dims + ndims);
-    std::vector<hsize_t> dims_offset(ndims);
     if (write_in_parallel) {
 
         int comm_size;
@@ -191,7 +257,7 @@ void H5OutputFile::write_dataset_nd(Options opt, std::string name,
             auto first_dim_size = all_dims[rank * ndims];
             extended_dims[0] += first_dim_size;
             if (rank < comm_rank) {
-                dims_offset[0] += first_dim_size;
+                offsets[0] += first_dim_size;
             }
         }
     }
@@ -199,13 +265,16 @@ void H5OutputFile::write_dataset_nd(Options opt, std::string name,
 
     // Create dataspaces. When writing in parallel, the file dataspace spans
     // the full extent of the (distributed) data, so it's different
-    hid_t memspace_id = H5Screate_simple(ndims, dims, NULL);
-    hid_t dspace_id = memspace_id;
+    hid_t filespace_id;
 #ifdef USEPARALLELHDF
     if (write_in_parallel) {
-        dspace_id = H5Screate_simple(ndims, extended_dims.data(), NULL);
+        filespace_id = safe_hdf5(H5Screate_simple, ndims, extended_dims.data(), nullptr);
     }
+    else
 #endif // USEPARALLELHDF
+    {
+        filespace_id = safe_hdf5(H5Screate_simple, ndims, dims, nullptr);
+    }
 
     // Create the dataset
     hid_t prop_id;
@@ -218,47 +287,23 @@ void H5OutputFile::write_dataset_nd(Options opt, std::string name,
     {
         prop_id = get_dataset_creation_property(ndims, dims);
     }
-    auto dset_id = safe_hdf5(H5Dcreate, file_id, name.c_str(), filetype_id, dspace_id,
+    auto dset_id = safe_hdf5(H5Dcreate, file_id, name.c_str(), filetype_id, filespace_id,
         H5P_DEFAULT, prop_id, H5P_DEFAULT);
-    H5Pclose(prop_id);
+    safe_hdf5(H5Pclose, prop_id);
 
-    // Do the actual data writing
     prop_id = H5P_DEFAULT;
-    auto write_data = [&]() {
-        if (verbose) {
-            LOG(debug) << vr::dataspace_information(dspace_id);
-            LOG(debug) << vr::dataspace_information(memspace_id);
-        }
-        safe_hdf5(H5Dwrite, dset_id, memtype_id, memspace_id, dspace_id, prop_id, data);
-    };
 #ifdef USEPARALLELHDF
     if (write_in_parallel) {
         // set up the collective transfer properties list
         prop_id = safe_hdf5(H5Pcreate, H5P_DATASET_XFER);
         safe_hdf5(H5Pset_dxpl_mpio, prop_id, H5FD_MPIO_COLLECTIVE);
-        safe_hdf5(H5Sselect_hyperslab, dspace_id, H5S_SELECT_SET, dims_offset.data(), nullptr, dims, nullptr);
-        if (dims[0] == 0) {
-            safe_hdf5(H5Sselect_none, dspace_id);
-            safe_hdf5(H5Sselect_none, memspace_id);
-        }
-        if (extended_dims[0] > 0) {
-            write_data();
-        }
     }
-    else
 #endif // USEPARALLELHDF
-    {
-        if (dims[0] > 0) {
-            write_data();
-        }
-    }
+    write_in_chunks(data, dims, offsets, dset_id, prop_id, filespace_id, memtype_id, write_in_parallel, verbose);
 
     // Clean up (note that dtype_id is NOT a new object so don't need to close it)
     safe_hdf5(H5Pclose, prop_id);
-    if (memspace_id != dspace_id) {
-        safe_hdf5(H5Sclose, memspace_id);
-    }
-    safe_hdf5(H5Sclose, dspace_id);
+    safe_hdf5(H5Sclose, filespace_id);
     safe_hdf5(H5Dclose, dset_id);
 }
 
