@@ -325,7 +325,7 @@ static inline hid_t HDF5OpenGroup(const hid_t &file, string name){
 }
 static inline hid_t HDF5OpenDataSet(const hid_t &id, string name){
     LOG_RANK0(debug) << "Opening Dataset " << get_hdf5_name(id) << '/' << name;
-    hid_t idval = H5Dopen2(id,name.c_str(),H5P_DEFAULT);
+    hid_t idval = safe_hdf5<hid_t>(H5Dopen2,id,name.c_str(),H5P_DEFAULT);
     return idval;
 }
 static inline hid_t HDF5OpenDataSpace(const hid_t &id){
