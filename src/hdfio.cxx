@@ -23,6 +23,8 @@
 
 //-- HDF5 SPECIFIC IO
 
+#include <string>
+
 #include "logging.h"
 #include "stf.h"
 
@@ -435,201 +437,61 @@ inline void CheckDimensionsOfExtraFieldNames(Options &opt,
 }
 
 #ifdef USEMPI
+
+static void broadcast_from_rank0(std::vector<std::string> &strings,
+    const std::vector<std::string> &condition_strings)
+{
+    if (condition_strings.empty()) {
+        return;
+    }
+    for (auto &s: strings) {
+        unsigned long long n = s.size();
+        MPI_Bcast(&n, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
+        std::string received;
+        if (ThisTask > 0) {
+            received =  std::string(n, 0);
+        }
+        else {
+            received = s;
+        }
+        MPI_Bcast(&received[0], n, MPI_CHAR, 0, MPI_COMM_WORLD);
+        if (ThisTask > 0) {
+            s = received;
+        }
+    }
+}
+
 ///if running in MPI, it might be necessary to update the outnames associated
 ///with extra fields. Therefore, just send all output names from task 0 (which
 ///will always be a read task to all other tasks.
 inline void MPIUpdateExtraFieldOutputNames(Options &opt)
 {
 #ifdef GASON
-    if (opt.gas_internalprop_names.size()>0){
-        for (auto &x:opt.gas_internalprop_output_names) {
-             size_t n = x.size();
-             char char_array[n+1];
-             strcpy(char_array, x.c_str());
-             MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-             if (ThisTask > 0) x=string(char_array);
-        }
-    }
-    if (opt.gas_chem_names.size()>0){
-        for (auto &x:opt.gas_chem_output_names) {
-            size_t n = x.size();
-            char char_array[n+1];
-            strcpy(char_array, x.c_str());
-            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-            if (ThisTask > 0) x=string(char_array);
-        }
-    }
-    if (opt.gas_chemproduction_names.size()>0){
-        for (auto &x:opt.gas_chemproduction_output_names) {
-            size_t n = x.size();
-            char char_array[n+1];
-            strcpy(char_array, x.c_str());
-            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-            if (ThisTask > 0) x=string(char_array);
-        }
-    }
-
-    if (opt.gas_internalprop_names_aperture.size()>0){
-        for (auto &x:opt.gas_internalprop_output_names_aperture) {
-             size_t n = x.size();
-             char char_array[n+1];
-             strcpy(char_array, x.c_str());
-             MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-             if (ThisTask > 0) x=string(char_array);
-        }
-    }
-    if (opt.gas_chem_names_aperture.size()>0){
-        for (auto &x:opt.gas_chem_output_names_aperture) {
-            size_t n = x.size();
-            char char_array[n+1];
-            strcpy(char_array, x.c_str());
-            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-            if (ThisTask > 0) x=string(char_array);
-        }
-    }
-    if (opt.gas_chemproduction_names_aperture.size()>0){
-        for (auto &x:opt.gas_chemproduction_output_names_aperture) {
-            size_t n = x.size();
-            char char_array[n+1];
-            strcpy(char_array, x.c_str());
-            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-            if (ThisTask > 0) x=string(char_array);
-        }
-    }
+    broadcast_from_rank0(opt.gas_internalprop_output_names, opt.gas_internalprop_names);
+    broadcast_from_rank0(opt.gas_chem_output_names, opt.gas_chem_names);
+    broadcast_from_rank0(opt.gas_chemproduction_output_names, opt.gas_chemproduction_names);
+    broadcast_from_rank0(opt.gas_internalprop_output_names_aperture, opt.gas_internalprop_names_aperture);
+    broadcast_from_rank0(opt.gas_chem_output_names_aperture, opt.gas_chem_names_aperture);
+    broadcast_from_rank0(opt.gas_chemproduction_output_names_aperture, opt.gas_chemproduction_names_aperture);
 #endif
 #ifdef STARON
-    if (opt.star_internalprop_names.size()>0){
-        for (auto &x:opt.star_internalprop_output_names) {
-            size_t n = x.size();
-            char char_array[n+1];
-            strcpy(char_array, x.c_str());
-            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-            if (ThisTask > 0) x=string(char_array);
-        }
-    }
-    if (opt.star_chem_names.size()>0){
-        for (auto &x:opt.star_chem_output_names) {
-            size_t n = x.size();
-            char char_array[n+1];
-            strcpy(char_array, x.c_str());
-            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-            if (ThisTask > 0) x=string(char_array);
-        }
-    }
-    if (opt.star_chemproduction_names.size()>0){
-        for (auto &x:opt.star_chemproduction_output_names) {
-            size_t n = x.size();
-            char char_array[n+1];
-            strcpy(char_array, x.c_str());
-            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-            if (ThisTask > 0) x=string(char_array);
-        }
-    }
-
-    if (opt.star_internalprop_names_aperture.size()>0){
-        for (auto &x:opt.star_internalprop_output_names_aperture) {
-             size_t n = x.size();
-             char char_array[n+1];
-             strcpy(char_array, x.c_str());
-             MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-             if (ThisTask > 0) x=string(char_array);
-        }
-    }
-    if (opt.star_chem_names_aperture.size()>0){
-        for (auto &x:opt.star_chem_output_names_aperture) {
-            size_t n = x.size();
-            char char_array[n+1];
-            strcpy(char_array, x.c_str());
-            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-            if (ThisTask > 0) x=string(char_array);
-        }
-    }
-    if (opt.star_chemproduction_names_aperture.size()>0){
-        for (auto &x:opt.star_chemproduction_output_names_aperture) {
-            size_t n = x.size();
-            char char_array[n+1];
-            strcpy(char_array, x.c_str());
-            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-            if (ThisTask > 0) x=string(char_array);
-        }
-    }
+    broadcast_from_rank0(opt.star_internalprop_output_names, opt.star_internalprop_names);
+    broadcast_from_rank0(opt.star_chem_output_names, opt.star_chem_names);
+    broadcast_from_rank0(opt.star_chemproduction_output_names, opt.star_chemproduction_names);
+    broadcast_from_rank0(opt.star_internalprop_output_names_aperture, opt.star_internalprop_names_aperture);
+    broadcast_from_rank0(opt.star_chem_output_names_aperture, opt.star_chem_names_aperture);
+    broadcast_from_rank0(opt.star_chemproduction_output_names_aperture, opt.star_chemproduction_names_aperture);
 #endif
 #ifdef BHON
-    if (opt.bh_internalprop_names.size()>0){
-        for (auto &x:opt.bh_internalprop_output_names) {
-            size_t n = x.size();
-            char char_array[n+1];
-            strcpy(char_array, x.c_str());
-            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-            if (ThisTask > 0) x=string(char_array);
-        }
-    }
-    if (opt.bh_chem_names.size()>0){
-        for (auto &x:opt.bh_chem_output_names) {
-            size_t n = x.size();
-            char char_array[n+1];
-            strcpy(char_array, x.c_str());
-            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-            if (ThisTask > 0) x=string(char_array);
-        }
-    }
-    if (opt.bh_chemproduction_names.size()>0){
-        for (auto &x:opt.bh_chemproduction_output_names) {
-            size_t n = x.size();
-            char char_array[n+1];
-            strcpy(char_array, x.c_str());
-            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-            if (ThisTask > 0) x=string(char_array);
-        }
-    }
-
-    if (opt.bh_internalprop_names_aperture.size()>0){
-        for (auto &x:opt.bh_internalprop_output_names_aperture) {
-             size_t n = x.size();
-             char char_array[n+1];
-             strcpy(char_array, x.c_str());
-             MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-             if (ThisTask > 0) x=string(char_array);
-        }
-    }
-    if (opt.bh_chem_names_aperture.size()>0){
-        for (auto &x:opt.bh_chem_output_names_aperture) {
-            size_t n = x.size();
-            char char_array[n+1];
-            strcpy(char_array, x.c_str());
-            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-            if (ThisTask > 0) x=string(char_array);
-        }
-    }
-    if (opt.bh_chemproduction_names_aperture.size()>0){
-        for (auto &x:opt.bh_chemproduction_output_names_aperture) {
-            size_t n = x.size();
-            char char_array[n+1];
-            strcpy(char_array, x.c_str());
-            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-            if (ThisTask > 0) x=string(char_array);
-        }
-    }
+    broadcast_from_rank0(opt.bh_chem_output_names, opt.bh_chem_names);
+    broadcast_from_rank0(opt.bh_chemproduction_output_names, opt.bh_chemproduction_names);
+    broadcast_from_rank0(opt.bh_internalprop_output_names_aperture, opt.bh_internalprop_names_aperture);
+    broadcast_from_rank0(opt.bh_chem_output_names_aperture, opt.bh_chem_names_aperture);
+    broadcast_from_rank0(opt.bh_chemproduction_output_names_aperture, opt.bh_chemproduction_names_aperture);
 #endif
 #ifdef EXTRADMON
-    if (opt.extra_dm_internalprop_names.size()>0){
-        for (auto &x:opt.extra_dm_internalprop_output_names) {
-            size_t n = x.size();
-            char char_array[n+1];
-            strcpy(char_array, x.c_str());
-            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-            if (ThisTask > 0) x=string(char_array);
-        }
-    }
-    if (opt.extra_dm_internalprop_names_aperture.size()>0){
-        for (auto &x:opt.extra_dm_internalprop_output_names_aperture) {
-            size_t n = x.size();
-            char char_array[n+1];
-            strcpy(char_array, x.c_str());
-            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-            if (ThisTask > 0) x=string(char_array);
-        }
-    }
+    broadcast_from_rank0(opt.extra_dm_internalprop_output_names, opt.extra_dm_internalprop_names);
+    broadcast_from_rank0(opt.extra_dm_internalprop_output_names_aperture, opt.extra_dm_internalprop_names_aperture);
 #endif
 
 }
