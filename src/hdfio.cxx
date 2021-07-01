@@ -2855,7 +2855,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         //self-energy
                         itemp++;
                         if (k == HDFGASTYPE) {
-			  if(opt.ihdfnameconvention != HDFSWIFTEAGLENAMES) {
+			  if(opt.ihdfnameconvention != HDFSWIFTFLAMINGONAMES) {
                             HDF5ReadHyperSlabReal(udoublebuff,partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], 1, 1, nchunk, n, plist_id);
 			  } else {
 			    std::memset(udoublebuff, 0, chunksize * sizeof(double));
@@ -3538,7 +3538,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                       //self-energy
                       itemp++;
                       if (k == HDFGASTYPE) {
-			if(opt.ihdfnameconvention != HDFSWIFTEAGLENAMES) {
+			if(opt.ihdfnameconvention != HDFSWIFTFLAMINGONAMES) {
                           HDF5ReadHyperSlabReal(udoublebuff,partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], 1, 1, nchunk, n, plist_id);
 			} else {
 			  std::memset(udoublebuff, 0, chunksize * sizeof(double));
