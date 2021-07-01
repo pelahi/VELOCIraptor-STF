@@ -6937,38 +6937,44 @@ void CalculateExtraSphericalOverdensityProperties(Options &opt, PropData &pdata,
     for (auto iso=0;iso<opt.SOnum;iso++)
         pdata.SO_angularmomentum[iso] = zero;
 #ifdef GASON
-    pdata.M_200crit_gas = 0;
-    pdata.L_200crit_gas = zero;
-    pdata.M_200mean_gas = 0;
-    pdata.L_200mean_gas = zero;
-    pdata.M_BN98_gas = 0;
-    pdata.L_BN98_gas = zero;
-    for (auto iso=0;iso<opt.SOnum;iso++) 
-    {
-        pdata.SO_mass_gas[iso] = 0;
-        pdata.SO_angularmomentum_gas[iso] = zero;
+    if (opt.iextragasoutput) {
+        pdata.M_200crit_gas = 0;
+        pdata.L_200crit_gas = zero;
+        pdata.M_200mean_gas = 0;
+        pdata.L_200mean_gas = zero;
+        pdata.M_BN98_gas = 0;
+        pdata.L_BN98_gas = zero;
+        for (auto iso=0;iso<opt.SOnum;iso++) 
+        {
+            pdata.SO_mass_gas[iso] = 0;
+            pdata.SO_angularmomentum_gas[iso] = zero;
+        }
     }
 #endif
 #ifdef STARON
-    pdata.M_200crit_star = 0;
-    pdata.L_200crit_star = zero;
-    pdata.M_200mean_star = 0;
-    pdata.L_200mean_star = zero;
-    pdata.M_BN98_star = 0;
-    pdata.L_BN98_star = zero;
-    for (auto iso=0;iso<opt.SOnum;iso++) 
-    {
-        pdata.SO_mass_star[iso] = 0;
-        pdata.SO_angularmomentum_star[iso] = zero;
+    if (opt.iextrastaroutput) {
+        pdata.M_200crit_star = 0;
+        pdata.L_200crit_star = zero;
+        pdata.M_200mean_star = 0;
+        pdata.L_200mean_star = zero;
+        pdata.M_BN98_star = 0;
+        pdata.L_BN98_star = zero;
+        for (auto iso=0;iso<opt.SOnum;iso++) 
+        {
+            pdata.SO_mass_star[iso] = 0;
+            pdata.SO_angularmomentum_star[iso] = zero;
+        }
     }
 #endif
 #ifdef HIGHRES
-    pdata.M_200crit_interloper = 0;
-    pdata.M_200mean_interloper = 0;
-    pdata.M_BN98_interloper = 0;
-    for (auto iso=0;iso<opt.SOnum;iso++)
-    {
-        pdata.SO_mass_interloper[iso] = 0;
+    if (opt.iextrainterloperoutput) {
+        pdata.M_200crit_interloper = 0;
+        pdata.M_200mean_interloper = 0;
+        pdata.M_BN98_interloper = 0;
+        for (auto iso=0;iso<opt.SOnum;iso++)
+        {
+            pdata.SO_mass_interloper[iso] = 0;
+        }
     }
 #endif
 
