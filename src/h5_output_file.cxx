@@ -261,3 +261,25 @@ void H5OutputFile::write_dataset_nd(Options opt, std::string name,
     safe_hdf5(H5Sclose, dspace_id);
     safe_hdf5(H5Dclose, dset_id);
 }
+
+void H5OutputFile::write_attribute(string parent, string name, string data)
+{
+    hid_t dtype_id = H5Tcopy(H5T_C_S1);
+    if (data.size() == 0) data=" ";
+    H5Tset_size(dtype_id, data.size());
+    H5Tset_strpad(dtype_id, H5T_STR_NULLTERM);
+    write_attribute(parent, name, dtype_id, data.data());
+    safe_hdf5(H5Tclose, dtype_id);
+}
+
+void H5OutputFile::write_attribute(const std::string &parent, const std::string &name, hid_t dtype_id, const void *data)
+{
+    assert(writing_rank != ALL_RANKS);
+    auto parent_id = safe_hdf5(H5Oopen, file_id, parent.data(), H5P_DEFAULT);
+    auto dspace_id = safe_hdf5(H5Screate, H5S_SCALAR);
+    auto attr_id = safe_hdf5(H5Acreate, parent_id, name.data(), dtype_id, dspace_id, H5P_DEFAULT, H5P_DEFAULT);
+    safe_hdf5(H5Awrite, attr_id, dtype_id, data);
+    H5Aclose(attr_id);
+    H5Sclose(dspace_id);
+    H5Oclose(parent_id);
+}
