@@ -1364,14 +1364,14 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
               //first gas internal energy
               for (j=0;j<nusetypes;j++) {
                 k=usetypes[j];
-                if (k==HDFGASTYPE){
+                if (k==HDFGASTYPE && opt.ihdfnameconvention != HDFSWIFTFLAMINGONAMES){
                   partsdataset[i*NHDFTYPE+k]=HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],hdf_parts[k]->names[5]);
                   partsdataspace[i*NHDFTYPE+k]=HDF5OpenDataSpace(partsdataset[i*NHDFTYPE+k]);
                 }
               }
               if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
                 k=usetypes[j];
-                if (k==HDFGASTYPE){
+                if (k==HDFGASTYPE && opt.ihdfnameconvention != HDFSWIFTFLAMINGONAMES){
                   partsdataset[i*NHDFTYPE+k]=HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],hdf_parts[k]->names[5]);
                   partsdataspace[i*NHDFTYPE+k]=HDF5OpenDataSpace(partsdataset[i*NHDFTYPE+k]);
                 }
@@ -2342,14 +2342,14 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                   //first gas internal energy
                   for (j=0;j<nusetypes;j++) {
                     k=usetypes[j];
-                    if (k==HDFGASTYPE){
+                    if (k==HDFGASTYPE && opt.ihdfnameconvention != HDFSWIFTFLAMINGONAMES){
                       partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],hdf_parts[k]->names[5]);
                       partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=HDF5OpenDataSpace(partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
                     }
                   }
                   if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
                     k=usetypes[j];
-                    if (k==HDFGASTYPE){
+                    if (k==HDFGASTYPE && opt.ihdfnameconvention != HDFSWIFTFLAMINGONAMES){
                       partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],hdf_parts[k]->names[5]);
                       partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=HDF5OpenDataSpace(partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
                     }
@@ -2717,7 +2717,11 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         //self-energy
                         itemp++;
                         if (k == HDFGASTYPE) {
+			  if(opt.ihdfnameconvention != HDFSWIFTFLAMINGONAMES) {
                             HDF5ReadHyperSlabReal(udoublebuff,partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], 1, 1, nchunk, n, plist_id);
+			  } else {
+			    std::memset(udoublebuff, 0, chunksize * sizeof(double));
+			  }
                         }
 #ifdef STARON
                         //star formation rate
@@ -3396,7 +3400,11 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                       //self-energy
                       itemp++;
                       if (k == HDFGASTYPE) {
+			if(opt.ihdfnameconvention != HDFSWIFTFLAMINGONAMES) {
                           HDF5ReadHyperSlabReal(udoublebuff,partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], 1, 1, nchunk, n, plist_id);
+			} else {
+			  std::memset(udoublebuff, 0, chunksize * sizeof(double));
+			}
                       }
 #ifdef STARON
                       //star formation rate

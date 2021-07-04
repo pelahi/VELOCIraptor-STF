@@ -85,6 +85,7 @@
 #define HDFSWIFTEAGLENAMES    6
 #define HDFOLDSWIFTEAGLENAMES    8
 #define HDFEAGLEVERSION2NAMES    7
+#define HDFSWIFTFLAMINGONAMES    9
 //@}
 
 ///size of chunks in hdf files for Compression
@@ -324,7 +325,7 @@ static inline hid_t HDF5OpenGroup(const hid_t &file, string name){
 }
 static inline hid_t HDF5OpenDataSet(const hid_t &id, string name){
     LOG_RANK0(debug) << "Opening Dataset " << get_hdf5_name(id) << '/' << name;
-    hid_t idval = H5Dopen2(id,name.c_str(),H5P_DEFAULT);
+    hid_t idval = safe_hdf5<hid_t>(H5Dopen2,id,name.c_str(),H5P_DEFAULT);
     return idval;
 }
 static inline hid_t HDF5OpenDataSpace(const hid_t &id){
@@ -958,6 +959,7 @@ struct HDF_Group_Names {
     HDF_Group_Names(int hdfnametype=HDFEAGLENAMES){
         switch (hdfnametype) {
           case HDFSWIFTEAGLENAMES:
+	  case HDFSWIFTFLAMINGONAMES:
             Header_name=string("Header");
             GASpart_name=string("PartType0");
             DMpart_name=string("PartType1");
@@ -1045,6 +1047,7 @@ struct HDF_Header {
         int itemp=0;
         switch (hdfnametype) {
           case HDFSWIFTEAGLENAMES:
+    	  case HDFSWIFTFLAMINGONAMES:
             names[itemp++]=string("Header/BoxSize");
             names[itemp++]=string("Header/MassTable");
             names[itemp++]=string("Header/NumPart_ThisFile");
@@ -1127,14 +1130,17 @@ struct HDF_Part_Info {
 
             // Density
             if(hdfnametype==HDFSWIFTEAGLENAMES) names[itemp++]=string("Densities");
+	    else if(hdfnametype==HDFSWIFTFLAMINGONAMES) names[itemp++]=string("Densities");
             else names[itemp++]=string("Density");
 
             // Internal energies
             if(hdfnametype==HDFSWIFTEAGLENAMES) names[itemp++]=string("InternalEnergies");
+	    if(hdfnametype==HDFSWIFTFLAMINGONAMES) names[itemp++]=string("InternalEnergies");
             else names[itemp++]=string("InternalEnergy");
 
             // SFR
             if(hdfnametype==HDFSWIFTEAGLENAMES) names[itemp++]=string("StarFormationRates");
+	    else if(hdfnametype==HDFSWIFTFLAMINGONAMES) names[itemp++]=string("StarFormationRates");
             else if(hdfnametype==HDFOLDSWIFTEAGLENAMES) names[itemp++]=string("SFR");
             else names[itemp++]=string("StarFormationRate");
 
@@ -1199,7 +1205,7 @@ struct HDF_Part_Info {
                 propindex[HDFGASIMETAL]=itemp;
                 names[itemp++]=string("Metallicity");
             }
-            else if(hdfnametype==HDFSWIFTEAGLENAMES) {
+            else if(hdfnametype==HDFSWIFTEAGLENAMES || hdfnametype==HDFSWIFTFLAMINGONAMES) {
               propindex[HDFGASIMETAL]=itemp;
               names[itemp++]=string("MetalMassFractions");
             }
@@ -1223,7 +1229,8 @@ struct HDF_Part_Info {
 
             // Masses
             if (hdfnametype==HDFSWIFTEAGLENAMES || hdfnametype==HDFSIMBANAMES ||
-                hdfnametype==HDFMUFASANAMES || hdfnametype==HDFOLDSWIFTEAGLENAMES) {
+                hdfnametype==HDFMUFASANAMES || hdfnametype==HDFOLDSWIFTEAGLENAMES ||
+		hdfnametype==HDFSWIFTFLAMINGONAMES) {
                 names[itemp++]=string("Masses");
             }
 
@@ -1325,7 +1332,8 @@ struct HDF_Part_Info {
                 propindex[HDFSTARIMETAL]=itemp;
                 names[itemp++]=string("Metallicity");
             }
-            else if (hdfnametype==HDFSWIFTEAGLENAMES) {
+            else if (hdfnametype==HDFSWIFTEAGLENAMES ||
+		     hdfnametype==HDFSWIFTFLAMINGONAMES) {
                 propindex[HDFSTARIAGE]=itemp;
                 names[itemp++]=string("BirthScaleFactors");
                 propindex[HDFSTARIMETAL]=itemp;
@@ -1346,7 +1354,8 @@ struct HDF_Part_Info {
 
             // Masses
             if(hdfnametype==HDFEAGLENAMES) names[itemp++]=string("Mass");
-            if(hdfnametype==HDFSWIFTEAGLENAMES) names[itemp++]=string("DynamicalMasses");
+            else if(hdfnametype==HDFSWIFTEAGLENAMES || hdfnametype==HDFSWIFTFLAMINGONAMES)
+	      names[itemp++]=string("DynamicalMasses");
             else names[itemp++]=string("Masses");
 
             if (hdfnametype==HDFILLUSTISNAMES) {
@@ -1385,7 +1394,8 @@ struct HDF_Part_Info {
                 //names[itemp++]=string("StellarFormationTime");
                 //names[itemp++]=string("Metallicity");
             }
-            else if (hdfnametype==HDFSWIFTEAGLENAMES) {
+            else if (hdfnametype==HDFSWIFTEAGLENAMES ||
+		     hdfnametype==HDFSWIFTFLAMINGONAMES) {
                 propindex[HDFBHIAGE]=itemp;
                 names[itemp++]=string("FormationScaleFactors");
                 propindex[HDFBHIMETAL]=itemp;
@@ -1411,7 +1421,8 @@ struct HDF_Part_Info {
 	if (ptype==HDFGASTYPE) {
             // Temperature
             propindex[HDFGASTEMP] = itemp;
-            if(hdfnametype==HDFSWIFTEAGLENAMES) names[itemp++]=string("Temperatures");
+            if(hdfnametype==HDFSWIFTEAGLENAMES || hdfnametype==HDFSWIFTFLAMINGONAMES)
+	      names[itemp++]=string("Temperatures");
             else names[itemp++]=string("Temperature");
 	}
 
@@ -1431,7 +1442,7 @@ inline void HDFSetUsedParticleTypes(Options &opt, int &nusetypes, int &nbusetype
         if (opt.iusedmparticles) usetypes[nusetypes++]=HDFDMTYPE;
         if (opt.iuseextradarkparticles) {
             usetypes[nusetypes++]=HDFDM1TYPE;
-            if (opt.ihdfnameconvention!=HDFSWIFTEAGLENAMES)
+            if (opt.ihdfnameconvention!=HDFSWIFTEAGLENAMES && opt.ihdfnameconvention!=HDFSWIFTFLAMINGONAMES)
             {
                 usetypes[nusetypes++]=HDFDM2TYPE;
             }
@@ -1445,7 +1456,7 @@ inline void HDFSetUsedParticleTypes(Options &opt, int &nusetypes, int &nbusetype
         nusetypes=1;usetypes[0]=HDFDMTYPE;
         if (opt.iuseextradarkparticles) {
             usetypes[nusetypes++]=HDFDM1TYPE;
-            if (opt.ihdfnameconvention!=HDFSWIFTEAGLENAMES)
+            if (opt.ihdfnameconvention!=HDFSWIFTEAGLENAMES && opt.ihdfnameconvention!=HDFSWIFTFLAMINGONAMES)
             {
                 usetypes[nusetypes++]=HDFDM2TYPE;
             }
@@ -1519,7 +1530,7 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
         Fhdf = H5Fopen(buf.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
         LOG(info) << "Loading HDF header info in header group: " << hdf_gnames.Header_name;
 
-        if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES) {
+        if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES) {
 
             // Check if it is a SWIFT snapshot.
             //headerattribs=get_attribute(Fhdf, "Header/Code");
