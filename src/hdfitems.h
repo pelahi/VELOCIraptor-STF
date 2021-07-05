@@ -1135,7 +1135,6 @@ struct HDF_Part_Info {
 
             // Internal energies
             if(hdfnametype==HDFSWIFTEAGLENAMES) names[itemp++]=string("InternalEnergies");
-	    if(hdfnametype==HDFSWIFTFLAMINGONAMES) names[itemp++]=string("InternalEnergies");
             else names[itemp++]=string("InternalEnergy");
 
             // SFR
