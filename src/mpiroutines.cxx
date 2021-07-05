@@ -2684,12 +2684,12 @@ exchange_indices_and_props(
     assert(props.size() == indices.size() * props_per_index);
 
     // Send/recv number of indices to allocate reception buffers
-    int num_indices = indices.size();
-    int num_indices_recv;
+    unsigned long long num_indices = indices.size();
+    unsigned long long num_indices_recv;
     MPI_Status status;
     MPI_Sendrecv(
-        &num_indices, 1, MPI_Int_t, rank, tag * 2,
-        &num_indices_recv, 1, MPI_Int_t, rank, tag * 2,
+        &num_indices, 1, MPI_UNSIGNED_LONG_LONG, rank, tag * 2,
+        &num_indices_recv, 1, MPI_UNSIGNED_LONG_LONG, rank, tag * 2,
         mpi_comm, &status);
 
     // Send/recv actual indices and properties
