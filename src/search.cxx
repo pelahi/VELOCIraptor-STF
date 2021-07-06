@@ -1426,7 +1426,7 @@ private(i,tid)
         GridCell *grid;
         Double_t nf, ncl=opt.Ncell;
         //adjust ncellfac locally
-        nf=(opt.Ncellfac*8.0,MAXCELLFRACTION);
+        nf = std::min(opt.Ncellfac * Double_t{8}, Double_t{MAXCELLFRACTION});
         opt.Ncell=nf*nsubset;
 
         //ONLY calculate grid quantities if substructures have been found
