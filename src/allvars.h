@@ -2473,7 +2473,7 @@ struct PropData
 #endif
 #endif
 #ifdef STARON
-	M_star_incl*opt.h;
+        M_star_incl*=opt.h;
         M_star*=opt.h;
         M_star_rvmax*=opt.h;
         M_star_30kpc*=opt.h;
