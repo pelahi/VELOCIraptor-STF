@@ -23,7 +23,7 @@ void GetNodeList(Node *np, Int_t &ncell, Node **nodelist, const Int_t bsize){
 }
 
 ///subroutine that marks a cell for a given particle in tree-walk
-inline void MarkCell(Node *np, Int_t *marktreecell, Int_t *markleafcell, Int_t &ntreecell, Int_t &nleafcell, Double_t *r2val, const Int_t bsize, Double_t *cR2max, Coordinate *cm, Double_t *cmtot, Coordinate xpos, Double_t eps2){
+inline void MarkCell(Node *np, Int_t *marktreecell, Int_t *markleafcell, Int_t &ntreecell, Int_t &nleafcell, Double_t *r2val, const Int_t bsize, Double_t *cR2max, Coordinate *cm, Double_t *cmtot, const Coordinate &xpos, Double_t eps2){
     Int_t nid=np->GetID();
     Double_t r2;
     r2=0;
