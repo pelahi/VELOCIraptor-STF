@@ -1397,10 +1397,15 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                   else nchunk=chunksize;
                   for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
                   {
+		    if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+
 		    if (opt.ihdfnameconvention != HDFSWIFTFLAMINGONAMES) {
-		      if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+
 		      HDF5ReadHyperSlabReal(doublebuff,partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 1, nchunk, n);
 		      for (int nn=0;nn<nchunk;nn++) Part[count++].SetU(doublebuff[nn]);
+
+		    } else {
+		      for (int nn=0;nn<nchunk;nn++) Part[count++].SetU(0.);
 		    }
                   }
                 }
@@ -1417,10 +1422,16 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                     else nchunk=chunksize;
                     for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
                     {
-		      if (opt.ihdfnameconvention != HDFSWIFTFLAMINGONAMES) {
 			if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
-			HDF5ReadHyperSlabReal(doublebuff,partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 1, nchunk, n);
-			for (int nn=0;nn<nchunk;nn++) Pbaryons[bcount++].SetU(doublebuff[nn]);
+
+			if (opt.ihdfnameconvention != HDFSWIFTFLAMINGONAMES) {
+
+			  HDF5ReadHyperSlabReal(doublebuff,partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 1, nchunk, n);
+			  for (int nn=0;nn<nchunk;nn++) Pbaryons[bcount++].SetU(doublebuff[nn]);
+
+			} else {
+			  for (int nn=0;nn<nchunk;nn++) Pbaryons[bcount++].SetU(0.);
+			}
 		      }
                     }
                   }
