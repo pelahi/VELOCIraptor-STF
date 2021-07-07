@@ -303,8 +303,8 @@ void H5OutputFile::write_dataset_nd(Options opt, std::string name,
 
     // Clean up (note that dtype_id is NOT a new object so don't need to close it)
     safe_hdf5(H5Pclose, prop_id);
-    safe_hdf5(H5Sclose, filespace_id);
     safe_hdf5(H5Dclose, dset_id);
+    safe_hdf5(H5Sclose, filespace_id);
 }
 
 void H5OutputFile::write_attribute(string parent, string name, string data)
