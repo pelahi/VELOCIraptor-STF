@@ -3501,8 +3501,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 #endif
 #ifdef GASON
                         if (k==HDFGASTYPE) {
-
-			  //if (opt.ihdfnameconvention != HDFSWIFTFLAMINGONAMES)
 			  Pbuf[ibufindex].SetU(udoublebuff[nn]);
 #ifdef STARON
                           Pbuf[ibufindex].SetSFR(SFRdoublebuff[nn] > 0. ? SFRdoublebuff[nn] : 0.);
