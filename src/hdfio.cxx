@@ -924,7 +924,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
             }
 
             /* Read the BoxSize */
-            if (opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES)  {
+            if (opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES ||
+		opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES)  {
+	      
                 /* SWIFT can have non-cubic boxes; but for cosmological runs they will always be cubes.
                 * This makes the BoxSize a vector attribute, with it containing three values, but they
                 * will always be the same. */
@@ -935,11 +937,13 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 
             vdoublebuff=read_attribute_v<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IMass]);
             for (k=0;k<NHDFTYPE;k++)hdf_header_info[i].mass[k]=vdoublebuff[k];
-            if (opt.ihdfnameconvention==HDFSWIFTEAGLENAMES) {
+	    
+            if (opt.ihdfnameconvention==HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES) {
+	      
                 vlongbuff = read_attribute_v<long long>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INuminFile]);
                 for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npart[k]=vlongbuff[k];
-            }
-            else{
+		
+            } else {
                 vuintbuff = read_attribute_v<unsigned int>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INuminFile]);
                 for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npart[k]=vuintbuff[k];
             }
@@ -953,8 +957,10 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
             hdf_header_info[i].time = read_attribute<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].ITime]);
             hdf_header_info[i].HubbleParam = read_attribute<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IHubbleParam]);
             hdf_header_info[i].num_files = read_attribute<int>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INumFiles]);
-            //now if swift read extra information
-            if (opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES) {
+
+	    //now if swift read extra information
+            if (opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES ||
+		opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES) {	 
                 hdf_header_info[i].Omegab = read_attribute<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IOmegab]);
                 hdf_header_info[i].Omegar = read_attribute<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IOmegar]);
                 hdf_header_info[i].Omegak = read_attribute<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IOmegak]);
@@ -1035,7 +1041,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
         opt.Omega_m=hdf_header_info[ifirstfile].Omega0;
         opt.Omega_Lambda=hdf_header_info[ifirstfile].OmegaLambda;
         opt.h=hdf_header_info[ifirstfile].HubbleParam;
-        if (opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES) {
+        if (opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES ||
+	    opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES) {
+      
             opt.Omega_b=hdf_header_info[ifirstfile].Omegab;
             opt.Omega_r=hdf_header_info[ifirstfile].Omegar;
             opt.Omega_k=hdf_header_info[ifirstfile].Omegak;
@@ -1062,10 +1070,13 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 
     // SWIFT snapshots already include the 1/h factor factor,
     // so there is no need to include it.
-    if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES) {
+    if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES ||
+       opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES) {
+
       mscale=opt.massinputconversion;lscale=opt.lengthinputconversion*aadjust;lvscale=opt.lengthinputconversion*opt.a;
-    }
-    else {
+      
+    } else {
+      
       mscale=opt.massinputconversion/opt.h;lscale=opt.lengthinputconversion/opt.h*aadjust;lvscale=opt.lengthinputconversion/opt.h*opt.a;
     }
 
@@ -2257,10 +2268,25 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 
     // SWIFT snapshot velocities already contain the sqrt(a) factor,
     // so there is no need to include it.
-    if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES) vscale = opt.velocityinputconversion;
-    else vscale = opt.velocityinputconversion*sqrt(opt.a);
-    if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES) opt.internalenergyinputconversion = opt.a*opt.a*opt.velocityinputconversion*opt.velocityinputconversion;
-    else opt.internalenergyinputconversion = opt.velocityinputconversion*opt.velocityinputconversion;
+    if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES ||
+       opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES) {
+
+      vscale = opt.velocityinputconversion;
+      
+    } else {
+
+      vscale = opt.velocityinputconversion*sqrt(opt.a);
+    }
+    
+    if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES||
+       opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES) {
+      
+      opt.internalenergyinputconversion = opt.a*opt.a*opt.velocityinputconversion*opt.velocityinputconversion;
+      
+    } else {
+      
+      opt.internalenergyinputconversion = opt.velocityinputconversion*opt.velocityinputconversion;
+    }
 
     //finally adjust to appropriate units
     for (i=0;i<nbodies;i++)
@@ -3614,7 +3640,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 
       // SWIFT snapshots already include the 1/h factor factor,
       // so there is no need to include it.
-      if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES)
+      if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES ||
+	 opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES)
       {
         //adjust period
         if (opt.comove) opt.p*=opt.lengthinputconversion;
@@ -3722,10 +3749,19 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 
     // SWIFT snapshot velocities already contain the sqrt(a) factor,
     // so there is no need to include it.
-    if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES) vscale = opt.velocityinputconversion;
-    else vscale = opt.velocityinputconversion*sqrt(opt.a);
-    if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES) opt.internalenergyinputconversion = opt.a*opt.a*opt.velocityinputconversion*opt.velocityinputconversion;
-    else opt.internalenergyinputconversion = opt.velocityinputconversion*opt.velocityinputconversion;
+    if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES ||
+       opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES) {
+      vscale = opt.velocityinputconversion;
+    } else {
+      vscale = opt.velocityinputconversion*sqrt(opt.a);
+    }
+    
+    if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES ||
+       opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES) {
+      opt.internalenergyinputconversion = opt.a*opt.a*opt.velocityinputconversion*opt.velocityinputconversion;
+    } else {
+      opt.internalenergyinputconversion = opt.velocityinputconversion*opt.velocityinputconversion;
+    }
 
 
     //finally adjust to appropriate units

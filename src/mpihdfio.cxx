@@ -237,13 +237,16 @@ void MPINumInDomainHDF(Options &opt)
             //get number in file
             if (opt.ihdfnameconvention==HDFSWIFTEAGLENAMES || opt.ihdfnameconvention==HDFOLDSWIFTEAGLENAMES ||
 		opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES) {
+	      
                 vlongbuff = read_attribute_v<long long>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INuminFile]);
                 for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npart[k]=vlongbuff[k];
-            }
-            else{
+		
+            } else {
+	      
                 vintbuff = read_attribute_v<int>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INuminFile]);
                 for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npart[k]=vintbuff[k];
             }
+	    
             //open particle group structures
             for (j=0;j<nusetypes;j++) {k=usetypes[j]; partsgroup[i*NHDFTYPE+k]=HDF5OpenGroup(Fhdf[i],hdf_gnames.part_names[k]);}
             if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
