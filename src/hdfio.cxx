@@ -1386,9 +1386,11 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                   else nchunk=chunksize;
                   for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
                   {
-                    if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
-                    HDF5ReadHyperSlabReal(doublebuff,partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 1, nchunk, n);
-                    for (int nn=0;nn<nchunk;nn++) Part[count++].SetU(doublebuff[nn]);
+		    if (opt.ihdfnameconvention != HDFSWIFTFLAMINGONAMES) {
+		      if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+		      HDF5ReadHyperSlabReal(doublebuff,partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 1, nchunk, n);
+		      for (int nn=0;nn<nchunk;nn++) Part[count++].SetU(doublebuff[nn]);
+		    }
                   }
                 }
                 else {
@@ -1404,9 +1406,11 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                     else nchunk=chunksize;
                     for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
                     {
-                      if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
-                      HDF5ReadHyperSlabReal(doublebuff,partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 1, nchunk, n);
-                      for (int nn=0;nn<nchunk;nn++) Pbaryons[bcount++].SetU(doublebuff[nn]);
+		      if (opt.ihdfnameconvention != HDFSWIFTFLAMINGONAMES) {
+			if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
+			HDF5ReadHyperSlabReal(doublebuff,partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 1, nchunk, n);
+			for (int nn=0;nn<nchunk;nn++) Pbaryons[bcount++].SetU(doublebuff[nn]);
+		      }
                     }
                   }
                   else {
@@ -3471,7 +3475,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 #endif
 #ifdef GASON
                         if (k==HDFGASTYPE) {
-                          Pbuf[ibufindex].SetU(udoublebuff[nn]);
+
+			  //if (opt.ihdfnameconvention != HDFSWIFTFLAMINGONAMES)
+			  Pbuf[ibufindex].SetU(udoublebuff[nn]);
 #ifdef STARON
                           Pbuf[ibufindex].SetSFR(SFRdoublebuff[nn] > 0. ? SFRdoublebuff[nn] : 0.);
                           Pbuf[ibufindex].SetZmet(Zdoublebuff[nn]);
