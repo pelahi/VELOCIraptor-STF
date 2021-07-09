@@ -1254,7 +1254,7 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
     ng=ngroups;
 #ifdef USEMPI
     if (NProcs >1) {
-        MPI_Allreduce(&ng, &ngtot, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(&ng, &ngtot, 1, MPI_UNSIGNED_LONG, MPI_SUM, MPI_COMM_WORLD);
     }
     else {
         ngtot = ng;
@@ -1265,7 +1265,7 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
     for (Int_t i=1;i<=ngroups;i++) nSOids+=SOpids[i].size();
 #ifdef USEMPI
     if (NProcs > 1) {
-        MPI_Allreduce(&nSOids, &nSOidstot, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(&nSOids, &nSOidstot, 1, MPI_UNSIGNED_LONG, MPI_SUM, MPI_COMM_WORLD);
     }
     else {
         nSOidstot = nSOids;
