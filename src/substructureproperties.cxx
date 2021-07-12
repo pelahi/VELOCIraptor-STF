@@ -3106,7 +3106,7 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
 
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
-private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typeparts,n,dx,EncMass,J,rc,rhoval,rhoval2,tid,SOpids,iSOfound)
+private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typeparts,n,dx,EncMass,J,rc,rhoval,rhoval2,tid,SOpids,iSOfound, massval)
 {
 #pragma omp for schedule(dynamic) nowait
 #endif
@@ -3204,6 +3204,7 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
             }
         }
 #endif
+        taggedparts.shrink_to_fit();
         //get incides
         indices.resize(radii.size());
         n=0;generate(indices.begin(), indices.end(), [&]{ return n++; });
@@ -3255,13 +3256,19 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
             for (j=0;j<llindex;j++) SOparttypelist[i][j]=typeparts[indices[j]];
 #endif
             SOpids.clear();
+            SOpids.shrink_to_fit();
         }
         indices.clear();
         radii.clear();
         masses.clear();
+        indices.shrink_to_fit();
+        radii.shrink_to_fit();
+        masses.shrink_to_fit();
         if (opt.iextrahalooutput) {
             posparts.clear();
             velparts.clear();
+            posparts.shrink_to_fit();
+            velparts.shrink_to_fit();
         }
 #if defined(GASON) || defined(STARON) || defined(BHON) || defined(HIGHRES)
         if (opt.iextragasoutput || opt.iextrastaroutput || opt.iextrainterloperoutput) typeparts.clear();
@@ -6930,46 +6937,52 @@ void CalculateExtraSphericalOverdensityProperties(Options &opt, PropData &pdata,
     for (auto iso=0;iso<opt.SOnum;iso++)
         pdata.SO_angularmomentum[iso] = zero;
 #ifdef GASON
-    pdata.M_200crit_gas = 0;
-    pdata.L_200crit_gas = zero;
-    pdata.M_200mean_gas = 0;
-    pdata.L_200mean_gas = zero;
-    pdata.M_BN98_gas = 0;
-    pdata.L_BN98_gas = zero;
-    for (auto iso=0;iso<opt.SOnum;iso++) {
-        pdata.SO_mass_gas[iso] = 0;
-        pdata.SO_angularmomentum_gas[iso] = zero;
+    if (opt.iextragasoutput) {
+        pdata.M_200crit_gas = 0;
+        pdata.L_200crit_gas = zero;
+        pdata.M_200mean_gas = 0;
+        pdata.L_200mean_gas = zero;
+        pdata.M_BN98_gas = 0;
+        pdata.L_BN98_gas = zero;
+        for (auto iso=0;iso<opt.SOnum;iso++) 
+        {
+            pdata.SO_mass_gas[iso] = 0;
+            pdata.SO_angularmomentum_gas[iso] = zero;
+        }
     }
 #endif
 #ifdef STARON
-    pdata.M_200crit_star = 0;
-    pdata.L_200crit_star = zero;
-    pdata.M_200mean_star = 0;
-    pdata.L_200mean_star = zero;
-    pdata.M_BN98_star = 0;
-    pdata.L_BN98_star = zero;
-    for (auto iso=0;iso<opt.SOnum;iso++) {
-        pdata.SO_mass_star[iso] = 0;
-        pdata.SO_angularmomentum_star[iso] = zero;
+    if (opt.iextrastaroutput) {
+        pdata.M_200crit_star = 0;
+        pdata.L_200crit_star = zero;
+        pdata.M_200mean_star = 0;
+        pdata.L_200mean_star = zero;
+        pdata.M_BN98_star = 0;
+        pdata.L_BN98_star = zero;
+        for (auto iso=0;iso<opt.SOnum;iso++) 
+        {
+            pdata.SO_mass_star[iso] = 0;
+            pdata.SO_angularmomentum_star[iso] = zero;
+        }
     }
 #endif
 #ifdef HIGHRES
-    pdata.M_200crit_interloper = 0;
-    pdata.M_200mean_interloper = 0;
-    pdata.M_BN98_interloper = 0;
-    for (auto iso=0;iso<opt.SOnum;iso++)
-    {
-                pdata.SO_mass_interloper[iso] = 0;
+    if (opt.iextrainterloperoutput) {
+        pdata.M_200crit_interloper = 0;
+        pdata.M_200mean_interloper = 0;
+        pdata.M_BN98_interloper = 0;
+        for (auto iso=0;iso<opt.SOnum;iso++)
+        {
+            pdata.SO_mass_interloper[iso] = 0;
+        }
     }
 #endif
 
-    Double_t massval;
+    Double_t massval = opt.MassValue;
     for (Int_t j=0;j<radii.size();j++)
     {
 #ifndef NOMASS
         massval = masses[indices[j]];
-#else
-        massval = opt.MassValue;
 #endif
         auto jj = indices[j];
         auto typeval = typeparts[jj];

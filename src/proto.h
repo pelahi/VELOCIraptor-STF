@@ -345,6 +345,7 @@ void ReorderInclusiveMasses(const Int_t &nold, const Int_t &nnew, Int_t *&numing
 ///Get Binding Energy
 void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset);
 
+
 ///Get Morphology properties (since this is for a particular system just use pointer interface)
 void GetGlobalSpatialMorphology(const Int_t nbodies, Particle *p, Double_t& q, Double_t& s, Double_t Error, Matrix& eigenvec, int imflag=0, int itype=-1, int iiterate=1);
 ///Calculate inertia tensor and eigvector
@@ -901,4 +902,8 @@ void ProduceBackground(Options &opt, vector<Particle> &Part, Int_t noffset);
 vector<GaussianDistrib> ProduceGaussians(Options &opt, vector<Particle> &Part);
 void PopulateGaussians(Options &opt, vector<Particle> &Part, vector<GaussianDistrib> &Gaus);
 void WriteGeneratedInput(Options &opt, vector<Particle> &Part, vector<GaussianDistrib> &Gaus);
+
+/// generate some variety of MPI calls 
+/// from Bcast, AllReduce, Allgather, SendRecv, Send, Recv and ISend, IRece
+void MPITest(Options &opt);
 #endif
