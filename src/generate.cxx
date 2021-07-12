@@ -74,7 +74,7 @@ void GenerateInput(Options &opt, vector<Particle> &Part) {
     opt.fbackground = opt.Nbackground/(double)opt.Ngenerate;
     PopulateGaussians(opt, Part, Gaus);
     ProduceBackground(opt, Part, npoints);
-    WriteGeneratedInput(opt, Part, Gaus);
+    //WriteGeneratedInput(opt, Part, Gaus);
     cout<<ThisTask<<" Generating input: Done "<<MyElapsedTime(time1)<<endl;
 #ifdef USEMPI
     MPI_Finalize();

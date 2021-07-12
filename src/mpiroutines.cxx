@@ -5818,7 +5818,7 @@ void MPISwiftExchange(vector<Particle> &Part){
 
 /// \name MPI tests
 //@{
-void MPITests(Options &opt) {
+void MPITest(Options &opt) {
 
     Int_t nsend_local[NProcs], noffset[NProcs];
     Int_t sendTask, recvTask;
@@ -5827,8 +5827,8 @@ void MPITests(Options &opt) {
     MPI_Comm mpi_comm_write;
     int ThisLocalTask, NProcsLocal, ThisLocalCommFlag, NLocalComms;
 
-    vector<int> sizeofsends(4);
-    sizeofsends[0] = 1024*1024*512/sizeof(double);
+    vector<unsigned long long> sizeofsends(4);
+    sizeofsends[0] = 1024*1024*128/sizeof(double)/static_cast<double>(NProcs);
     for (auto i=1;i<sizeofsends.size();i++) sizeofsends[i] = sizeofsends[i-1]*8;
     vector<double> data, allreducesum;
     double * p1 = nullptr, *p2 = nullptr;
@@ -5864,8 +5864,10 @@ void MPITests(Options &opt) {
         data.resize(sizeofsends[i]);
         allreducesum.resize(sizeofsends[i]);
         for (auto &d:data) d = pow(2.0,ThisTask);
-        MPI_Allreduce(p1, MPI_IN_PLACE, sizeofsends[i], MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-            cout<<"Completed "<<mpifunc<<endl;
+        p1 = data.data();
+        p2 = allreducesum.data();
+        MPI_Allreduce(p1, p2, sizeofsends[i], MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+        //MPI_Allreduce(p1, MPI_IN_PLACE, sizeofsends[i], MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
         if (ThisTask == 0) {
             cout<<"Completed "<<mpifunc<<endl;
         }
