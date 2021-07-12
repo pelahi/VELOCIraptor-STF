@@ -5816,4 +5816,64 @@ void MPISwiftExchange(vector<Particle> &Part){
 
 //@}
 
+/// \name MPI tests
+//@{
+void MPITests(Options &opt) {
+
+    Int_t nsend_local[NProcs], noffset[NProcs];
+    Int_t sendTask, recvTask;
+    vector<Particle> Plocal, Pbuff;
+    MPI_Status status;
+    MPI_Comm mpi_comm_write;
+    int ThisLocalTask, NProcsLocal, ThisLocalCommFlag, NLocalComms;
+
+    vector<int> sizeofsends(4);
+    sizeofsends[0] = 1024*1024*512/sizeof(double);
+    for (auto i=1;i<sizeofsends.size();i++) sizeofsends[i] = sizeofsends[i-1]*8;
+    vector<double> data, allreducesum;
+    double * p1 = nullptr, *p2 = nullptr;
+    string mpifunc = "Bcast";
+
+    // run broadcast 
+    if (ThisTask == 0) cout<<ThisTask<<" function "<<__func__<<" @ "<<__LINE__<<" running "<<mpifunc<<endl;
+    for (auto itask=0;itask<NProcs;itask++) {
+        if (ThisTask == itask) cout<<mpifunc<<" from "<<itask<<endl;
+        for (auto i=0;i<sizeofsends.size();i++) {
+            if (ThisTask == itask) {
+                cout<<"Send size of "<<sizeofsends[i]<<" doubles or "<<sizeofsends[i]*sizeof(double)/1024./1024./1024.<<" GB"<<endl;
+            }
+            data.resize(sizeofsends[i]);
+            p1 = data.data();
+            MPI_Bcast(p1, sizeofsends[i], MPI_DOUBLE, itask, MPI_COMM_WORLD);
+            if (ThisTask == itask) {
+                cout<<"Completed "<<mpifunc<<endl;
+            }
+        }
+    }
+    p1 = p2 = nullptr;
+    data.clear();
+    data.shrink_to_fit();
+
+    // now allreduce 
+    mpifunc = "allreduce";
+    if (ThisTask == 0) cout<<ThisTask<<" function "<<__func__<<" @ "<<__LINE__<<" running "<<mpifunc<<endl;
+    for (auto i=0;i<sizeofsends.size();i++) {
+        if (ThisTask == 0) {
+            cout<<"Send size of "<<sizeofsends[i]<<" doubles or "<<sizeofsends[i]*sizeof(double)/1024./1024./1024.<<" GB"<<endl;
+        }
+        data.resize(sizeofsends[i]);
+        allreducesum.resize(sizeofsends[i]);
+        for (auto &d:data) d = pow(2.0,ThisTask);
+        MPI_Allreduce(p1, MPI_IN_PLACE, sizeofsends[i], MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+            cout<<"Completed "<<mpifunc<<endl;
+        if (ThisTask == 0) {
+            cout<<"Completed "<<mpifunc<<endl;
+        }
+    }
+    data.clear();
+    data.shrink_to_fit();
+    allreducesum.clear();
+    allreducesum.shrink_to_fit();
+}
+//@}
 #endif
