@@ -2775,10 +2775,10 @@ private(i,j,k,x,y,z,Pval)
         vector<Double_t> maxrdist(ngroup+1);
         //to store particle ids of those in SO volume.
         vector<Int_t> SOpids;
-        vector<Int_t> *SOpartlist=new vector<Int_t>[ngroup+1];
-        vector<int> *SOparttypelist = NULL;
+        std::vector<std::vector<Int_t>> SOpartlist(ngroup);
+        std::vector<std::vector<int>> SOparttypelist;
 #if defined(GASON) || defined(STARON) || defined(BHON)
-        SOparttypelist=new vector<int>[ngroup+1];
+        SOparttypelist = std::vector<std::vector<int>>(ngroup);
 #endif
 
         //set period
@@ -3020,13 +3020,13 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
 
 
             if (opt.iSphericalOverdensityPartList) {
-                SOpartlist[i].resize(llindex);
+                SOpartlist[i - 1].resize(llindex);
 #if defined(GASON) || defined(STARON) || defined(BHON)
-                SOparttypelist[i].resize(llindex);
+                SOparttypelist[i - 1].resize(llindex);
 #endif
-                for (j=0;j<llindex;j++) SOpartlist[i][j]=SOpids[indices[j]];
+                for (j=0;j<llindex;j++) SOpartlist[i - 1][j]=SOpids[indices[j]];
 #if defined(GASON) || defined(STARON) || defined(BHON)
-                for (j=0;j<llindex;j++) SOparttypelist[i][j]=typeparts[indices[j]];
+                for (j=0;j<llindex;j++) SOparttypelist[i - 1][j]=typeparts[indices[j]];
 #endif
                 SOpids.clear();
             }
@@ -3052,10 +3052,6 @@ private(i,j,k,taggedparts,radii,masses,indices,posparts,velparts,typeparts,n,dx,
         //write the particle lists
         if (opt.iSphericalOverdensityPartList) {
             WriteSOCatalog(opt, ngroup, SOpartlist, SOparttypelist);
-            delete[] SOpartlist;
-#if defined(GASON) || defined(STARON) || defined(BHON)
-            delete[] SOparttypelist;
-#endif
         }
 #ifdef USEMPI
         mpi_period=0;
@@ -3303,12 +3299,6 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
     vector<Double_t> maxrdist(ngroup+1);
     //to store particle ids of those in SO volume.
     vector<Int_t> SOpids;
-    vector<Int_t> *SOpartlist = new vector<Int_t>[ngroup+1];
-    vector<int> *SOparttypelist = NULL;
-
-#if defined(GASON) || defined(STARON) || defined(BHON) || defined(HIGHRES)
-    SOparttypelist=new vector<int>[ngroup+1];
-#endif
 
     //set period
     if (opt.p>0) {
@@ -3335,6 +3325,15 @@ void GetSOMasses(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup
         radfac=max(1.0,exp(1.0/3.0*(log(pdata[i].gmass)-3.0*log(pdata[i].gsize)+fac)));
         maxrdist[i]=pdata[i].gsize*opt.SphericalOverdensitySeachFac*radfac;
     }
+
+    std::vector<vector<Int_t>> SOpartlist(nhalos);
+    std::vector<vector<int>> SOparttypelist;
+
+#if defined(GASON) || defined(STARON) || defined(BHON) || defined(HIGHRES)
+    SOparttypelist = std::vector<vector<int>>(nhalos);
+#endif
+
+
     if (LOG_ENABLED(trace)) {
         for (i=1;i<=ngroup;i++) if (maxsearchdist < maxrdist[i]) maxsearchdist = maxrdist[i];
         LOG(trace) << "Max search distance is " << maxsearchdist << " in period fraction " << maxsearchdist / opt.p;
@@ -3748,13 +3747,16 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
 
 
         if (opt.iSphericalOverdensityPartList) {
-            SOpartlist[i].resize(llindex);
+            // i goes from [1, ngroup]
+            // for this reason SOpartlist and SOpartypelist were ngroup + 1 long
+            // but now we they are ngroup long, so we index with i - 1
+            SOpartlist[i - 1].resize(llindex);
 #if defined(GASON) || defined(STARON) || defined(BHON) || defined(HIGHRES)
-            SOparttypelist[i].resize(llindex);
+            SOparttypelist[i - 1].resize(llindex);
 #endif
-            for (j=0;j<llindex;j++) SOpartlist[i][j]=SOpids[indices[j]];
+            for (j=0;j<llindex;j++) SOpartlist[i - 1][j]=SOpids[indices[j]];
 #if defined(GASON) || defined(STARON) || defined(BHON) || defined(HIGHRES)
-            for (j=0;j<llindex;j++) SOparttypelist[i][j]=typeparts[indices[j]];
+            for (j=0;j<llindex;j++) SOparttypelist[i - 1][j]=typeparts[indices[j]];
 #endif
             SOpids.clear();
         }
@@ -3781,8 +3783,6 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
     if (opt.iSphericalOverdensityPartList) {
         WriteSOCatalog(opt, nhalos, SOpartlist, SOparttypelist);
     }
-    delete[] SOpartlist;
-    delete[] SOparttypelist;
 #ifdef USEMPI
     mpi_period=0;
     if (NProcs>1) {
