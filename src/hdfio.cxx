@@ -483,6 +483,7 @@ inline void MPIUpdateExtraFieldOutputNames(Options &opt)
     broadcast_from_rank0(opt.star_chemproduction_output_names_aperture, opt.star_chemproduction_names_aperture);
 #endif
 #ifdef BHON
+    broadcast_from_rank0(opt.bh_internalprop_output_names, opt.bh_internalprop_names);
     broadcast_from_rank0(opt.bh_chem_output_names, opt.bh_chem_names);
     broadcast_from_rank0(opt.bh_chemproduction_output_names, opt.bh_chemproduction_names);
     broadcast_from_rank0(opt.bh_internalprop_output_names_aperture, opt.bh_internalprop_names_aperture);
