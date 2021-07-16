@@ -2570,14 +2570,15 @@ struct PropData
 
 //for storing the units of known fields
 struct HeaderUnitInfo{
-    float massdim, lengthdim, velocitydim, timedim, tempdim, energydim;
+    float massdim, lengthdim, velocitydim, timedim, tempdim;
     string extrainfo;
-    HeaderUnitInfo(float md = 0, float ld = 0, float vd = 0, float td = 0, float tempd = 0, string s = ""){
+    HeaderUnitInfo(float md = 0, float ld = 0, float vd = 0, float td = 0, float tempd = 0, string s = "")
+    {
         massdim = md;
         lengthdim = ld;
         velocitydim = vd;
         timedim = td;
-	tempdim = tempd;
+        tempdim = tempd;
         extrainfo = s;
     };
     //Parse the string in the format massdim:lengthdim:velocitydim:timedim:energydim if only a string is passed
@@ -2601,7 +2602,32 @@ struct PropDataHeader{
 #ifdef USEADIOS
     vector<ADIOS_DATATYPES> adiospredtypeinfo;
 #endif
-    PropDataHeader(Options&opt);
+    PropDataHeader(const Options &opt);
+
+    void declare_all_datasets(const Options &opt);
+
+    template <typename T>
+    void declare_dataset(std::string name, HeaderUnitInfo unit_info = UNITLESS);
+
+    void declare_dataset(std::string name, HeaderUnitInfo unit_info = UNITLESS);
+    void declare_xyz_datasets(std::string name, HeaderUnitInfo unit_info = UNITLESS);
+    void declare_xyz_datasets(std::string prefix, std::string suffix, HeaderUnitInfo unit_info = UNITLESS);
+    void declare_XYZ_datasets(std::string suffix, HeaderUnitInfo unit_info=UNITLESS);
+    void declare_XYZ_datasets(std::string prefix, std::string suffix, HeaderUnitInfo unit_info=UNITLESS);
+    void declare_xyz2_datasets(std::string name, HeaderUnitInfo unit_info = UNITLESS);
+    void declare_xyz2_datasets(std::string prefix, std::string suffix, HeaderUnitInfo = UNITLESS);
+    void declare_datasets(const std::vector<string> &names, const std::vector<string> &units, std::string suffix="");
+
+    static const HeaderUnitInfo UNITLESS;
+    static const HeaderUnitInfo MASS;
+    static const HeaderUnitInfo TEMPERATURE;
+    static const HeaderUnitInfo LENGTH;
+    static const HeaderUnitInfo VELOCITY;
+    static const HeaderUnitInfo VELOCITY_2D;
+    static const HeaderUnitInfo ANGULAR_MOMENTUM;
+    static const HeaderUnitInfo ENERGY;
+    static const HeaderUnitInfo MASS_OVER_TIME;
+    static const HeaderUnitInfo TIME;
 };
 
 
