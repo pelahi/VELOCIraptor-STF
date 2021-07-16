@@ -352,8 +352,7 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
     PropData *pdata = NULL,*pdatahalos = NULL;
     double time1;
 
-    /// Set pointer to cell node IDs
-    libvelociraptorOpt.cellnodeids = cell_node_ids;
+    libvelociraptorOpt.cellnodeids = std::vector<int>(cell_node_ids, cell_node_ids + s.numcells);
 
     Nlocal=Nmemlocal=num_gravity_parts;
 #ifdef USEMPI
@@ -699,7 +698,6 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
     return_data.group_info = group_info;
 
     //free mem associate with mpi cell node ides
-    libvelociraptorOpt.cellnodeids = NULL;
     libvelociraptorOpt.cellloc = NULL;
     free(s.cellloc);
     free(cell_node_ids);

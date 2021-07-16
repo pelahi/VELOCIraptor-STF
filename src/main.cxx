@@ -12,10 +12,12 @@
 */
 #include <algorithm>
 #include <iterator>
+#include <set>
 #include <sstream>
 #include <unistd.h>
 
 #include "compilation_info.h"
+#include "ioutils.h"
 #include "stf.h"
 #include "logging.h"
 #include "timer.h"
@@ -52,12 +54,29 @@ void show_version_info(int argc, char *argv[])
 	LOG_RANK0(info) << "VELOCIraptor started with command line: " << os.str();
 
 	// MPI/OpenMP information
-	LOG_RANK0(info) << "VELOCIratptor MPI support: "
+	std::ostringstream mpi_info;
+	mpi_info << "VELOCIratptor MPI support: ";
 #ifdef USEMPI
-	<< "yes, " << NProcs << " MPI ranks";
+	mpi_info << "yes, " << NProcs << " MPI ranks";
+	char hostname[HOST_NAME_MAX + 1];
+	::gethostname(hostname, HOST_NAME_MAX);
+	std::vector<char> all_hostnames;
+	if (ThisTask == 0) {
+	    all_hostnames.resize((HOST_NAME_MAX + 1)* NProcs);
+	}
+	MPI_Gather(hostname, HOST_NAME_MAX + 1, MPI_CHAR, all_hostnames.data(), HOST_NAME_MAX + 1, MPI_CHAR, 0, MPI_COMM_WORLD);
+	if (ThisTask == 0) {
+	    std::vector<std::string> proper_hostnames;
+	    for (int rank = 0; rank != NProcs; rank++) {
+	        proper_hostnames.emplace_back(all_hostnames.data() + (HOST_NAME_MAX + 1) * rank);
+	    }
+	    mpi_info << " running in " << std::set<std::string>(proper_hostnames.begin(), proper_hostnames.end()).size() << " nodes: ";
+	    mpi_info << vr::printable_range(proper_hostnames);
+	}
 #else
-	<< "no";
+	mpi_info << "no";
 #endif
+	LOG_RANK0(info) << "VELOCIratptor MPI support: " << mpi_info.str();
 
 	LOG_RANK0(info) << "VELOCIratptor OpenMP support: "
 #ifdef USEOPENMP

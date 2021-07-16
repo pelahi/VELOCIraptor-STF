@@ -76,7 +76,7 @@ LogStatement::~LogStatement() noexcept
 		return;
 	}
 	try {
-		m_os << '\n';
+		m_os << '\n' << std::flush;
 	} catch (const std::exception &) {
 		// silently ignore...
 	}

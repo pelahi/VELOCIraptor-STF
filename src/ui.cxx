@@ -2,6 +2,7 @@
  *  \brief user interface
  */
 
+#include "io.h"
 #include "ioutils.h"
 #include "logging.h"
 #include "stf.h"

@@ -219,7 +219,7 @@ void MPIInitialDomainDecompositionWithMesh(Options &opt){
             return a.zcurvevalue.to_ullong() < b.zcurvevalue.to_ullong();
         });
         //finally assign cells to tasks
-        opt.cellnodeids = new int[n3];
+        opt.cellnodeids.resize(n3);
         opt.cellnodeorder.resize(n3);
         opt.cellloc = new cell_loc[n3];
         int nsub = max((int)floor(n3/(double)NProcs), 1);
@@ -252,11 +252,11 @@ void MPIInitialDomainDecompositionWithMesh(Options &opt){
     MPI_Bcast(opt.cellwidth, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(opt.icellwidth, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     if (ThisTask != 0) {
-        opt.cellnodeids = new int[opt.numcells];
+        opt.cellnodeids.resize(opt.numcells);
         opt.cellnodeorder.resize(opt.numcells);
     }
     opt.cellnodenumparts.resize(opt.numcells,0);
-    MPI_Bcast(opt.cellnodeids, opt.numcells, MPI_INTEGER, 0, MPI_COMM_WORLD);
+    MPI_Bcast(opt.cellnodeids.data(), opt.numcells, MPI_INTEGER, 0, MPI_COMM_WORLD);
     MPI_Bcast(opt.cellnodeorder.data(), opt.numcells, MPI_INTEGER, 0, MPI_COMM_WORLD);
 
 }
