@@ -319,7 +319,9 @@ void H5OutputFile::write_attribute(string parent, string name, string data)
 
 void H5OutputFile::write_attribute(const std::string &parent, const std::string &name, hid_t dtype_id, const void *data)
 {
+#ifdef USEPARALLELHDF
     assert(writing_rank != ALL_RANKS);
+#endif // USEPARALLELHDF
     auto parent_id = safe_hdf5(H5Oopen, file_id, parent.data(), H5P_DEFAULT);
     auto dspace_id = safe_hdf5(H5Screate, H5S_SCALAR);
     auto attr_id = safe_hdf5(H5Acreate, parent_id, name.data(), dtype_id, dspace_id, H5P_DEFAULT, H5P_DEFAULT);
