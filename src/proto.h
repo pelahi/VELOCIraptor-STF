@@ -93,7 +93,7 @@ void WriteSimulationInfo(Options &opt);
 void WriteUnitInfo(Options &opt);
 
 ///Write particle ids of those within spherical overdensity of a field halo
-void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, vector<int> *SOtypes=NULL);
+void WriteSOCatalog(Options &opt, const Int_t ngroups, std::vector<std::vector<Int_t>> &SOpids, std::vector<std::vector<int>> &SOtypes);
 ///Write profiles
 void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata);
 ///Writes ROCKSTAR like output
