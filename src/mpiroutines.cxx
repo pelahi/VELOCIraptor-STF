@@ -447,9 +447,24 @@ void MPIDomainDecompositionWithTree_SetBnd(Node *node, Int_t &index, Double_t &l
 		//	impi_bnd[i][1] = node->GetBoundary(i,1);
 		//}
 
+		Double_t cutval;
+		int cutdim;
+		cutdim = ((SplitNode*)(((SplitNode*)node)->GetParent()))->GetCutDim();
+		cutval = ((SplitNode*)(((SplitNode*)node)->GetParent()))->GetCutValue();
 		for(int i=0; i<3; i++){
 			mpi_domain[index].bnd[i][0] = node->GetBoundary(i,0) / lscale;
 			mpi_domain[index].bnd[i][1] = node->GetBoundary(i,1) / lscale;
+
+			if(i!=cutdim){
+				mpi_domain[index].bnd[i][0] -= 1e-8;
+				mpi_domain[index].bnd[i][1] += 1e-8;
+			}
+			else
+			{
+				if(mpi_domain[index].bnd[i][0]!=cutval) mpi_domain[index].bnd[i][0] -= 1e-8;
+				if(mpi_domain[index].bnd[i][1]!=cutval) mpi_domain[index].bnd[i][1] += 1e-8;
+
+			}
 			cout<<"%123123	: "<<mpi_domain[index].bnd[i][0]<<" - "<<mpi_domain[index].bnd[i][1]<<" / "<<node->GetCount()<<endl;
 		}
 		index ++;
@@ -486,6 +501,7 @@ int MPIGetParticlesProcessor(Options &opt, Double_t x, Double_t y, Double_t z){
         }
     }
     cerr<<ThisTask<<" has particle outside the mpi domains of every process ("<<x<<","<<y<<","<<z<<")"<<endl;
+	cout<<"%123123 "<<x<<" / "<<y<<" / "<<z<<endl;
     MPI_Abort(MPI_COMM_WORLD,9);
 }
 
