@@ -1640,7 +1640,7 @@ void MPIDistributeReadTasks(Options&opt, int *&ireadtask, int*&readtaskID){
     if (opt.inputtype!=IOHDF) if (opt.num_files<opt.nsnapread) opt.nsnapread=opt.num_files;
 #endif
     for (int i=0;i<NProcs;i++) ireadtask[i]=-1;
-    int spacing=max(1,(int)floor(NProcs/opt.nsnapread));
+    int spacing=max(1,static_cast<int>(static_cast<float>(NProcs)/static_cast<float>(opt.nsnapread)));
     for (int i=0;i<opt.nsnapread;i++) {ireadtask[i*spacing]=i;readtaskID[i]=i*spacing;}
 }
 
@@ -1650,7 +1650,7 @@ int MPISetFilesRead(Options&opt, int *&ireadfile, int *&ireadtask){
     int nread, niread, nfread;
     for (int i=0;i<opt.num_files;i++) ireadfile[i]=0;
 #ifndef USEPARALLELHDF
-    nread=opt.num_files/opt.nsnapread;
+    nread=static_cast<int>(static_cast<float>(opt.num_files)/static_cast<float>(opt.nsnapread));
     niread=ireadtask[ThisTask]*nread;
     nfread=(ireadtask[ThisTask]+1)*nread;
     if (ireadtask[ThisTask]==opt.nsnapread-1) nfread=opt.num_files;
@@ -1659,14 +1659,26 @@ int MPISetFilesRead(Options&opt, int *&ireadfile, int *&ireadtask){
     //for parallel hdf, multiple tasks can be set to read the same file
     //but if nfiles >= nsnapread, proceed as always.
     if (opt.num_files>=opt.nsnapread) {
-        nread=opt.num_files/opt.nsnapread;
-        niread=ireadtask[ThisTask]*nread,nfread=(ireadtask[ThisTask]+1)*nread;
-        if (ireadtask[ThisTask]==opt.nsnapread-1) nfread=opt.num_files;
-        for (int i=niread;i<nfread;i++) ireadfile[i]=1;
+        int isel = 0;
+        vector<int> readID(opt.nsnapread);
+        for (auto i=0;i<NProcs;i++) if (ireadtask[i] > -1 ) readID[isel++]=i;
+        isel = 0;
+        nread = 0;
+        niread = -1; 
+        for (auto i=0;i<opt.num_files;i++) {
+            if (ThisTask == readID[isel]) {
+                ireadfile[i] = 1;
+                nread++;
+                if (niread == -1) niread = i;
+                nfread = i;
+            }
+            isel++;
+            if (isel >=opt.nsnapread) isel=0;
+        }
     }
     else {
-        int ntaskread = ceil(opt.nsnapread/opt.num_files);
-        int ifile = floor(ireadtask[ThisTask]/ntaskread);
+        int ntaskread = ceil(static_cast<float>(opt.nsnapread)/static_cast<float>(opt.num_files));
+        int ifile = floor(static_cast<float>(ireadtask[ThisTask])/static_cast<float>(ntaskread));
         ireadfile[ifile] = 1;
         niread = ifile;
     }
