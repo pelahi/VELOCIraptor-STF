@@ -168,7 +168,7 @@ int main(int argc,char **argv)
     //initial estimate need for memory allocation assuming that work balance is not greatly off
 #endif
     if (ThisTask==0) {
-        cout<<"There are "<<nbodies<<" particles in total that require "<<nbodies*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
+        cout<<"There are "<<nbodies<<" particles in total that require "<<nbodies*sizeof(Particle)/1024./1024./1024.<<"GB of memory, each particle requiring "<<sizeof(Particle)<<" bytes at the minimum"<<endl;
         if (opt.iBaryonSearch>0) cout<<"There are "<<nbaryons<<" baryon particles in total that require "<<nbaryons*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
     }
 
