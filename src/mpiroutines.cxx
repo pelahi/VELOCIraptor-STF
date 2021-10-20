@@ -3817,6 +3817,7 @@ Int_t MPIBuildParticleNNImportList(Options &opt, const Int_t nbodies, KDTree *tr
             if (taggedindex.size()==0) continue;
             for (auto &index:taggedindex) {
                 if (iflagged[index]) continue;
+                iflagged[index] = true;
 #ifdef STRUCDEN
                 if (iallflag==0 && Part[index].GetType()<0) continue;
 #endif
@@ -3824,7 +3825,6 @@ Int_t MPIBuildParticleNNImportList(Options &opt, const Int_t nbodies, KDTree *tr
                 nexport++;
                 nsend_local[j]++;
             }
-            for (auto &index:taggedindex) iflagged[index]=true;
         }
     }
     delete[] iflagged;
