@@ -11,6 +11,7 @@
     \todo alter unbinding/sortbybindingenergy calls since seems a waste of cpu cycles
 */
 
+#include "compilation_info.h"
 #include "stf.h"
 
 using namespace std;
@@ -41,7 +42,11 @@ int main(int argc,char **argv)
     //and this processes' rank is
     MPI_Comm_rank(MPI_COMM_WORLD,&ThisTask);
 
-    if (ThisTask == 0) cout<<"Running VELOCIraptor "<<git_sha1()<<endl;
+    if (ThisTask == 0) {
+	cout<<"Running VELOCIraptor "<<git_sha1()<<endl;
+	cout << "VELOCIraptor compiled with: " << vr::get_cxx_flags() << " " << vr::get_macros()<<endl;
+	cout << "VELOCIraptor was built on: " << vr::get_compilation_date()<<endl;
+    }
 #ifdef USEOPENMP
     // Check the threading support level
     if (provided < required)

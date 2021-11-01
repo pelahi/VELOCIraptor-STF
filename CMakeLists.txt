@@ -218,6 +218,14 @@ vr_nbodylib()
 # compilation state
 vr_compilation_summary()
 
+#
+# Store compilation flags for future reference
+#
+set(compilation_info_cxx "${CMAKE_CURRENT_BINARY_DIR}/compilation_info.cxx")
+configure_file("src/compilation_info.cxx.in" ${compilation_info_cxx} @ONLY)
+
+
+
 # Are we part of an outside build (i.e., of a treefrog build)?
 # If so, we want to let the caller know what to include
 set(_export OFF)
