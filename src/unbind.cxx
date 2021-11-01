@@ -6,6 +6,7 @@
  */
 
 #include "stf.h"
+#include <random>
 
 ///\name Tree-Potential routines
 //@{
@@ -1138,8 +1139,10 @@ void ParticleSubSample(Options &opt, const Int_t nbodies, Particle *&Part,
                 mr = (double)nbodies/(double)newnbodies;
                 newpart = new Particle[newnbodies];
                 vector<Int_t> indices(nbodies);
+                std::random_device rd;
+                std::mt19937 g(rd());
                 for (auto i=0;i<nbodies;i++) indices[i] = i;
-                random_shuffle(indices.begin(), indices.end());
+                std::shuffle(indices.begin(), indices.end(), g);
                 for (auto i=0;i<newnbodies;i++) {
                     Int_t index = indices[i];
                     newpart[i] = Part[index];

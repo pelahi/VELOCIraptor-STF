@@ -336,6 +336,8 @@ struct UnbindInfo
     //@}
     ///boolean as to whether code calculate potentials or potentials are externally provided
     bool icalculatepotential;
+    ///boolean to use (default) or not the internal energies when considering whether a gas element is bound.
+    bool iuseinternalenergy = true;
     ///fraction of potential energy that kinetic energy is allowed to be and consider particle bound
     Double_t Eratio;
     ///minimum bound mass fraction
@@ -416,188 +418,225 @@ struct cell_loc {
 /// Options structure stores useful variables that have user determined values which are altered by \ref GetArgs in \ref ui.cxx
 struct Options
 {
+
     ///\name git related info
     //@{
     string git_sha1;
     //@}
     ///\name filenames
     //@{
-    char *fname,*outname,*smname,*pname,*gname;
-    char *ramsessnapname;
+    char *fname = nullptr;
+    char *outname = nullptr;
+    char *smname = nullptr;
+    char* pname = nullptr;
+    char* gname = nullptr;
+    char *ramsessnapname = nullptr;
     //@}
     ///input format
-    int inputtype;
+    int inputtype = IOGADGET;
     ///number of snapshots
-    int num_files,snum;
+    int num_files = 1;
+    int snum = 0;
     ///if parallel reading, number of files read in parallel
-    int nsnapread;
+    int nsnapread = 1;
     ///for output, specify the formats, ie. many separate files
-    int iseparatefiles;
+    int iseparatefiles = 0;
     ///for output specify the format HDF, binary or ascii \ref OUTHDF, \ref OUTBINARY, \ref OUTASCII
-    int ibinaryout;
+    int ibinaryout = 0;
     ///for extended output allowing extraction of particles
-    int iextendedoutput;
+    int iextendedoutput = 0;
     /// output extra fields in halo properties
-    int iextrahalooutput;
+    int iextrahalooutput = 0;
     /// calculate and output extra gas fields
-    int iextragasoutput;
+    int iextragasoutput = 0;
     /// calculate and output extra star fields
-    int iextrastaroutput;
-    /// calculate and output extra bh fields
-    int iextrabhoutput;
+    int iextrastaroutput = 0;
     /// calculate and output extra interloper fields
-    int iextrainterloperoutput;
+    int iextrainterloperoutput = 0;
     /// calculate subind like properties
-    int isubfindproperties;
+    int isubfindproperties = 0;
     ///for output, produce subfind like format
-    int isubfindoutput;
+    int isubfindoutput = 0;
     ///flag indicating that VR is running on the fly
-    bool iontheflyfinding;
+    bool iontheflyfinding = false;
 
     ///disable particle id related output like fof.grp or catalog_group data. Useful if just want halo properties
     ///and not interested in tracking. Code writes halo properties catalog and exits.
-    int inoidoutput;
+    int inoidoutput = 0;
     ///return propery data in in comoving little h units instead of standard physical units
-    int icomoveunit;
+    int icomoveunit = 0;
     /// input is a cosmological simulation so can use box sizes, cosmological parameters, etc to set scales
-    int icosmologicalin;
+    int icosmologicalin = 1;
     /// input buffer size when reading data
-    long long inputbufsize;
+    long long inputbufsize = 1000000;
     /// mpi paritcle buffer size when sending input particle information
-    long long mpiparticletotbufsize,mpiparticlebufsize;
+    long long mpiparticletotbufsize = -1;
+    long long mpiparticlebufsize = -1;
     /// mpi factor by which to multiple the memory allocated, ie: buffer region
     /// to reduce likelihood of having to expand/allocate new memory
-    Double_t mpipartfac;
+    Double_t mpipartfac = 0.1;
     /// if using parallel output, number of mpi threads to group together
-    int mpinprocswritesize;
-
-    /// mpi number of top level cells used in decomposition
-    /// could be integrated into metis/parmetis eventually
-    /// here this is the number of cells in a singel dimension to total cells
-    /// is this to ^3
-    int mpinumtoplevelcells;
+    int mpinprocswritesize = 1;
 
     /// run FOF using OpenMP
-    int iopenmpfof;
+    int iopenmpfof = 1;
     /// size of openmp FOF region
-    int openmpfofsize;
+    int openmpfofsize = ompfofsearchnum;
 
     ///\name length,m,v,grav conversion units
     //@{
-    Double_t lengthinputconversion, massinputconversion, energyinputconversion, internalenergyinputconversion, velocityinputconversion;
-    Double_t SFRinputconversion, metallicityinputconversion, stellarageinputconversion;
-    int istellaragescalefactor, isfrisssfr;
-    Double_t G;
-    Double_t lengthtokpc, velocitytokms, masstosolarmass, energyperunitmass, timetoseconds;
-    Double_t SFRtosolarmassperyear, stellaragetoyrs, metallicitytosolar;
+    Double_t lengthinputconversion = 1;
+    Double_t massinputconversion = 1;
+    Double_t energyinputconversion = 1;
+    Double_t internalenergyinputconversion = 1;
+    Double_t velocityinputconversion = 1;
+    Double_t SFRinputconversion = 1;
+    Double_t metallicityinputconversion = 1;
+    Double_t stellarageinputconversion = 1;
+    int istellaragescalefactor = 1;
+    int isfrisssfr = 0;
+    Double_t G = 0;
+    Double_t lengthtokpc = -1;
+    Double_t velocitytokms = -1;
+    Double_t masstosolarmass = -1;
+    Double_t SFRtosolarmassperyear = -1;
+    Double_t stellaragetoyrs = -1;
+    Double_t metallicitytosolar = -1;
     //@}
     ///period (comove)
-    Double_t p;
+    Double_t p = 0;
     ///\name scale factor, Hubunit, h, cosmology, virial density. These are used if linking lengths are scaled or trying to define virlevel using the cosmology
     //@{
-    Double_t a,H,h;
-    Double_t Omega_m, Omega_b, Omega_cdm, Omega_Lambda, Omega_k, Omega_r, Omega_nu, Omega_de, w_de;
-    Double_t rhocrit, rhobg, virlevel, virBN98;
-    int comove;
+    Double_t a = 1;
+    Double_t H = 0;
+    Double_t h = 1;
+
+    Double_t Omega_m = 1;
+    Double_t Omega_b = 0;
+    Double_t Omega_cdm = 1;
+    Double_t Omega_Lambda = 0;
+    Double_t Omega_k = 0;
+    Double_t Omega_r = 0;
+    Double_t Omega_nu = 0;
+    Double_t Omega_de = 0;
+    Double_t w_de = -1;
+    Double_t rhocrit = -1;
+    Double_t rhobg = 1;
+    Double_t virlevel = -1;
+    Double_t virBN98 = -1;
+    int comove = 0;
     /// to store the internal code unit to kpc and the distance^2 of 30 kpc, and 50 kpc
-    Double_t lengthtokpc30pow2, lengthtokpc50pow2;
+    Double_t lengthtokpc30pow2 = 30.0 * 30.0;
+    Double_t lengthtokpc50pow2 = 50.0 * 50.0;
     //@}
 
     ///to store number of each particle types so that if only searching one particle type, assumes order of gas, dark (halo, disk,bulge), star, special or sink for pfof tipsy style output
-    Int_t numpart[NPARTTYPES];
+    Int_t numpart[NPARTTYPES] {};
 
     ///\name parameters that control the local and average volumes used to calculate the local velocity density and the mean field, also the size of the leafnode in the kd-tree used when searching the tree for fof neighbours
     //@{
-    int iLocalVelDenApproxCalcFlag;
-    int Nvel, Nsearch, Bsize;
-    Int_t Ncell;
-    Double_t Ncellfac;
+    int iLocalVelDenApproxCalcFlag = 2;
+    int Nvel = 32;
+    int Nsearch = 256;
+    int Bsize = 32;
+
+    Int_t Ncell = 0;
+    Double_t Ncellfac = 0.01;
     //@}
     ///minimum group size
-    int MinSize;
+    int MinSize = 20;
     ///allows for field halos to have a different minimum size
-    int HaloMinSize;
+    int HaloMinSize = -1;
     ///Significance parameter for groups
-    Double_t siglevel;
+    Double_t siglevel = 2.0;
 
     ///whether to search for substructures at all
-    int iSubSearch;
+    int iSubSearch = 1;
     ///type of search
-    int foftype,fofbgtype;
+    int foftype = FOFSTPROB;
+    int fofbgtype = FOF6D;
+
     ///grid type, physical, physical+entropy splitting criterion, phase+entropy splitting criterion. Note that this parameter should not be changed from the default value
-    int gridtype;
+    int gridtype = PHYSENGRID;
     ///flag indicating search all particle types or just dark matter
-    int partsearchtype;
+    int partsearchtype = PSTALL;
     ///flag indicating a separate baryonic search is run, looking for all particles that are associated in phase-space
     ///with dark matter particles that belong to a structure
-    int iBaryonSearch;
-    /// FOF search for baryons
-    int ifofbaryonsearch;
+    int iBaryonSearch = 0;
     ///flag indicating if move to CM frame for substructure search
-    int icmrefadjust;
+    int icmrefadjust = 1;
     /// flag indicating if CM is interated shrinking spheres
-    int iIterateCM;
+    int iIterateCM = 1;
     /// flag to sort output particle lists by binding energy (or potential if not on)
-    int iSortByBindingEnergy;
+    int iSortByBindingEnergy = 1;
     /// what reference position to use when calculating Properties
-    int iPropertyReferencePosition;
+    int iPropertyReferencePosition = PROPREFCM;
     /// what particle type is used to define reference position
-    int ParticleTypeForRefenceFrame;
+    int ParticleTypeForRefenceFrame = -1;
 
 
     ///threshold on particle ELL value, normalized logarithmic distance from predicted maxwellian velocity density.
-    Double_t ellthreshold;
+    Double_t ellthreshold = 1.5;
     ///\name fofstream search parameters
     //@{
-    Double_t thetaopen,Vratio,ellphys;
+    Double_t thetaopen = 0.05;
+    Double_t Vratio = 1.25;
+    Double_t ellphys = 0.2;
     //@}
     ///fof6d search parameters
-    Double_t ellvel;
+    Double_t ellvel = 0.5;
     ///scaling for ellphs and ellvel
-    Double_t ellxscale,ellvscale;
+    Double_t ellxscale = 1;
+    Double_t ellvscale = 1;
     ///flag to use iterative method
-    int iiterflag;
+    int iiterflag = 0;
+
     ///\name factors used to multiply the input values to find initial candidate particles and for mergering groups in interative search
     //@{
-    Double_t ellfac,ellxfac,vfac,thetafac,nminfac;
-    Double_t fmerge;
+    Double_t ellfac = 2.5;
+    Double_t ellxfac = 3;
+    Double_t vfac = 1;
+    Double_t thetafac = 1;
+    Double_t nminfac = 0.5;
+    Double_t fmerge = 0.25;
     //@}
     ///factors to alter halo linking length search (related to substructure search)
     //@{
-    Double_t ellhalophysfac,ellhalovelfac;
+    Double_t ellhalophysfac = 1;
+    Double_t ellhalovelfac = 1;
+
     //@}
     ///\name parameters related to 3DFOF search & subsequent 6DFOF search
     //@{
-    Double_t ellhalo3dxfac;
-    Double_t ellhalo6dxfac;
-    Double_t ellhalo6dvfac;
-    int iKeepFOF;
-    Int_t num3dfof;
+    Double_t ellhalo3dxfac = -1.0;
+    Double_t ellhalo6dxfac = 1;
+    Double_t ellhalo6dvfac = 1.25;
+    int iKeepFOF = 0;
+    Int_t num3dfof = 0;
     //@}
     //@{
     ///\name factors used to check for halo mergers, large background substructures and store the velocity scale when searching for associated baryon substructures
     //@{
-    Double_t HaloMergerSize,HaloMergerRatio,HaloSigmaV,HaloVelDispScale,HaloLocalSigmaV;
-    Double_t fmergebg;
+    Double_t HaloMergerSize = 10000;
+    Double_t HaloMergerRatio = 0.2;
+    Double_t HaloSigmaV = 0;
+    Double_t HaloVelDispScale = 0;
+    Double_t HaloLocalSigmaV = 0;
+    Double_t fmergebg = 0.5;
     //@}
     ///flag indicating a single halo is passed or must run search for FOF haloes
-    Int_t iSingleHalo;
+    Int_t iSingleHalo = 0;
     ///flag indicating haloes are to be check for self-boundness after being searched for substructure
-    Int_t iBoundHalos;
-    /// store denv ratio statistics
-    //@{
-    int idenvflag;
-    Double_t denvstat[3];
-    //@}
+    Int_t iBoundHalos = 0;
     ///verbose output flag
-    int iverbose;
+    int iverbose = 0;
     ///whether or not to write a fof.grp tipsy like array file
-    int iwritefof;
+    int iwritefof = 0;
     ///whether mass properties for field objects are inclusive
-    int iInclusiveHalo;
+    int iInclusiveHalo = 0;
 
     ///if no mass value stored then store global mass value
-    Double_t MassValue;
+    Double_t MassValue = -1;
 
     ///structure that contains variables for unbinding
     UnbindInfo uinfo;
@@ -605,90 +644,99 @@ struct Options
     PropInfo pinfo;
 
     ///effective resolution for zoom simulations
-    Int_t Neff;
+    Int_t Neff = -1;
 
     ///if during substructure search, want to also search for larger substructures
     //using the more time consuming local velocity calculations (partly in lieu of using the faster core search)
-    int iLargerCellSearch;
+    int iLargerCellSearch = 0;
 
     ///\name extra stuff for halo merger check and identification of multiple halo core and flag for fully adaptive linking length using number density of candidate objects
     //@{
     /// run halo core search for mergers
-    int iHaloCoreSearch;
+    int iHaloCoreSearch = 0;
     ///maximum sublevel at which we search for phase-space cores
-    int maxnlevelcoresearch;
+    int maxnlevelcoresearch = 5;
     ///parameters associated with phase-space search for cores of mergers
-    Double_t halocorexfac, halocorevfac, halocorenfac, halocoresigmafac;
+    Double_t halocorexfac = 0.5;
+    Double_t halocorevfac = 2;
+    Double_t halocorenfac = 0.1;
+    Double_t halocoresigmafac = 2;
     ///x and v space linking lengths calculated for each object
-    int iAdaptiveCoreLinking;
+    int iAdaptiveCoreLinking = 0;
     ///use phase-space tensor core assignment
-    int iPhaseCoreGrowth;
+    int iPhaseCoreGrowth = 1;
     ///number of iterations
-    int halocorenumloops;
+    int halocorenumloops = 3;
     ///factor by which one multiples the configuration space dispersion when looping for cores
-    Double_t halocorexfaciter;
+    Double_t halocorexfaciter = 0.75;
     ///factor by which one multiples the velocity space dispersion when looping for cores
-    Double_t halocorevfaciter;
+    Double_t halocorevfaciter = 0.75;
     ///factor by which one multiples the min num when looping for cores
-    Double_t halocorenumfaciter;
+    Double_t halocorenumfaciter = 1;
     ///factor by which a core must be seperated from main core in phase-space in sigma units
-    Double_t halocorephasedistsig;
+    Double_t halocorephasedistsig = 2;
     ///factor by which a substructure s must be closer than in phase-space to merger with another substructure in sigma units
-    Double_t coresubmergemindist;
+    Double_t coresubmergemindist = 0;
     ///whether substructure phase-space distance merge check is applied to background host halo as well.
-    int icoresubmergewithbg;
+    int icoresubmergewithbg = 0;
     ///fraction of size a substructure must be of host to be considered a spurious dynamical substructure
-    Double_t minfracsubsizeforremoval;
+    Double_t minfracsubsizeforremoval = 0.75;
     ///Maximum allowed mean local velocity density ratio above which structure is considered highly unrelaxed.
-    Double_t maxmeanlocalvelratio;
+    Double_t maxmeanlocalvelratio = 0.5;
     //@}
     ///for storing a snapshot value to make halo ids unique across snapshots
-    long long snapshotvalue;
+    long long snapshotvalue = 0;
 
     ///\name for reading gadget info with lots of extra sph, star and bh blocks
     //@{
-    int gnsphblocks,gnstarblocks,gnbhblocks;
+    int gnsphblocks = 4;
+    int gnstarblocks = 2;
+    int gnbhblocks = 2;
     //@}
 
     /// \name Extra HDF flags indicating the existence of extra baryonic/dm particle types
     //@{
     /// input naming convention
-    int ihdfnameconvention;
+    int ihdfnameconvention = -1;
     /// input contains dm particles
-    int iusedmparticles;
+    int iusedmparticles = 1;
     /// input contains hydro/gas particles
-    int iusegasparticles;
+    int iusegasparticles = 1;
     /// input contains star particles
-    int iusestarparticles;
+    int iusestarparticles = 1;
     /// input contains black hole/sink particles
-    int iusesinkparticles;
+    int iusesinkparticles = 1;
     /// input contains wind particles
-    int iusewindparticles;
+    int iusewindparticles = 0;
     /// input contains tracer particles
-    int iusetracerparticles;
+    int iusetracerparticles = 0;
     /// input contains extra dark type particles
-    int iuseextradarkparticles;
+#ifdef HIGHRES
+    int iuseextradarkparticles = 1;
+#else
+    int iuseextradarkparticles = 0;
+#endif
     //@}
 
     /// if want full spherical overdensity, factor by which size is multiplied to get
     ///bucket of particles
-    Double_t SphericalOverdensitySeachFac;
+    Double_t SphericalOverdensitySeachFac = 2.5;
     ///if want to the particle IDs that are within the SO overdensity of a halo
-    int iSphericalOverdensityPartList;
+    int iSphericalOverdensityPartList = 0;
     /// if want to include more than just field objects (halos) in full SO calculations
-    int SphericalOverdensitySeachMaxStructLevel;
+    int SphericalOverdensitySeachMaxStructLevel = HALOSTYPE;
     /// flag to store whether SO calculations need extra properties
-    bool iSphericalOverdensityExtraFieldCalculations;
+    bool iSphericalOverdensityExtraFieldCalculations = false;
     /// \name Extra variables to store information useful in zoom simluations
     //@{
     /// store the lowest dark matter particle mass
-    Double_t zoomlowmassdm;
+    Double_t zoomlowmassdm = 0;
     //@}
 
     ///\name extra runtime flags
     //@{
     ///scale lengths. Useful if searching single halo system and which to automatically scale linking lengths
-    int iScaleLengths;
+    int iScaleLengths = 0;
 
     /// \name Swift/Metis related quantitites
     //@{
@@ -697,16 +745,17 @@ struct Options
     double spacedimension[3];
 
     /* Number of top-level cells. */
-    int numcells;
+    int numcells = 0;
 
     /* Number of top-level cells in each dimension. */
-    int numcellsperdim;
+    int numcellsperdim = 0;
 
     /// minimum number of top-level cells
-    int minnumcellperdim;
+    int minnumcellperdim = 8;
+
 
     /* Locations of top-level cells. */
-    cell_loc *cellloc;
+    cell_loc *cellloc = NULL;
 
     /*! Top-level cell width. */
     double cellwidth[3];
@@ -714,12 +763,12 @@ struct Options
     /*! Inverse of the top-level cell width. */
     double icellwidth[3];
 
-    // Holds the mpi ID of each top-level cell.
-    int *cellnodeids;
+    /*! Holds the node ID of each top-level cell. */
+    std::vector<int> cellnodeids;
 
     //when particles are moved to other mpi domains
-    //may need to update the mpi ids associated with a cell
-    vector<vector<int>> newcellnodeids;
+    //may need to update the mpi ids associated with a cell 
+    std::vector<std::vector<int>> newcellnodeids;
 
     /// holds the order of cells based on z-curve decomposition;
     vector<int> cellnodeorder;
@@ -728,40 +777,63 @@ struct Options
     vector<unsigned long long> cellnodenumparts;
 
     /// allowed mesh based mpi decomposition load imbalance
-    float mpimeshimbalancelimit;
-
+#ifndef SWIFTINTERFACE
+    float mpimeshimbalancelimit = 0.1;
+#else
+    float mpimeshimbalancelimit = 0;
+#endif // SWIFTINTERFACE
 
     ///whether using mesh decomposition
-    bool impiusemesh;
+    bool impiusemesh = true;
 
     //@}
 
     /// \name options related to calculation of aperture/profile
     //@{
-    int iaperturecalc;
-    int aperturenum,apertureprojnum;
+    int iaperturecalc = 0;
+    int aperturenum = 0;
+    int apertureprojnum = 0;
     vector<Double_t> aperture_values_kpc;
     vector<string> aperture_names_kpc;
     vector<Double_t> aperture_proj_values_kpc;
     vector<string> aperture_proj_names_kpc;
-    int iprofilecalc, iprofilenorm, iprofilebintype;
-    int profilenbins;
-    int iprofilecumulative;
+
+    int iprofilecalc = 0;
+    int iprofilenorm = PROFILERNORMR200CRIT;
+    int iprofilebintype = PROFILERBINTYPELOG;
+    int profilenbins = 0;
+    int iprofilecumulative = 0;
     string profileradnormstring;
     vector<Double_t> profile_bin_edges;
-    Int_t profileminsize, profileminFOFsize;
+    Int_t profileminsize = 0;
+    Int_t profileminFOFsize = 0;
     //@}
 
     /// \name options related to calculation of arbitrary overdensities masses, radii, angular momentum
     //@{
-    int SOnum;
+    int SOnum = 0;
     vector<Double_t> SOthresholds_values_crit;
     vector<string> SOthresholds_names_crit;
     //@}
 
+    /// \name temperature threshold above which gas is considered hot in Kelvin.
+    //@{
+    float temp_max_cut = 0;
+    //@}
+
+    /// \name spherical overdensity used for normalisation of radial profiles of hot gas.
+    //@{
+    float hot_gas_overdensity_normalisation = 0;
+    //@}
+
+    /// \name radial apertures values in units of the hot_gas_overdensity_normalisation.
+    //@{
+    vector<float> aperture_hotgas_normalised_to_overdensity;
+    //@}
+    
     /// \name options related to calculating star forming gas quantities
     //@{
-    Double_t gas_sfr_threshold;
+    Double_t gas_sfr_threshold = 0;
     //@}
 
     /// \name options related to calculating detailed hydro/star/bh properties related to chemistry/feedbac, etc
@@ -829,6 +901,7 @@ struct Options
     vector<float> star_chemproduction_input_output_unit_conversion_factors;
     vector<float> bh_chemproduction_input_output_unit_conversion_factors;
     vector<float> extra_dm_internalprop_input_output_unit_conversion_factors;
+    float temp_input_output_unit_conversion_factor=1; //assume one if nothing is provided
 
     ///store output units
     vector<string> gas_internalprop_output_units;
@@ -856,10 +929,10 @@ struct Options
     vector<int> extra_dm_internalprop_index_paired_calc;
 
     ///whether some calculations are for extra properties are aperture calculations
-    bool gas_extraprop_aperture_calc;
-    bool star_extraprop_aperture_calc;
-    bool bh_extraprop_aperture_calc;
-    bool extra_dm_extraprop_aperture_calc;
+    bool gas_extraprop_aperture_calc = false;
+    bool star_extraprop_aperture_calc = false;
+    bool bh_extraprop_aperture_calc = false;
+    bool extra_dm_extraprop_aperture_calc = false;
 
     ///easier to store information separately internally
     vector<string> gas_internalprop_names_aperture;
@@ -966,231 +1039,14 @@ struct Options
 
     /// \name memory related info
     //@{
-    unsigned long long memuse_peak;
-    unsigned long long memuse_ave;
-    int memuse_nsamples;
-    bool memuse_log;
+    unsigned long long memuse_peak = 0;
+    unsigned long long memuse_ave = 0;
+    int memuse_nsamples = 0;
+    bool memuse_log = false;
     //@}
 
     //silly flag to store whether input has little h's in it.
-    bool inputcontainslittleh;
-
-    Options()
-    {
-        lengthinputconversion = 1.0;
-        massinputconversion = 1.0;
-        velocityinputconversion = 1.0;
-        SFRinputconversion = 1.0;
-        metallicityinputconversion = 1.0;
-        energyinputconversion = 1.0;
-        stellarageinputconversion =1.0;
-        istellaragescalefactor = 1;
-        isfrisssfr = 0;
-
-        G = 0.0;
-        p = 0.0;
-
-        a = 1.0;
-        H = 0.;
-        h = 1.0;
-        Omega_m = 1.0;
-        Omega_Lambda = 0.0;
-        Omega_b = 0.0;
-        Omega_cdm = Omega_m;
-        Omega_k = 0;
-        Omega_r = 0.0;
-        Omega_nu = 0.0;
-        Omega_de = 0.0;
-        w_de = -1.0;
-        rhobg = 1.0;
-        virlevel = -1;
-        comove=0;
-        MassValue=-1.0;
-
-        inputtype=IOGADGET;
-
-        num_files=1;
-        nsnapread=1;
-
-        fname=outname=smname=pname=gname=outname=NULL;
-
-        Bsize=32;
-        Nvel=32;
-        Nsearch=256;
-        Ncellfac=0.01;
-
-        iSubSearch=1;
-        partsearchtype=PSTALL;
-        for (int i=0;i<NPARTTYPES;i++)numpart[i]=0;
-        foftype=FOFSTPROB;
-        gridtype=PHYSENGRID;
-        fofbgtype=FOF6D;
-        idenvflag=0;
-        iBaryonSearch=0;
-        icmrefadjust=1;
-        iIterateCM = 1;
-        iLocalVelDenApproxCalcFlag = 2 ;
-
-        Neff=-1;
-
-
-        ellthreshold=1.5;
-        thetaopen=0.05;
-        Vratio=1.25;
-        ellphys=0.2;
-        MinSize=20;
-        HaloMinSize=-1;
-        siglevel=2.0;
-        ellvel=0.5;
-        ellxscale=ellvscale=1.0;
-        ellhalophysfac=ellhalovelfac=1.0;
-        ellhalo6dxfac=1.0;
-        ellhalo6dvfac=1.25;
-        ellhalo3dxfac=-1.0;
-
-        iiterflag=0;
-        ellfac=2.5;
-        ellxfac=3.0;
-        vfac=1.0;
-        thetafac=1.0;
-        nminfac=0.5;
-        fmerge=0.25;
-
-        HaloMergerSize=10000;
-        HaloMergerRatio=0.2;
-        HaloVelDispScale=0;
-        fmergebg=0.5;
-        iSingleHalo=0;
-        iBoundHalos=0;
-        iInclusiveHalo=0;
-        iKeepFOF=0;
-        iSortByBindingEnergy=1;
-        iPropertyReferencePosition=PROPREFCM;
-        ParticleTypeForRefenceFrame=-1;
-
-        iLargerCellSearch=0;
-
-        iHaloCoreSearch=0;
-        iAdaptiveCoreLinking=0;
-        iPhaseCoreGrowth=1;
-        maxnlevelcoresearch=5;
-        halocorexfac=0.5;
-        halocorevfac=2.0;
-        halocorenfac=0.1;
-        halocoresigmafac=2.0;
-        halocorenumloops=3;
-        halocorexfaciter=0.75;
-        halocorevfaciter=0.75;
-        halocorenumfaciter=1.0;
-        halocorephasedistsig=2.0;
-        coresubmergemindist=0.0;
-        icoresubmergewithbg=0;
-        minfracsubsizeforremoval=0.75;
-        maxmeanlocalvelratio=0.5;
-
-        iverbose=0;
-        iwritefof=0;
-        iseparatefiles=0;
-        ibinaryout=0;
-        iextendedoutput=0;
-        isubfindoutput=0;
-        inoidoutput=0;
-        icomoveunit=0;
-        icosmologicalin=1;
-
-        iextrahalooutput=0;
-        iextragasoutput=0;
-        iextrastaroutput=0;
-        iextrainterloperoutput=0;
-        isubfindproperties=0;
-
-        iusedmparticles=1;
-        iusegasparticles=1;
-        iusestarparticles=1;
-        iusesinkparticles=1;
-        iusewindparticles=0;
-        iusetracerparticles=0;
-#ifdef HIGHRES
-        iuseextradarkparticles=1;
-#else
-        iuseextradarkparticles=0;
-#endif
-
-        snapshotvalue=0;
-
-        gnsphblocks=4;
-        gnstarblocks=2;
-        gnbhblocks=2;
-
-        iScaleLengths=0;
-
-        inputbufsize=1000000;
-
-        mpiparticletotbufsize=-1;
-        mpiparticlebufsize=-1;
-        mpinprocswritesize=1;
-#ifdef SWIFTINTERFACE
-        impiusemesh = true;
-#else
-        impiusemesh = true;
-        mpimeshimbalancelimit = 0.1;
-        minnumcellperdim = 8;
-#endif
-        cellnodeids = NULL;
-
-        lengthtokpc=-1.0;
-        velocitytokms=-1.0;
-        masstosolarmass=-1.0;
-#if defined(GASON) || defined(STARON) || defined(BHON)
-        SFRtosolarmassperyear=-1.0;
-        stellaragetoyrs=-1.0;
-        metallicitytosolar=-1.0;
-#endif
-
-
-        lengthtokpc30pow2=30.0*30.0;
-        lengthtokpc50pow2=50.0*50.0;
-
-        SphericalOverdensitySeachFac=2.5;
-        iSphericalOverdensityPartList=0;
-        SphericalOverdensitySeachMaxStructLevel = HALOSTYPE;
-        iSphericalOverdensityExtraFieldCalculations = false;
-
-        mpipartfac=0.1;
-#if USEHDF
-        ihdfnameconvention=-1;
-#endif
-        iaperturecalc=0;
-        aperturenum=0;
-        apertureprojnum=0;
-        SOnum=0;
-
-        iprofilecalc=0;
-        iprofilenorm=PROFILERNORMR200CRIT;
-        iprofilebintype=PROFILERBINTYPELOG;
-        iprofilecumulative=0;
-        profilenbins=0;
-        profileminsize = profileminFOFsize = 0;
-#ifdef USEOPENMP
-        iopenmpfof = 1;
-        openmpfofsize = ompfofsearchnum;
-#endif
-
-        iontheflyfinding = false;
-
-        memuse_peak = 0;
-        memuse_ave = 0;
-        memuse_nsamples = 0;
-        memuse_log = false;
-
-        inputcontainslittleh = true;
-
-        gas_sfr_threshold = 0;
-
-    }
-    Options(Options &opt) = default;
-    Options& operator=(const Options&) = default;
-    Options& operator=(Options&&) = default;
+    bool inputcontainslittleh = true;
 };
 
 struct ConfigInfo{
@@ -1676,11 +1532,41 @@ struct PropData
     vector<float> profile_mass_gas_nsf;
     vector<float> profile_mass_inclusive_gas_nsf;
     vector<Coordinate> profile_L_gas_nsf;
+#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+    vector<float> aperture_M_gas_highT;
+    vector<float> aperture_Temp_mean_gas_highT;
+    vector<float> aperture_Z_mean_gas_highT;
+#endif
+
     //@}
 
     vector<Double_t> SO_mass_gas_nsf;
     vector<Coordinate> SO_angularmomentum_gas_nsf;
 #endif
+#endif
+#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+    Double_t M_gas_highT;
+    Double_t Temp_mean_gas_highT;
+    Double_t Z_mean_gas_highT;
+    Double_t M_gas_highT_incl;
+    Double_t Temp_mean_gas_highT_incl;
+    Double_t Z_mean_gas_highT_incl;
+    vector<float> SO_mass_highT;
+    vector<float> SO_Temp_mean_gas_highT;
+    vector<float> SO_Z_mean_gas_highT;
+    vector<Double_t> SO_radius_highT, SO_totalmass_highT;
+#endif
+    ///\name inclusive masses computed for the FOF structures.
+    //@{
+    Double_t M_tot_incl;
+#ifdef GASON 
+    Double_t M_gas_incl;
+#ifdef STARON
+    Double_t M_gas_nsf_incl, M_gas_sf_incl;
+#endif
+#endif
+#ifdef STARON
+    Double_t M_star_incl;
 #endif
 
 #ifdef STARON
@@ -1905,7 +1791,23 @@ struct PropData
         L_BN98_excl_gas_nsf[0]=L_BN98_excl_gas_nsf[1]=L_BN98_excl_gas_nsf[2]=0;
 #endif
 #endif
+#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+	M_gas_highT=0;
+	Temp_mean_gas_highT=0;
+	Z_mean_gas_highT=0;
+	M_gas_highT_incl=0;
+	Temp_mean_gas_highT_incl=0;
+	Z_mean_gas_highT_incl=0;
+#endif
+	M_tot_incl=0;
+#ifdef GASON
+        M_gas_incl=0;
 #ifdef STARON
+	M_gas_nsf_incl=M_gas_sf_incl=0;
+#endif
+#endif
+#ifdef STARON
+        M_star_incl=0;
         M_star_rvmax=M_star_30kpc=M_star_50kpc=0;
         n_star=M_star=Efrac_star=0;
         cm_star[0]=cm_star[1]=cm_star[2]=cmvel_star[0]=cmvel_star[1]=cmvel_star[2]=0.;
@@ -1948,6 +1850,9 @@ struct PropData
         AllocateApertures(opt);
         AllocateProfiles(opt);
         AllocateSOs(opt);
+#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+	AllocateSOs_HotGas(opt);
+#endif
     }
     void AllocateApertures(Options &opt)
     {
@@ -1979,6 +1884,11 @@ struct PropData
             aperture_rhalfmass_gas_nsf.resize(opt.aperturenum);
             aperture_Z_gas_sf.resize(opt.aperturenum);
             aperture_Z_gas_nsf.resize(opt.aperturenum);
+            #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+	    aperture_M_gas_highT.resize(opt.aperturenum);
+	    aperture_Temp_mean_gas_highT.resize(opt.aperturenum);
+	    aperture_Z_mean_gas_highT.resize(opt.aperturenum);
+	    #endif
             if (opt.gas_extraprop_aperture_calc) aperture_properties_gas_sf.resize(opt.aperturenum);
             if (opt.gas_extraprop_aperture_calc) aperture_properties_gas_nsf.resize(opt.aperturenum);
 #endif
@@ -2036,6 +1946,11 @@ struct PropData
             for (auto &x:aperture_rhalfmass_gas_nsf) x=-1;
             for (auto &x:aperture_Z_gas_sf) x=0;
             for (auto &x:aperture_Z_gas_nsf) x=0;
+            #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+            for (auto &x:aperture_M_gas_highT) x=0;
+            for (auto &x:aperture_Temp_mean_gas_highT) x=0;
+            for (auto &x:aperture_Z_mean_gas_highT) x=0;
+            #endif
 #endif
 #endif
 #ifdef STARON
@@ -2205,6 +2120,28 @@ struct PropData
             }
         }
     }
+
+#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+    void AllocateSOs_HotGas(Options &opt)
+    {
+        int sonum_hotgas = opt.aperture_hotgas_normalised_to_overdensity.size();
+	
+	if(sonum_hotgas > 0){
+		SO_totalmass_highT.resize(sonum_hotgas);
+		SO_mass_highT.resize(sonum_hotgas);
+		SO_Temp_mean_gas_highT.resize(sonum_hotgas);
+		SO_Z_mean_gas_highT.resize(sonum_hotgas);
+		SO_radius_highT.resize(sonum_hotgas);
+		for (auto &x:SO_totalmass_highT) x=0;
+		for (auto &x:SO_mass_highT) x=0;
+		for (auto &x:SO_Temp_mean_gas_highT) x=0;
+		for (auto &x:SO_Z_mean_gas_highT) x=0;
+		for (auto &x:SO_radius_highT) x=0;
+	}
+
+    }
+#endif
+
     void CopyProfileToInclusive(Options &opt) {
         for (auto i=0;i<opt.profilenbins;i++) {
             profile_npart_inclusive[i]=profile_npart[i];
@@ -2312,6 +2249,7 @@ struct PropData
         MassTwiceRhalfmass_gas_nsf*=opt.h;
         Rhalfmass_gas_nsf*=opt.h/opt.a;
 
+
         if (opt.iextragasoutput) {
             M_200mean_gas_sf*=opt.h;
             M_200crit_gas_sf*=opt.h;
@@ -2342,7 +2280,26 @@ struct PropData
         #endif
 
 #endif
+#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+	M_gas_highT*=opt.h;
+	M_gas_highT_incl*=opt.h;
+        if(opt.aperture_hotgas_normalised_to_overdensity.size() > 0){
+		for (auto i=0;i<opt.aperture_hotgas_normalised_to_overdensity.size();i++) {
+			SO_mass_highT[i]*=opt.h;
+                	SO_radius_highT[i] *= opt.h/opt.a;
+		}
+	}
+#endif
+	M_tot_incl*=opt.h;
+#ifdef GASON
+	M_gas_incl*=opt.h;
 #ifdef STARON
+	M_gas_nsf_incl*=opt.h;
+	M_gas_sf_incl*=opt.h;
+#endif
+#endif
+#ifdef STARON
+        M_star_incl*=opt.h;
         M_star*=opt.h;
         M_star_rvmax*=opt.h;
         M_star_30kpc*=opt.h;
@@ -2367,6 +2324,7 @@ struct PropData
 #ifdef STARON
                 aperture_mass_gas_sf[i]*=opt.h;
                 aperture_mass_gas_nsf[i]*=opt.h;
+                aperture_M_gas_highT[i]*=opt.h;
 #endif
 #endif
 #ifdef STARON
@@ -2438,13 +2396,15 @@ struct PropData
 
 //for storing the units of known fields
 struct HeaderUnitInfo{
-    float massdim, lengthdim, velocitydim, timedim, energydim;
+    float massdim, lengthdim, velocitydim, timedim, tempdim;
     string extrainfo;
-    HeaderUnitInfo(float md = 0, float ld = 0, float vd = 0, float td = 0, string s = ""){
+    HeaderUnitInfo(float md = 0, float ld = 0, float vd = 0, float td = 0, float tempd = 0, string s = "")
+    {
         massdim = md;
         lengthdim = ld;
         velocitydim = vd;
         timedim = td;
+        tempdim = tempd;
         extrainfo = s;
     };
     //Parse the string in the format massdim:lengthdim:velocitydim:timedim:energydim if only a string is passed
@@ -2468,7 +2428,32 @@ struct PropDataHeader{
 #ifdef USEADIOS
     vector<ADIOS_DATATYPES> adiospredtypeinfo;
 #endif
-    PropDataHeader(Options&opt);
+    PropDataHeader(const Options &opt);
+
+    void declare_all_datasets(const Options &opt);
+
+    template <typename T>
+    void declare_dataset(std::string name, HeaderUnitInfo unit_info = UNITLESS);
+
+    void declare_dataset(std::string name, HeaderUnitInfo unit_info = UNITLESS);
+    void declare_xyz_datasets(std::string name, HeaderUnitInfo unit_info = UNITLESS);
+    void declare_xyz_datasets(std::string prefix, std::string suffix, HeaderUnitInfo unit_info = UNITLESS);
+    void declare_XYZ_datasets(std::string suffix, HeaderUnitInfo unit_info=UNITLESS);
+    void declare_XYZ_datasets(std::string prefix, std::string suffix, HeaderUnitInfo unit_info=UNITLESS);
+    void declare_xyz2_datasets(std::string name, HeaderUnitInfo unit_info = UNITLESS);
+    void declare_xyz2_datasets(std::string prefix, std::string suffix, HeaderUnitInfo = UNITLESS);
+    void declare_datasets(const std::vector<string> &names, const std::vector<string> &units, std::string suffix="");
+
+    static const HeaderUnitInfo UNITLESS;
+    static const HeaderUnitInfo MASS;
+    static const HeaderUnitInfo TEMPERATURE;
+    static const HeaderUnitInfo LENGTH;
+    static const HeaderUnitInfo VELOCITY;
+    static const HeaderUnitInfo VELOCITY_2D;
+    static const HeaderUnitInfo ANGULAR_MOMENTUM;
+    static const HeaderUnitInfo ENERGY;
+    static const HeaderUnitInfo MASS_OVER_TIME;
+    static const HeaderUnitInfo TIME;
 };
 
 

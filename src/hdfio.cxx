@@ -435,201 +435,62 @@ inline void CheckDimensionsOfExtraFieldNames(Options &opt,
 }
 
 #ifdef USEMPI
+
+static void broadcast_from_rank0(std::vector<std::string> &strings,
+    const std::vector<std::string> &condition_strings)
+{
+    if (condition_strings.empty()) {
+        return;
+    }
+    for (auto &s: strings) {
+        unsigned long long n = s.size();
+        MPI_Bcast(&n, 1, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
+        std::string received;
+        if (ThisTask > 0) {
+            received =  std::string(n, 0);
+        }
+        else {
+            received = s;
+        }
+        MPI_Bcast(&received[0], n, MPI_CHAR, 0, MPI_COMM_WORLD);
+        if (ThisTask > 0) {
+            s = received;
+        }
+    }
+}
+
 ///if running in MPI, it might be necessary to update the outnames associated
 ///with extra fields. Therefore, just send all output names from task 0 (which
 ///will always be a read task to all other tasks.
 inline void MPIUpdateExtraFieldOutputNames(Options &opt)
 {
 #ifdef GASON
-    if (opt.gas_internalprop_names.size()>0){
-        for (auto &x:opt.gas_internalprop_output_names) {
-             size_t n = x.size();
-             char char_array[n+1];
-             strcpy(char_array, x.c_str());
-             MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-             if (ThisTask > 0) x=string(char_array);
-        }
-    }
-    if (opt.gas_chem_names.size()>0){
-        for (auto &x:opt.gas_chem_output_names) {
-            size_t n = x.size();
-            char char_array[n+1];
-            strcpy(char_array, x.c_str());
-            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-            if (ThisTask > 0) x=string(char_array);
-        }
-    }
-    if (opt.gas_chemproduction_names.size()>0){
-        for (auto &x:opt.gas_chemproduction_output_names) {
-            size_t n = x.size();
-            char char_array[n+1];
-            strcpy(char_array, x.c_str());
-            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-            if (ThisTask > 0) x=string(char_array);
-        }
-    }
-
-    if (opt.gas_internalprop_names_aperture.size()>0){
-        for (auto &x:opt.gas_internalprop_output_names_aperture) {
-             size_t n = x.size();
-             char char_array[n+1];
-             strcpy(char_array, x.c_str());
-             MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-             if (ThisTask > 0) x=string(char_array);
-        }
-    }
-    if (opt.gas_chem_names_aperture.size()>0){
-        for (auto &x:opt.gas_chem_output_names_aperture) {
-            size_t n = x.size();
-            char char_array[n+1];
-            strcpy(char_array, x.c_str());
-            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-            if (ThisTask > 0) x=string(char_array);
-        }
-    }
-    if (opt.gas_chemproduction_names_aperture.size()>0){
-        for (auto &x:opt.gas_chemproduction_output_names_aperture) {
-            size_t n = x.size();
-            char char_array[n+1];
-            strcpy(char_array, x.c_str());
-            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-            if (ThisTask > 0) x=string(char_array);
-        }
-    }
+    broadcast_from_rank0(opt.gas_internalprop_output_names, opt.gas_internalprop_names);
+    broadcast_from_rank0(opt.gas_chem_output_names, opt.gas_chem_names);
+    broadcast_from_rank0(opt.gas_chemproduction_output_names, opt.gas_chemproduction_names);
+    broadcast_from_rank0(opt.gas_internalprop_output_names_aperture, opt.gas_internalprop_names_aperture);
+    broadcast_from_rank0(opt.gas_chem_output_names_aperture, opt.gas_chem_names_aperture);
+    broadcast_from_rank0(opt.gas_chemproduction_output_names_aperture, opt.gas_chemproduction_names_aperture);
 #endif
 #ifdef STARON
-    if (opt.star_internalprop_names.size()>0){
-        for (auto &x:opt.star_internalprop_output_names) {
-            size_t n = x.size();
-            char char_array[n+1];
-            strcpy(char_array, x.c_str());
-            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-            if (ThisTask > 0) x=string(char_array);
-        }
-    }
-    if (opt.star_chem_names.size()>0){
-        for (auto &x:opt.star_chem_output_names) {
-            size_t n = x.size();
-            char char_array[n+1];
-            strcpy(char_array, x.c_str());
-            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-            if (ThisTask > 0) x=string(char_array);
-        }
-    }
-    if (opt.star_chemproduction_names.size()>0){
-        for (auto &x:opt.star_chemproduction_output_names) {
-            size_t n = x.size();
-            char char_array[n+1];
-            strcpy(char_array, x.c_str());
-            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-            if (ThisTask > 0) x=string(char_array);
-        }
-    }
-
-    if (opt.star_internalprop_names_aperture.size()>0){
-        for (auto &x:opt.star_internalprop_output_names_aperture) {
-             size_t n = x.size();
-             char char_array[n+1];
-             strcpy(char_array, x.c_str());
-             MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-             if (ThisTask > 0) x=string(char_array);
-        }
-    }
-    if (opt.star_chem_names_aperture.size()>0){
-        for (auto &x:opt.star_chem_output_names_aperture) {
-            size_t n = x.size();
-            char char_array[n+1];
-            strcpy(char_array, x.c_str());
-            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-            if (ThisTask > 0) x=string(char_array);
-        }
-    }
-    if (opt.star_chemproduction_names_aperture.size()>0){
-        for (auto &x:opt.star_chemproduction_output_names_aperture) {
-            size_t n = x.size();
-            char char_array[n+1];
-            strcpy(char_array, x.c_str());
-            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-            if (ThisTask > 0) x=string(char_array);
-        }
-    }
+    broadcast_from_rank0(opt.star_internalprop_output_names, opt.star_internalprop_names);
+    broadcast_from_rank0(opt.star_chem_output_names, opt.star_chem_names);
+    broadcast_from_rank0(opt.star_chemproduction_output_names, opt.star_chemproduction_names);
+    broadcast_from_rank0(opt.star_internalprop_output_names_aperture, opt.star_internalprop_names_aperture);
+    broadcast_from_rank0(opt.star_chem_output_names_aperture, opt.star_chem_names_aperture);
+    broadcast_from_rank0(opt.star_chemproduction_output_names_aperture, opt.star_chemproduction_names_aperture);
 #endif
 #ifdef BHON
-    if (opt.bh_internalprop_names.size()>0){
-        for (auto &x:opt.bh_internalprop_output_names) {
-            size_t n = x.size();
-            char char_array[n+1];
-            strcpy(char_array, x.c_str());
-            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-            if (ThisTask > 0) x=string(char_array);
-        }
-    }
-    if (opt.bh_chem_names.size()>0){
-        for (auto &x:opt.bh_chem_output_names) {
-            size_t n = x.size();
-            char char_array[n+1];
-            strcpy(char_array, x.c_str());
-            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-            if (ThisTask > 0) x=string(char_array);
-        }
-    }
-    if (opt.bh_chemproduction_names.size()>0){
-        for (auto &x:opt.bh_chemproduction_output_names) {
-            size_t n = x.size();
-            char char_array[n+1];
-            strcpy(char_array, x.c_str());
-            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-            if (ThisTask > 0) x=string(char_array);
-        }
-    }
-
-    if (opt.bh_internalprop_names_aperture.size()>0){
-        for (auto &x:opt.bh_internalprop_output_names_aperture) {
-             size_t n = x.size();
-             char char_array[n+1];
-             strcpy(char_array, x.c_str());
-             MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-             if (ThisTask > 0) x=string(char_array);
-        }
-    }
-    if (opt.bh_chem_names_aperture.size()>0){
-        for (auto &x:opt.bh_chem_output_names_aperture) {
-            size_t n = x.size();
-            char char_array[n+1];
-            strcpy(char_array, x.c_str());
-            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-            if (ThisTask > 0) x=string(char_array);
-        }
-    }
-    if (opt.bh_chemproduction_names_aperture.size()>0){
-        for (auto &x:opt.bh_chemproduction_output_names_aperture) {
-            size_t n = x.size();
-            char char_array[n+1];
-            strcpy(char_array, x.c_str());
-            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-            if (ThisTask > 0) x=string(char_array);
-        }
-    }
+    broadcast_from_rank0(opt.bh_internalprop_output_names, opt.bh_internalprop_names);
+    broadcast_from_rank0(opt.bh_chem_output_names, opt.bh_chem_names);
+    broadcast_from_rank0(opt.bh_chemproduction_output_names, opt.bh_chemproduction_names);
+    broadcast_from_rank0(opt.bh_internalprop_output_names_aperture, opt.bh_internalprop_names_aperture);
+    broadcast_from_rank0(opt.bh_chem_output_names_aperture, opt.bh_chem_names_aperture);
+    broadcast_from_rank0(opt.bh_chemproduction_output_names_aperture, opt.bh_chemproduction_names_aperture);
 #endif
 #ifdef EXTRADMON
-    if (opt.extra_dm_internalprop_names.size()>0){
-        for (auto &x:opt.extra_dm_internalprop_output_names) {
-            size_t n = x.size();
-            char char_array[n+1];
-            strcpy(char_array, x.c_str());
-            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-            if (ThisTask > 0) x=string(char_array);
-        }
-    }
-    if (opt.extra_dm_internalprop_names_aperture.size()>0){
-        for (auto &x:opt.extra_dm_internalprop_output_names_aperture) {
-            size_t n = x.size();
-            char char_array[n+1];
-            strcpy(char_array, x.c_str());
-            MPI_Bcast(char_array, n+1, MPI_CHAR, 0, MPI_COMM_WORLD);
-            if (ThisTask > 0) x=string(char_array);
-        }
-    }
+    broadcast_from_rank0(opt.extra_dm_internalprop_output_names, opt.extra_dm_internalprop_names);
+    broadcast_from_rank0(opt.extra_dm_internalprop_output_names_aperture, opt.extra_dm_internalprop_names_aperture);
 #endif
 
 }
@@ -916,6 +777,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     double *Zdoublebuff=new double[chunksize];
     float *SFRfloatbuff=new float[chunksize];
     double *SFRdoublebuff=new double[chunksize];
+    double *Tgasdoublebuff=new double[chunksize];
+
 #endif
 #ifdef STARON
     float *Tagefloatbuff=new float[chunksize];
@@ -1070,7 +933,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 
             vdoublebuff=read_attribute_v<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IMass]);
             for (k=0;k<NHDFTYPE;k++)hdf_header_info[i].mass[k]=vdoublebuff[k];
-            if (opt.ihdfnameconvention==HDFSWIFTEAGLENAMES) {
+	    
+            if (opt.ihdfnameconvention==HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES) {
+	      
                 vlongbuff = read_attribute_v<long long>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INuminFile]);
                 for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npart[k]=vlongbuff[k];
             }
@@ -1088,8 +953,10 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
             hdf_header_info[i].time = read_attribute<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].ITime]);
             hdf_header_info[i].HubbleParam = read_attribute<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IHubbleParam]);
             hdf_header_info[i].num_files = read_attribute<int>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INumFiles]);
-            //now if swift read extra information
-            if (opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES) {
+
+	    //now if swift read extra information
+            if (opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES ||
+		opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES) {	 
                 hdf_header_info[i].Omegab = read_attribute<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IOmegab]);
                 hdf_header_info[i].Omegar = read_attribute<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IOmegar]);
                 hdf_header_info[i].Omegak = read_attribute<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IOmegak]);
@@ -1170,7 +1037,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
         opt.Omega_m=hdf_header_info[ifirstfile].Omega0;
         opt.Omega_Lambda=hdf_header_info[ifirstfile].OmegaLambda;
         opt.h=hdf_header_info[ifirstfile].HubbleParam;
-        if (opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES) {
+        if (opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES ||
+	    opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES) {
+      
             opt.Omega_b=hdf_header_info[ifirstfile].Omegab;
             opt.Omega_r=hdf_header_info[ifirstfile].Omegar;
             opt.Omega_k=hdf_header_info[ifirstfile].Omegak;
@@ -1197,7 +1066,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 
     // SWIFT snapshots already include the 1/h factor factor,
     // so there is no need to include it.
-    if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES) {
+    if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES ||
+       opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES) {
+
       mscale=opt.massinputconversion;lscale=opt.lengthinputconversion*aadjust;lvscale=opt.lengthinputconversion*opt.a;
     }
     else {
@@ -1611,7 +1482,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                       if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
                       //setup hyperslab so that it is loaded into the buffer
                       HDF5ReadHyperSlabReal(doublebuff,partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 1, nchunk, n);
-                      for (int nn=0;nn<nchunk;nn++) Pbaryons[bcount++].SetU(doublebuff[nn]);
+                      for (int nn=0;nn<nchunk;nn++) Pbaryons[bcount++].SetSFR(doublebuff[nn]);
                     }
                   }
                   else {
@@ -2342,10 +2213,25 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 
     // SWIFT snapshot velocities already contain the sqrt(a) factor,
     // so there is no need to include it.
-    if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES) vscale = opt.velocityinputconversion;
-    else vscale = opt.velocityinputconversion*sqrt(opt.a);
-    if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES) opt.internalenergyinputconversion = opt.a*opt.a*opt.velocityinputconversion*opt.velocityinputconversion;
-    else opt.internalenergyinputconversion = opt.velocityinputconversion*opt.velocityinputconversion;
+    if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES ||
+       opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES) {
+
+      vscale = opt.velocityinputconversion;
+      
+    } else {
+
+      vscale = opt.velocityinputconversion*sqrt(opt.a);
+    }
+    
+    if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES||
+       opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES) {
+      
+      opt.internalenergyinputconversion = opt.a*opt.a*opt.velocityinputconversion*opt.velocityinputconversion;
+      
+    } else {
+      
+      opt.internalenergyinputconversion = opt.velocityinputconversion*opt.velocityinputconversion;
+    }
 
     //finally adjust to appropriate units
     for (i=0;i<nbodies;i++)
@@ -3677,7 +3563,8 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 
       // SWIFT snapshots already include the 1/h factor factor,
       // so there is no need to include it.
-      if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES)
+      if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES ||
+	 opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES)
       {
         //adjust period
         if (opt.comove) opt.p*=opt.lengthinputconversion;
@@ -3786,10 +3673,19 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 
     // SWIFT snapshot velocities already contain the sqrt(a) factor,
     // so there is no need to include it.
-    if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES) vscale = opt.velocityinputconversion;
-    else vscale = opt.velocityinputconversion*sqrt(opt.a);
-    if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES) opt.internalenergyinputconversion = opt.a*opt.a*opt.velocityinputconversion*opt.velocityinputconversion;
-    else opt.internalenergyinputconversion = opt.velocityinputconversion*opt.velocityinputconversion;
+    if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES ||
+       opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES) {
+      vscale = opt.velocityinputconversion;
+    } else {
+      vscale = opt.velocityinputconversion*sqrt(opt.a);
+    }
+    
+    if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES ||
+       opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES) {
+      opt.internalenergyinputconversion = opt.a*opt.a*opt.velocityinputconversion*opt.velocityinputconversion;
+    } else {
+      opt.internalenergyinputconversion = opt.velocityinputconversion*opt.velocityinputconversion;
+    }
 
 
     //finally adjust to appropriate units
@@ -3829,6 +3725,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     delete[] Zdoublebuff;
     delete[] SFRfloatbuff;
     delete[] SFRdoublebuff;
+    delete[] Tgasdoublebuff;
 #endif
 #ifdef STARON
     delete[] Tagefloatbuff;

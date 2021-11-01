@@ -175,7 +175,7 @@ int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthrea
     libvelociraptorOpt.lengthtokpc=u.lengthtokpc;
     libvelociraptorOpt.velocitytokms=u.velocitytokms;
     libvelociraptorOpt.masstosolarmass=u.masstosolarmass;
-    libvelociraptorOpt.energyperunitmass=u.energyperunitmass;
+    //libvelociraptorOpt.energyperunitmass=u.energyperunitmass;
 
     //run in swift internal units, don't convert units
     libvelociraptorOpt.lengthinputconversion=1.0;
@@ -259,7 +259,7 @@ int InitVelociraptorExtra(const int iextra, char* configname, unitinfo u, siminf
     libvelociraptorOptextra[iextra].lengthtokpc=u.lengthtokpc;
     libvelociraptorOptextra[iextra].velocitytokms=u.velocitytokms;
     libvelociraptorOptextra[iextra].masstosolarmass=u.masstosolarmass;
-    libvelociraptorOptextra[iextra].energyperunitmass=u.energyperunitmass;
+    //libvelociraptorOptextra[iextra].energyperunitmass=u.energyperunitmass;
 
     //run in swift internal units, don't convert units
     libvelociraptorOptextra[iextra].lengthinputconversion=1.0;
@@ -467,8 +467,7 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
     //to store information about the group
     PropData *pdata = NULL,*pdatahalos = NULL;
 
-    /// Set pointer to cell node IDs
-    libvelociraptorOpt.cellnodeids = cell_node_ids;
+    libvelociraptorOpt.cellnodeids = std::vector<int>(cell_node_ids, cell_node_ids + s.numcells);
 
     Nlocal=Nmemlocal=num_gravity_parts;
     Nmemlocal*=(1+libvelociraptorOpt.mpipartfac); /* JSW: Not set in parameter file. */
@@ -805,7 +804,6 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
     return_data.group_info = group_info;
 
     //free mem associate with mpi cell node ides
-    libvelociraptorOpt.cellnodeids = NULL;
     libvelociraptorOpt.cellloc = NULL;
     free(s.cellloc);
     free(cell_node_ids);

@@ -2759,7 +2759,6 @@ inline void PreCalcSearchSubSet(Options &opt, Int_t subnumingroup,  Particle *&s
 #endif
         GetDenVRatio(opt,subnumingroup, subPart, ngrid, grid, gvel, gveldisp);
         GetOutliersValues(opt,subnumingroup, subPart, sublevel);
-        opt.idenvflag++;//largest field halo used to deteremine statistics of ratio
     }
     //otherwise only need to calculate a velocity scale for merger separation
     else {
