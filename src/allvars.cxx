@@ -1915,9 +1915,6 @@ void PropDataHeader::declare_all_datasets(const Options &opt)
     }
 #endif // (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
 
-    /// PJE: This was in ICRAR master but not clear why it is added 
-    /// Make sure to update io.cxx as well line 2364 
-    /// otherwise will have inconsistency 
     declare_dataset("Mass_tot_incl", MASS);
 
 #ifdef GASON
