@@ -40,6 +40,7 @@ set(VR_SOURCES
     ui.cxx
     unbind.cxx
     utilities.cxx
+    vr_exceptions.cxx
 )
 
 add_library(velociraptor STATIC ${VR_SOURCES})

@@ -6,6 +6,7 @@
 
 #include "stf.h"
 #include "swiftinterface.h"
+#include "vr_exceptions.h"
 
 /*! Calculates the local velocity density function for each particle using a kernel technique
     There are two approaches to getting this local quantity \n
@@ -1052,4 +1053,16 @@ reduction(+:nprocessed)
     //free memory
     if (itreeflag) delete tree;
     if (period!=NULL) delete[] period;
+
+    // Double-check that valid densities have been set in all particles
+    for (int i = 0; i < nbodies; i++)
+    {
+        const auto &part = Part[i];
+#ifdef STRUCDEN
+        if (part.GetType()<=0) continue;
+#endif
+        if (!(part.GetDensity() > 0)) {
+            throw vr::non_positive_density(Part[i], __PRETTY_FUNCTION__);
+        }
+    }
 }

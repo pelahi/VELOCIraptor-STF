@@ -4,6 +4,7 @@
  */
 
 #include "stf.h"
+#include "vr_exceptions.h"
 
 /*! This calculates the logarithmic ratio of the measured velocity density and the expected velocity density assuming a bg muiltivariate gaussian distribution
     \todo must adjust interpolation scheme so that if NN has cells in a neighbouring MPI domain, the information is stored locally. This may require a rewrite
@@ -84,6 +85,9 @@ if (nbodies > ompsubsearchnum)
 #endif
     for (i=0;i<nbodies;i++)
     {
+        if (!(Part[i].GetDensity() > 0)) {
+            throw vr::non_positive_density(Part[i], __PRETTY_FUNCTION__);
+        }
         tempdenv=Part[i].GetDensity()/opt.Nsearch;
 #ifdef USEOPENMP
         tid=omp_get_thread_num();
