@@ -29,9 +29,11 @@
 #ifndef VR_IOUTILS_H
 #define VR_IOUTILS_H
 
+#include <cassert>
 #include <chrono>
 #include <iomanip>
 #include <ostream>
+#include <vector>
 
 namespace vr
 {
@@ -73,6 +75,13 @@ namespace detail {
 
 	struct _microseconds_amount {
 		std::chrono::microseconds::rep _val;
+	};
+
+	template <typename ForwardIterator>
+	struct _printable_range {
+		ForwardIterator begin;
+		ForwardIterator end;
+		std::string sep;
 	};
 
 	template <typename T>
@@ -150,6 +159,23 @@ namespace detail {
 		return os;
 	}
 
+	template <typename T, typename ForwardIterator>
+	std::basic_ostream<T> &operator<<(std::basic_ostream<T> &os,
+		const _printable_range<ForwardIterator> &range)
+	{
+		auto first = range.begin;
+		os << '[';
+		for (; first != range.end;) {
+			os << *first;
+			first++;
+			if (first != range.end) {
+				os << range.sep;
+			}
+		}
+		os << ']';
+		return os;
+	}
+
 } // namespace detail
 
 ///
@@ -172,6 +198,26 @@ detail::_memory_amount memory_amount(std::size_t amount) {
 inline
 detail::_microseconds_amount us_time(std::chrono::microseconds::rep amount) {
 	return {amount};
+}
+
+///
+/// Sent to a stream object, this manipulator will print the given range of
+/// values into
+///
+/// @param v The value to send to the stream
+///
+template <typename Value>
+detail::_printable_range<typename std::vector<Value>::const_iterator>
+printable_range(const std::vector<Value> &values, const std::string &sep = ", ")
+{
+	return {values.cbegin(), values.cend(), sep};
+}
+
+template <typename Value>
+detail::_printable_range<const Value *>
+printable_range(const Value *values, std::size_t size, const std::string &sep = ", ")
+{
+	return {values, values + size, sep};
 }
 
 }  // namespace vr
