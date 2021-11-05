@@ -25,6 +25,10 @@
 #ifdef USEADIOS
 #include "adios.h"
 #endif
+#include "io.h"
+#include "ioutils.h"
+#include "logging.h"
+#include "timer.h"
 
 ///write the information stored in a unit struct as meta data into a HDF5 file
 #ifdef USEHDF
@@ -62,7 +66,9 @@ Int_t ReadHeader(Options &opt){
         struct tipsy_dump tipsyheader;
         fstream Ftip(opt.fname, ios::in | ios::binary);
         if (!Ftip){cerr<<"ERROR: Unable to open " <<opt.fname<<endl;exit(8);}
-        else cout<<"Reading tipsy format from "<<opt.fname<<endl;
+        else {
+            LOG(info) << "Reading tipsy format from " << opt.fname;
+        }
         Ftip.read((char*)&tipsyheader,sizeof(tipsy_dump));
         tipsyheader.SwitchtoBigEndian();
         if (opt.partsearchtype==PSTALL) return tipsyheader.nbodies;
@@ -97,12 +103,12 @@ void ReadData(Options &opt, vector<Particle> &Part, const Int_t nbodies, Particl
     Int_t Nlocal = nbodies;
 #endif
     if (ThisTask==0) {
-        cout<<"Reading input ... "<<endl;
+        LOG(info) << "Reading input ...";
 #ifdef USEMPI
-        cout<<"Each MPI read thread, of which there are "<<opt.nsnapread<<", will allocate ";
-        cout<<opt.mpiparticlebufsize*NProcs*sizeof(Particle)/1024.0/1024.0/1024.0<<" of memory to store particle data"<<endl;
-        cout<<"Sending information to non-read threads in chunks of "<<opt.mpiparticlebufsize<<" particles "<<endl;
-        cout<<"This requires approximately "<<(int)(Nlocal/(double)opt.mpiparticlebufsize)<<" receives"<<endl;
+        LOG(info) << "Each MPI read thread, of which there are " << opt.nsnapread << ", will allocate "
+                  << vr::memory_amount(opt.mpiparticlebufsize * NProcs * sizeof(Particle)) << " to store particle data";
+        LOG(info) << "Sending information to non-read threads in chunks of " << opt.mpiparticlebufsize << " particles";
+        LOG(info) << "This requires approximately " << (int)(Nlocal/(double)opt.mpiparticlebufsize)<<" receive operations";
 #endif
     }
 
@@ -124,8 +130,8 @@ void ReadData(Options &opt, vector<Particle> &Part, const Int_t nbodies, Particl
 #ifdef USEMPI
     MPIAdjustDomain(opt);
 #endif
-    if (ThisTask==0) cout<<"Done loading input data"<<endl;
-    GetMemUsage(opt,__func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    LOG_RANK0(info) << "Done loading input data";
+    MEMORY_USAGE_REPORT(debug, opt);
 }
 
 
@@ -173,7 +179,7 @@ void AdjustStarQuantities(Options &opt, vector<Particle> &Part, const Int_t nbod
             if (p.GetType()!=STARTYPE) continue;
             //if stellar age is initially stored as scale factor of formation
             if (opt.istellaragescalefactor == 1) {
-		        //make sure units are consisten with those internal to the input tables as CalcCosmicTime returns time in yrs.
+		//make sure units are consisten with those internal to the input tables as CalcCosmicTime returns time in yrs.
                 tage = CalcCosmicTime(opt,p.GetTage(),opt.a) / opt.stellaragetoyrs;
             }
             //if stellar age is initially stored as redshift of formation
@@ -221,12 +227,12 @@ void ReadLocalVelocityDensity(Options &opt, const Int_t nbodies, vector<Particle
     sprintf(fname,"%s",opt.smname);
 #endif
 
-    cout<<"Reading smooth density data from "<<fname<<endl;
+    LOG(info) << "Reading smooth density data from " << fname;
     if (opt.ibinaryout==OUTBINARY) {
         Fin.open(fname,ios::in| ios::binary);
         Fin.read((char*)&tempi,sizeof(Int_t));
         if (tempi!=nbodies) {
-            cerr<<"File "<<fname<<" contains incorrect number of particles. Exiting\n";
+            LOG(error) << "File " << fname << " contains incorrect number of particles. Exiting";
             exit(9);
         }
         for(Int_t i=0;i<nbodies;i++) {Fin.read((char*)&tempd,sizeof(Double_t));Part[i].SetDensity(tempd);}
@@ -235,12 +241,12 @@ void ReadLocalVelocityDensity(Options &opt, const Int_t nbodies, vector<Particle
         Fin.open(fname,ios::in);
         Fin>>tempi;
         if (tempi!=nbodies) {
-            cerr<<"File "<<fname<<" contains incorrect number of particles. Exiting\n";
+            LOG(error) << "File " << fname << " contains incorrect number of particles. Exiting";
             exit(9);
         }
         for(Int_t i=0;i<nbodies;i++) {Fin>>tempd;Part[i].SetDensity(tempd);}
     }
-    cout<<"Done"<<endl;
+    LOG(info) << "Done";
     Fin.close();
 }
 
@@ -287,7 +293,7 @@ void WriteFOF(Options &opt, const Int_t nbodies, Int_t *pfof){
     fstream Fout;
     char fname[1000];
     sprintf(fname,"%s.fof.grp",opt.outname);
-    cout<<"saving fof data to "<<fname<<endl;
+    LOG(info) << "Saving fof data to " << fname;
     Fout.open(fname,ios::out);
     if (opt.partsearchtype==PSTALL) {
         Fout<<nbodies<<endl;
@@ -318,7 +324,7 @@ void WriteFOF(Options &opt, const Int_t nbodies, Int_t *pfof){
         for (Int_t i=0;i<opt.numpart[STARTYPE];i++) Fout<<0<<endl;
     }
     Fout.close();
-    cout<<"Done"<<endl;
+    LOG(info) << "Done";
 }
 
 /*! Writes a particle group list array file that contains the total number of groups,
@@ -337,7 +343,7 @@ void WritePGListIndex(Options &opt, const Int_t ngroups, const Int_t ng, Int_t *
 #else
     sprintf(fname,"%s.pglist",opt.outname);
 #endif
-    cout<<"saving fof data to "<<fname<<endl;
+    LOG(info) << "Saving fof data to " << fname;
     Fout.open(fname,ios::out);
 #ifdef USEMPI
     for (int j=0;j<NProcs;j++) ngtot+=mpi_ngroups[j];
@@ -364,7 +370,7 @@ void WritePGListIndex(Options &opt, const Int_t ngroups, const Int_t ng, Int_t *
     for (Int_t i=1;i<ng;i++) delete[] pglist;
     delete[] pglist;
     delete[] numingroup;
-    cout<<"Done"<<endl;
+    LOG(info) << "Done";
     Fout.close();
 }
 void WritePGList(Options &opt, const Int_t ngroups, const Int_t ng, Int_t *numingroup, Int_t **pglist, Int_t *ids){
@@ -376,7 +382,7 @@ void WritePGList(Options &opt, const Int_t ngroups, const Int_t ng, Int_t *numin
 #else
     sprintf(fname,"%s.pglist",opt.outname);
 #endif
-    cout<<"saving fof data to "<<fname<<endl;
+    LOG(info) << "Saving fof data to " << fname;
     Fout.open(fname,ios::out);
 
 #ifdef USEMPI
@@ -404,7 +410,7 @@ void WritePGList(Options &opt, const Int_t ngroups, const Int_t ng, Int_t *numin
     for (Int_t i=1;i<ng;i++) delete[] pglist;
     delete[] pglist;
     delete[] numingroup;
-    cout<<"Done"<<endl;
+    LOG(info) << "Done";
     Fout.close();
 }
 
@@ -441,6 +447,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 #if defined(USEHDF)||defined(USEADIOS)
     DataGroupNames datagroupnames;
 #endif
+    vr::Timer write_timer;
 
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
@@ -461,7 +468,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 #endif
     fname = os.str();
 
-    cout<<"saving group catalog to "<<fname<<endl;
+    LOG(info) << "Saving group catalog to " << fname;
     if (opt.ibinaryout==OUTBINARY) Fout.open(fname,ios::out|ios::binary);
 #ifdef USEHDF
 #ifdef USEPARALLELHDF
@@ -728,7 +735,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 #endif
     fname3 = os.str();
 
-    cout<<"saving particle catalog to "<<fname<<endl;
+    LOG(info) << "Saving particle catalog to " << fname;
 
     if (opt.ibinaryout==OUTBINARY) {
         Fout.open(fname,ios::out|ios::binary);
@@ -985,6 +992,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 #ifdef USEMPI
     MPIBuildWriteComm(opt);
 #endif
+    LOG(info) << "Wrote catalogues in " << write_timer;
 }
 
 ///if particles are separately searched (i.e. \ref Options.iBaryonSearch is set) then produce list of particle types
@@ -1011,6 +1019,7 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
+    vr::Timer write_timer;
 
     os << opt.outname << ".catalog_parttypes";
     os2 << opt.outname << ".catalog_parttypes.unbound";
@@ -1031,7 +1040,7 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
 #endif
     fname = os.str();
     fname2 = os2.str();
-    cout<<"saving particle type info to "<<fname<<endl;
+    LOG(info) << "Saving particle type info to " << fname;
 
 
     if (opt.ibinaryout==OUTBINARY) {
@@ -1205,6 +1214,7 @@ void WriteGroupPartType(Options &opt, const Int_t ngroups, Int_t *numingroup, In
 #ifdef USEMPI
     MPIBuildWriteComm(opt);
 #endif
+    LOG(info) << "Wrote particle type info in " << write_timer;
 }
 
 ///Write the particles in each SO region
@@ -1246,6 +1256,7 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
 #if defined(USEHDF)||defined(USEADIOS)
     DataGroupNames datagroupnames;
 #endif
+    vr::Timer write_timer;
 
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
@@ -1289,7 +1300,7 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
 #endif
     fname = os.str();
 
-    if (opt.iverbose) cout<<"saving SO particle lists to "<<fname<<endl;
+    LOG(info) << "Saving SO particle lists to " << fname;
     if (opt.ibinaryout==OUTBINARY) Fout.open(fname,ios::out|ios::binary);
 #ifdef USEHDF
     //create file
@@ -1582,6 +1593,7 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, ve
 #ifdef USEMPI
     MPIFreeWriteComm();
 #endif
+    LOG(info) << "Wrote " << fname << " in " << write_timer;
 }
 
 //@}
@@ -1599,6 +1611,8 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
 #ifdef USEPARALLELHDF
     unsigned long long nwritecommtot=0;
 #endif
+    vr::Timer write_timer;
+
     //if need to convert from physical back to comoving
     if (opt.icomoveunit) {
         opt.p*=opt.h/opt.a;
@@ -1643,7 +1657,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     ngtot=ngroups;
 #endif
     fname = os.str();
-    cout<<"saving property data to "<<fname<<endl;
+    LOG(info) << "Saving property data to " << fname;
 
     //write header
     if (opt.ibinaryout==OUTBINARY) {
@@ -2875,7 +2889,6 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
         // delete[] propdataset;
     }
 #endif
-    cout<<"Done"<<endl;
     if (opt.ibinaryout!=OUTHDF) Fout.close();
 #ifdef USEHDF
     else Fhdf.close();
@@ -2899,6 +2912,8 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
 #ifdef USEMPI
     MPIFreeWriteComm();
 #endif
+
+    LOG(info) << "Wrote " << fname << " in " << write_timer;
 }
 
 void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
@@ -2911,6 +2926,7 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
     unsigned long long nwritecommtot=0, nhalowritecommtot=0;
 #endif
     vector<unsigned long long> indices(ngroups), haloindices;
+    vr::Timer write_timer;
 
     //void pointer to hold data
     void *data;
@@ -2991,7 +3007,7 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
     nhalostot=nhalos;
 #endif
     fname = os.str();
-    cout<<"saving profiles "<<fname<<endl;
+    LOG(info) << "Saving profiles " << fname;
     //allocate enough memory to store largest data type
     data= ::operator new(sizeof(long long)*(opt.profilenbins+1));
     ((Double_t*)data)[0]=0.0;for (auto i=0;i<opt.profilenbins;i++) ((Double_t*)data)[i+1]=opt.profile_bin_edges[i];
@@ -3024,11 +3040,11 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
     else if (opt.ibinaryout==OUTHDF) {
 #ifdef USEPARALLELHDF
         if(opt.mpinprocswritesize>1){
-            //if parallel then open file in serial so task 0 writes header
+            //if parallel then open file in serial so first task in each i/o communicator writes header
             Fhdf.create(string(fname),H5F_ACC_TRUNC, 0, false);
             MPI_Allreduce(&ng, &nwritecommtot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, mpi_comm_write);
             MPI_Allreduce(&nhalos, &nhalowritecommtot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, mpi_comm_write);
-            if (ThisTask == 0) {
+            if (ThisWriteTask == 0) {
                 itemp=0;
                 Fhdf.write_dataset(opt, datagroupnames.profile[itemp++], 1, &ThisWriteComm, -1, -1, false);
                 Fhdf.write_dataset(opt, datagroupnames.profile[itemp++], 1, &NWriteComms, -1, -1, false);
@@ -3211,7 +3227,6 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
         // delete[] profiledataset;
     }
 #endif
-    cout<<"Done"<<endl;
     if (opt.ibinaryout!=OUTHDF) Fout.close();
 #ifdef USEHDF
     else Fhdf.close();
@@ -3220,6 +3235,8 @@ void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata){
 #ifdef USEMPI
     MPIFreeWriteComm();
 #endif
+
+    LOG(info) << "Wrote " << fname << " in " << write_timer;
 }
 
 //@}
@@ -3247,6 +3264,7 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
+    vr::Timer write_timer;
 
     os << opt.outname << ".catalog_groups";
 #ifdef USEMPI
@@ -3262,7 +3280,7 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
     }
     #endif
     fname = os.str();
-    cout<<"saving hierarchy data to "<<fname<<endl;
+    LOG(info) << "Saving hierarchy data to " << fname;
 
     if (opt.ibinaryout==OUTBINARY) Fout.open(fname,ios::out|ios::binary|ios::app);
 #ifdef USEHDF
@@ -3380,7 +3398,7 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
     if (opt.ibinaryout==OUTBINARY) Fout.open(fname,ios::out|ios::binary);
     else Fout.open(fname,ios::out);
 
-    cout<<"saving hierarchy data to "<<fname<<endl;
+    LOG(info) << "Saving hierarchy data to " << fname;
     if (opt.ibinaryout==OUTBINARY) {
         Fout.write((char*)&ThisTask,sizeof(int));
         Fout.write((char*)&NProcs,sizeof(int));
@@ -3502,7 +3520,7 @@ void WriteHierarchy(Options &opt, const Int_t &ngroups, const Int_t & nhierarchy
 #ifdef USEMPI
     MPIFreeWriteComm();
 #endif
-    cout<<"Done saving hierarchy"<<endl;
+    LOG(info) << "Wrote " << fname << " in " << write_timer;
 }
 
 ///Write subfind style format of properties, where selection of properties
@@ -3531,7 +3549,7 @@ void WriteSUBFINDProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     int ThisTask=0,NProcs=1;
     ngtot=ngroups;
 #endif
-    cout<<"saving property data to "<<fname<<endl;
+    LOG(info) << "Saving property data to " << fname;
 #endif
 }
 //@}
@@ -3599,14 +3617,14 @@ Int_t ReadPFOF(Options &opt, Int_t nbodies, Int_t *pfof){
     char fname[400];
     Int_t ngroup=0;
     sprintf(fname,"%s.fof.grp",opt.outname);
-    cout<<"reading fof data "<<fname<<endl;
+    LOG(info) << "Reading fof data " << fname;
     Fin.open(fname,ios::in);
     Fin>>nbodies;
     //nbodies=opt.numpart[DARKTYPE];
     //for (Int_t i=0;i<opt.numpart[GASTYPE];i++) Fin>>temp;
     for (Int_t i=0;i<nbodies;i++) {Fin>>pfof[i];if (pfof[i]>ngroup) ngroup=pfof[i];}
     Fin.close();
-    cout<<"Done"<<endl;
+    LOG(info) << "Done";
     return ngroup;
 }
 
@@ -3621,7 +3639,7 @@ Int_t ReadFOFGroupBinary(Options &opt, Int_t nbodies, Int_t *pfof, Int_t *idtoin
 
   //group tab contains bulk info of groups
   sprintf(buf, "%s/group_tab_%03d", opt.gname, opt.snum);
-  cout<<buf<<endl;
+  LOG(info) << "Reading group binary data from " << buf;
   Fin.open(buf,ios::in|ios::binary);
 
   //read group header info (number of groups, number of particles in all groups, total number of groups (in case split across several files)
@@ -3630,8 +3648,8 @@ Int_t ReadFOFGroupBinary(Options &opt, Int_t nbodies, Int_t *pfof, Int_t *idtoin
   Fin.read((char*)&Nids,sizeof(int));
   Fin.read((char*)&TotNgroups,sizeof(int));
   Fin.read((char*)&NFiles,sizeof(int));
-  cout<<Ngroups<<" fof groups in files "<<endl;
-  cout<<Nids<<" particles in groups "<<endl;
+  LOG(info) << Ngroups << " fof groups in files";
+  LOG(info) << Nids << " particles in groups";
 
   numingroup=new int[Ngroups];
 //offsets are sum of lengths starting at 0
@@ -3782,34 +3800,33 @@ void WriteUnitInfoToHDF(Options &opt, H5OutputFile &Fhdf){
 ///\name output simulation state
 //@{
 void PrintCosmology(Options &opt){
-    if (opt.iverbose) {
-        cout<<"Cosmology (h, Omega_m, Omega_cdm, Omega_b, Omega_L, Omega_r, Omega_nu, Omega_k, Omega_de, w_de) =";
-        cout<<"("<<opt.h<<", ";
-        cout<<opt.Omega_m<<", ";
-        cout<<opt.Omega_cdm<<", ";
-        cout<<opt.Omega_b<<", ";
-        cout<<opt.Omega_Lambda<<", ";
-        cout<<opt.Omega_r<<", ";
-        cout<<opt.Omega_nu<<", ";
-        cout<<opt.Omega_k<<", ";
-        cout<<opt.Omega_de<<", ";
-        cout<<opt.w_de<<", ";
-        cout<<")"<<endl;
-    }
+    LOG(debug)
+        << "Cosmology (h, Omega_m, Omega_cdm, Omega_b, Omega_L, Omega_r, Omega_nu, Omega_k, Omega_de, w_de) = ("
+        << opt.h << ", "
+        << opt.Omega_m << ", "
+        << opt.Omega_cdm << ", "
+        << opt.Omega_b << ", "
+        << opt.Omega_Lambda << ", "
+        << opt.Omega_r << ", "
+        << opt.Omega_nu << ", "
+        << opt.Omega_k << ", "
+        << opt.Omega_de << ", "
+        << opt.w_de
+        << ')';
 }
 
 void PrintSimulationState(Options &opt){
-    if (opt.iverbose) {
-        cout<<"Current simulation state "<<endl;
-        cout<<"Scale factor :"<<opt.a<<endl;
-        cout<<"Period :"<<opt.p<<endl;
+    if (LOG_ENABLED(debug)) {
+        LOG(debug) << "Current simulation state";
+        LOG(debug) << "Scale factor :" << opt.a;
+        LOG(debug) << "Period :" << opt.p;
         if (opt.icosmologicalin) {
             double Hubble=opt.h*opt.H*sqrt(opt.Omega_k*pow(opt.a,-2.0)+opt.Omega_m*pow(opt.a,-3.0)
             +opt.Omega_r*pow(opt.a,-4.0)+opt.Omega_Lambda+opt.Omega_de*pow(opt.a,-3.0*(1+opt.w_de)));
-            cout<<"Cosmological simulation with "<<endl;
-            cout<<"Hubble expansion :"<<Hubble<<endl;
-            cout<<"Critical Density :"<<opt.rhobg/opt.Omega_m<<endl;
-            cout<<"Matter density :"<<opt.rhobg<<endl;
+            LOG(debug) << "Cosmological simulation with:";
+            LOG(debug) << " Hubble expansion :" << Hubble;
+            LOG(debug) << " Critical Density :" << opt.rhobg / opt.Omega_m;
+            LOG(debug) << " Matter density :" << opt.rhobg;
         }
     }
 }
@@ -3842,7 +3859,7 @@ void WriteExtendedOutput (Options &opt, Int_t numgroups, Int_t nbodies, PropData
     int NProcs = 1;
     ngtot = numgroups;
 #endif
-    cout << "numgroups  " << numgroups << endl;
+    LOG(info) << "numgroups  " << numgroups;
     numgroups++;
 
     Int_t *  nfilespergroup = new Int_t   [numgroups];
@@ -4014,7 +4031,7 @@ void WriteExtendedOutput (Options &opt, Int_t numgroups, Int_t nbodies, PropData
     delete [] ntaskspergroup;
     delete [] nfilespergroup;
 
-    if (opt.iverbose) cout << ThisTask << "filesofgroup written" << endl;
+    LOG(debug) << "filesofgroup written";
     // Send and Particles before writing Extended Files
     // Communicate to all other processors how many particles are going to be sent
     ntosendtotask[ThisTask] = 0;
@@ -4209,7 +4226,7 @@ void WriteExtendedOutput (Options &opt, Int_t numgroups, Int_t nbodies, PropData
 #ifdef USEMPI
     MPI_Barrier (MPI_COMM_WORLD);
 #endif
-    cout << ThisTask << " Finished writing extended output" << endl;
+    LOG(info) << "Finished writing extended output";
 }
 //@}
 #endif

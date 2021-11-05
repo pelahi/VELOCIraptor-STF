@@ -2,11 +2,15 @@
  *  \brief this file contains routines that search particle list using FOF routines
  */
 
+#include <assert.h>
+
 //--  Suboutines that search particle list
 
 #include "stf.h"
 
 #include "swiftinterface.h"
+#include "logging.h"
+#include "timer.h"
 
 /// \name Searches full system
 //@{
@@ -71,21 +75,19 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     }
 #endif
 
-    //get memory usage
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    MEMORY_USAGE_REPORT(debug, opt);
 
-    auto time1=MyGetTime();
-    auto time2=MyGetTime();
-    cout<<"Begin FOF search  of entire particle data set ... "<<endl;
+    LOG(info) << "Starting FOF search of entire particle data set";
+    vr::Timer fof_timer;
     param[0]=tree->TPHYS;
     param[1]=(opt.ellxscale*opt.ellxscale)*(opt.ellphys*opt.ellphys)*(opt.ellhalophysfac*opt.ellhalophysfac);
     param[6]=param[1];
-    cout<<"First build tree ... "<<endl;
+    LOG(info) << "Building trees";
 #ifdef USEOPENMP
     //if using openmp produce tree with large buckets as a decomposition of the local mpi domain
     //to then run local fof searches on each domain before stitching
     if (runompfof) {
-        auto time3=MyGetTime();
+        vr::Timer t;
         Double_t rdist = sqrt(param[1]);
         //determine the omp regions;
         tree = new KDTree(Part.data(),nbodies,opt.openmpfofsize,tree->TPHYS,tree->KEPAN,100);
@@ -96,22 +98,19 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         for (i=0;i<nbodies;i++) storeorgIndex[i]=Part[i].GetID();
         //build local trees
         tree3dfofomp = OpenMPBuildLocalTrees(opt, numompregions, Part, ompdomain, period);
-        if (opt.iverbose) cout<<ThisTask<<": finished building "<<numompregions<<" domains and trees "<<MyElapsedTime(time3)<<endl;
+        LOG(info) << "Finished building " << numompregions << " domains and trees in " << t;
     }
-    else {
-        auto time3=MyGetTime();
+    else
+#endif
+    {
+        vr::Timer t;
         tree = new KDTree(Part.data(),nbodies,opt.Bsize,tree->TPHYS,tree->KEPAN,1000,0,0,0,period);
         tree->OverWriteInputOrder();
-        if (opt.iverbose) cout<<ThisTask<<": finished building single tree with single OpenMP "<<MyElapsedTime(time3)<<endl;
+        LOG(info) << "Finished building single trees in " << t;
     }
 
-#else
-    tree=new KDTree(Part.data(),nbodies,opt.Bsize,tree->TPHYS,tree->KEPAN,1000,0,0,0,period);
-    tree->OverWriteInputOrder();
-#endif
-    cout<<"Done"<<endl;
-    cout<<ThisTask<<" Search particles using 3DFOF in physical space"<<endl;
-    cout<<ThisTask<<" Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits (ell^2="<<param[6]<<" and likely "<<sqrt(param[6])/opt.ellxscale<<" in interparticle spacing"<<endl;
+    LOG(info) << "Search particles using 3DFOF in physical space";
+    LOG(info) << "Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits (ell^2="<<param[6]<<" and likely "<<sqrt(param[6])/opt.ellxscale<<" in interparticle spacing";
     if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) {fofcmp=&FOF3dDM;param[7]=DARKTYPE;fofcheck=FOFchecktype;}
     else fofcmp=&FOF3d;
 
@@ -123,8 +122,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     Head=NULL;Next=NULL;
 #endif
 
-    //get memory usage
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    MEMORY_USAGE_REPORT(debug, opt);
 
 #ifdef USEOPENMP
     //if enough regions then search each individually
@@ -133,7 +131,6 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     if (runompfof){
         Int_t omp_import_total;
         Double_t rdist = sqrt(param[1]);
-        auto time3 = MyGetTime();
         pfof = new Int_t[nbodies];
         for (i=0;i<nbodies;i++)pfof[i]=0;
 #ifndef USEMPI
@@ -145,12 +142,15 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         OMP_ImportInfo *ompimport;
 
         //get fof in each region
+        vr::Timer local_search_timer;
         numgroups = OpenMPLocalSearch(opt,
             nbodies, Part, pfof, storeorgIndex,
             Head, Next,
             tree3dfofomp, param, rdist, ompminsize, fofcmp,
             numompregions, ompdomain);
-        if (opt.iverbose) cout<<ThisTask<<": finished omp local search of "<<numompregions<<" containing total of "<<numgroups<<" groups "<<MyElapsedTime(time3)<<endl;
+        LOG(info) << "Finished OpenMP local FOF search of " << numompregions
+                  << " containing total of " << numgroups << " groups in "
+                  << local_search_timer;
         if (numgroups > 0) {
 
         //then for each omp region determine the particles to "import" from other omp regions
@@ -205,7 +205,10 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
 #endif
 
     }
-    else {
+    else
+#endif // USEOPENMP
+    {
+        vr::Timer t;
         //posible alteration for all particle search
         if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) {
             pfof=tree->FOFCriterionSetBasisForLinks(fofcmp,param,numgroups,minsize,
@@ -214,20 +217,10 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         else {
             pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,iorder,Head,Next);
         }
+        LOG(info) << "Finished FOF in " << t;
     }
-#else
-    //posible alteration for all particle search
-    if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) {
-        pfof=tree->FOFCriterionSetBasisForLinks(fofcmp,param,numgroups,minsize,
-            iorder,0,FOFchecktype,Head,Next);
-    }
-    else {
-        pfof=tree->FOF(sqrt(param[1]),numgroups,minsize,iorder,Head,Next);
-    }
-#endif
 
-    //get memory usage
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    MEMORY_USAGE_REPORT(debug, opt);
 
 #ifndef USEMPI
     totalgroups=numgroups;
@@ -272,10 +265,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
             numingroup = NULL;
         }
         for (i=0;i<nbodies;i++) {numinstrucs+=(pfof[i]>0);}
-        if (opt.iverbose) {
-            cout<<"Number of particles in large subhalo searchable structures "<<numinstrucs<<endl;
-            cout<<"Number of particles that will have local velocity densitites calculated "<<numlocalden<<endl;
-        }
+        LOG(debug) << "Number of particles in large subhalo searchable structures " << numinstrucs;
+        LOG(debug) << "Number of particles that will have local velocity densitites calculated "<< numlocalden;
         if (numlocalden>0) GetVelocityDensity(opt, nbodies, Part.data(), tree);
         for (i=0;i<nbodies;i++) Part[i].SetType(storetype[i]);
         delete[] storetype;
@@ -295,10 +286,10 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     mpi_foftask=MPISetTaskID(Nlocal);
 
     Len=new Int_tree_t[nbodies];
-    if (opt.iverbose>=2) {
+    if (LOG_ENABLED(trace)) {
         Int_t sum=0;
         for (i=0;i<nbodies;i++) sum+=(pfof[i]>0);
-        cout<<ThisTask<<" has found locally "<<numgroups<<" with lower min size of "<<minsize<<", with  "<<sum<<" particles in all groups"<<endl;
+        LOG(trace) << "Found locally " << numgroups << " with lower min size of " << minsize << ", with  " << sum << " particles in all groups";
     }
     if (numgroups) {
         numingroup=BuildNumInGroup(nbodies, numgroups, pfof);
@@ -306,9 +297,9 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         delete[] numingroup;
         numingroup=NULL;
     }
-    time2=MyGetTime();
 
     //Also must ensure that group ids do not overlap between mpi threads so adjust group ids
+    vr::Timer mpi_timer;
     MPI_Allgather(&numgroups, 1, MPI_Int_t, mpi_ngroups, 1, MPI_Int_t, MPI_COMM_WORLD);
     MPIAdjustLocalGroupIDs(nbodies, pfof);
     //then determine export particles, declare arrays used to export data
@@ -318,8 +309,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     else MPIGetExportNum(nbodies, Part.data(), sqrt(param[1]));
 #endif
     //allocate memory to store info
-    cout<<ThisTask<<": Finished local search, nexport/nimport = "<<NExport<<" "<<NImport<<" in "<<MyElapsedTime(time2)<<endl;
-    cout<<ThisTask<<": MPI search will require extra memory of "<<(sizeof(Particle)+sizeof(fofdata_in))*(NExport+NImport)/pow(1024.0,3.0)<<" GB"<<endl;
+    LOG(info) << "Finished local search, nexport/nimport = " << NExport << " " << NImport << " in " << mpi_timer;
+    LOG(info) << "MPI search will require extra memory of " << vr::memory_amount((sizeof(Particle) + sizeof(fofdata_in)) * (NExport + NImport));
 
     PartDataIn = new Particle[NExport];
     PartDataGet = new Particle[NImport];
@@ -341,10 +332,9 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
 
     Int_t links_across,links_across_total;
 
-    //get memory usage
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    MEMORY_USAGE_REPORT(debug, opt);
 
-    cout<<ThisTask<<": Starting to linking across MPI domains"<<endl;
+    LOG(info) << "Starting to linking across MPI domains";
     do {
         if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1) {
             links_across=MPILinkAcross(nbodies, tree, Part.data(), pfof, Len, Head, Next, param[1], fofcheck, param);
@@ -352,13 +342,11 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         else {
             links_across=MPILinkAcross(nbodies, tree, Part.data(), pfof, Len, Head, Next, param[1]);
         }
-        if (opt.iverbose>=2) {
-            cout<<ThisTask<<" has found "<<links_across<<" links to particles on other mpi domains "<<endl;
-        }
+        LOG(trace) << "Found " << links_across << " links to particles on other mpi domains ";
         MPI_Allreduce(&links_across, &links_across_total, 1, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
         MPIUpdateExportList(nbodies,Part.data(),pfof,Len);
     }while(links_across_total>0);
-    if (ThisTask==0) cout<<ThisTask<<": finished linking across MPI domains in "<<MyElapsedTime(time2)<<endl;
+    LOG_RANK0(info) << "Finished linking across MPI domains in " << mpi_timer;
 
     delete[] FoFDataIn;
     delete[] FoFDataGet;
@@ -386,7 +374,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     numgroups=MPICompileGroups(opt, newnbodies, Part.data(), pfof, opt.HaloMinSize);
     //and free up some memory if vector doesn't need to be as big
     if (Nmemlocal>Nlocal) {Part.resize(Nlocal);Nmemlocal=Nlocal;}
-    cout<<"MPI thread "<<ThisTask<<" has found "<<numgroups<<endl;
+    LOG(info) << "MPI thread " << ThisTask << " has found " << numgroups;
     //free up memory now that only need to store pfof and global ids
     totalgroups=0;
     for (int j=0;j<NProcs;j++) totalgroups+=mpi_ngroups[j];
@@ -401,11 +389,11 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
             sum++;
             if (pfof[i]==1) maxgroupsize++;
         }
-        cout<<ThisTask<<" has found after full search "<<numgroups<<" with lower min size of "<<minsize<<", with  "<<sum<<" particles in all groups"<<endl;
-        cout<<ThisTask<<" with largest group of "<<maxgroupsize<<endl;
+        LOG(info) << "Found after full search " << numgroups << " with lower min size of " << minsize << ", with  " << sum << " particles in all groups";
+        LOG(info) << "Largest group of " << maxgroupsize;
     }
-    if (ThisTask==0) cout<<"Total number of groups found is "<<totalgroups<<endl;
-    if (ThisTask==0) cout<<ThisTask<<": finished FOF search in total time of "<<MyElapsedTime(time1)<<endl;
+    LOG_RANK0(info) << "Total number of groups found is " << totalgroups;
+    LOG_RANK0(info) << "Finished FOF search in total time of " << fof_timer;
 
     //if calculating velocity density only of particles resident in field structures large enough for substructure search
 #if defined(STRUCDEN) && defined(USEMPI)
@@ -447,8 +435,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         Int_t numlocalden_total;
         MPI_Allreduce(&numlocalden, &numlocalden_total, 1, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
         if (numlocalden_total > 0) {
-            if (opt.iverbose) cout<<ThisTask<<" has "<<numlocalden<<" particles for which density must be calculated"<<endl;
-            cout<<ThisTask<<" Going to build tree "<<endl;
+            LOG(debug) << "Found " << numlocalden << " particles for which density must be calculated";
+            LOG(info) << "Going to build tree";
             tree=new KDTree(Part.data(),Nlocal,opt.Bsize,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
             GetVelocityDensity(opt, Nlocal, Part.data(),tree);
             delete tree;
@@ -467,13 +455,12 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
 
     //have now 3dfof groups local to a MPI thread and particles are back in index order that will be used from now on
     //note that from on, use Nlocal, which is altered in mpi but set to nbodies in non-mpi
+    vr::Timer fof6d_timer;
     if (opt.fofbgtype<=FOF6D && totalgroups>0) {
     ///\todo In the 6DFOF, particles are sorted into group order but then resorted back into input index order
     ///this is not necessary if the tipsy still .grp array does not need to be constructed.
     ///we would removing storing the old ids alter how the local group lists are stiched together into the larger array
     ///and remove a slow sort back into original ID order
-    time1=MyGetTime();
-    time2=MyGetTime();
 
     //now if 6dfof search to overcome issues with 3DFOF by searching only particles that have been previously linked by the 3dfof
     //adjust physical linking length
@@ -488,7 +475,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
 
     //if local mpi has numgroups > 0 then sort particles for 6dfof search
     if (numgroups > 0) {
-        cout<<ThisTask<<": Sorting particles for 6dfof/phase-space search "<<endl;
+        LOG(info) << "Sorting particles for 6dfof/phase-space search";
         //sort particles so that largest group is first, 2nd next, etc with untagged at end.
         storetype=new Int_t[Nlocal];
         if (numingroup==NULL) numingroup=new Int_t[numgroups+1];
@@ -542,8 +529,8 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         //set the velocity scale
         param[2]=(vscale2);
         param[7]=param[2];
-        cout<<"Search "<<npartingroups<<" particles using 6DFOF with uniform velocity scale"<<endl;
-        cout<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, ellvel="<<sqrt(param[7])<<" Vunits."<<endl;
+        LOG(info) << "Search " << npartingroups << " particles using 6DFOF with uniform velocity scale";
+        LOG(info) << "Parameters used are : ellphys=" << std::sqrt(param[6]) << " Lunits, ellvel=" << std::sqrt(param[7]) << " Vunits";
     }
     //otherwise each object has its own velocity scale
     else if(opt.fofbgtype==FOF6DADAPTIVE || opt.iKeepFOF){
@@ -574,8 +561,8 @@ private(i,vscale2,mtotregion,vx,vy,vz,vmean)
 #ifdef USEOPENMP
 }
 #endif
-            cout<<"Search "<<npartingroups<<" particles using 6DFOF with adaptive velocity scale"<<endl;
-            cout<<"Static parameters used are : ellphys="<<sqrt(param[6])<<" Lunits"<<endl;
+            LOG(info) << "Search " << npartingroups << " particles using 6DFOF with adaptive velocity scale";
+            LOG(info) << "Static parameters used are : ellphys=" << std::sqrt(param[6]) << " Lunits";
         }
     }
     //use the phase-space stream finding parameters
@@ -667,7 +654,7 @@ private(i,tid,xscaling,vscaling)
     //now if keeping original 3DFOF structures (useful for stellar haloes search) then store original number of 3d fof haloes
     if (opt.iKeepFOF && numgroups >0)
     {
-        if (opt.iverbose>=2 && ThisTask==0) cout<<"Storing the 3D fof envelopes of the 6d fof structures found"<<endl;
+        LOG_RANK0(trace) << "Storing the 3D fof envelopes of the 6d fof structures found";
         Int_t *pfof6dfof=new Int_t[Nlocal];
         for (i=0;i<Nlocal;i++) pfof6dfof[i]=0;
         ng=0;
@@ -693,7 +680,7 @@ private(i,tid,xscaling,vscaling)
         n3dfofoffset[0] = n3dfofoffset[1] = 0;
         for (i=2;i<=numgroups;i++) n3dfofoffset[i] = n3dfofoffset[i-1] + ngomp[i-1];
 
-        if (opt.iverbose) cout <<ThisTask<<" Before 6dfof search had "<< numgroups <<" 3dfof groups "<<endl;
+        LOG(debug) << "Before 6dfof search had " << numgroups << " 3dfof groups ";
         Int_t numin3dfof;
         for (i=1;i<=numgroups;i++)
         {
@@ -706,7 +693,7 @@ private(i,tid,xscaling,vscaling)
             }
             else i3dfofleft[i]=1;
         }
-        if (opt.iverbose) cout<<ThisTask<<" now have" << opt.num3dfof << endl;
+        LOG(debug) << "Now have " << opt.num3dfof;
 
         // now have corrected the number of opt.num3dfof.
         // allocate the array storing the id of the 3dfof to which the 6dfof belongs
@@ -767,7 +754,7 @@ private(i,tid,xscaling,vscaling)
 
     //reorder ids in descending group size order only if not keeping FOF
     if (ng>0 && opt.iKeepFOF==0) {
-        if (opt.iverbose) cout<<" reordering "<<ng<<" groups "<<endl;
+        LOG(debug) << "Reordering " << ng << " groups ";
         numingroup=BuildNumInGroup(Nlocal, ng, pfof);
         Int_t **pglist=BuildPGList(Nlocal, ng, numingroup, pfof);
         ReorderGroupIDs(ng, ng, numingroup, pfof, pglist);
@@ -790,16 +777,16 @@ private(i,tid,xscaling,vscaling)
     if (opt.iBoundHalos>=1) {
         CheckUnboundGroups(opt,Nlocal,Part.data(),numgroups,pfof);
 #ifdef USEMPI
-        if (ThisTask==0) cout<<ThisTask<<" After unnbinding halos"<<endl;
+        LOG_RANK0(info) << "After unnbinding halos";
         //update number of groups if extra secondary search done
         if (opt.fofbgtype>FOF6D) {
-            cout<<"MPI thread "<<ThisTask<<" has found "<<numgroups<<endl;
+            LOG(info) << "MPI thread " << ThisTask << " has found " << numgroups;
             MPI_Allgather(&numgroups, 1, MPI_Int_t, mpi_ngroups, 1, MPI_Int_t, MPI_COMM_WORLD);
             //free up memory now that only need to store pfof and global ids
             if (ThisTask==0) {
                 int totalgroups=0;
                 for (int j=0;j<NProcs;j++) totalgroups+=mpi_ngroups[j];
-                cout<<"Total number of groups found is "<<totalgroups<<endl;
+                LOG(info) << "Total number of groups found is " << totalgroups;
             }
         }
 #endif
@@ -808,22 +795,22 @@ private(i,tid,xscaling,vscaling)
 #ifdef USEMPI
     //update number of groups if extra secondary search done
     if (opt.fofbgtype<=FOF6D) {
-        cout<<"MPI thread "<<ThisTask<<" has found "<<numgroups<<endl;
+        LOG(info) << "MPI thread " << ThisTask << " has found " << numgroups;
         MPI_Allgather(&numgroups, 1, MPI_Int_t, mpi_ngroups, 1, MPI_Int_t, MPI_COMM_WORLD);
         //free up memory now that only need to store pfof and global ids
         if (ThisTask==0) {
             int totalgroups=0;
             for (int j=0;j<NProcs;j++) totalgroups+=mpi_ngroups[j];
-            cout<<"Total number of groups found is "<<totalgroups<<endl;
+            LOG(info) << "Total number of groups found is " << totalgroups;
         }
-        if (ThisTask==0) cout<<ThisTask<<" finished 6d/phase-space fof search in "<<MyElapsedTime(time2)<<endl;
+        LOG_RANK0(info) << "Finished 6d/phase-space fof search in " << fof6d_timer;
     }
     MPI_Allgather(&numgroups, 1, MPI_Int_t, mpi_nhalos, 1, MPI_Int_t, MPI_COMM_WORLD);
 #endif
 
     //now that field structures have been identified, allocate enough memory for the psldata pointer,
     //allocate memory for lowest level in the substructure hierarchy, corresponding to field objects
-    if (opt.iverbose) cout<<ThisTask<<" Now store hierarchy information "<<endl;
+    LOG(debug) << "Now store hierarchy information";
     //standard operation is to not keep the 3DFOF envelopes once 6dfof run
     if (!(opt.iKeepFOF && opt.fofbgtype<=FOF6D))
     {
@@ -938,8 +925,8 @@ private(i,tid,xscaling,vscaling)
     }
 
     //get memory usage
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
-    if (opt.iverbose) cout<<ThisTask<<" Done storing halo substructre level data"<<endl;
+    MEMORY_USAGE_REPORT(debug, opt);
+    LOG(info) << "Done storing halo substructure level data";
     return pfof;
 }
 
@@ -954,7 +941,7 @@ void AdjustStructureForPeriod(Options &opt, const Int_t nbodies, vector<Particle
 #endif
     vector<Coordinate> refpos(numgroups+1);
     vector<Int_t> irefpos(numgroups+1);
-    if (opt.iverbose) cout<<ThisTask<<" Adjusting for period "<<opt.p<<endl;
+    LOG(info) << "Adjusting for period " << opt.p;
     for (i=1;i<=numgroups;i++) irefpos[i]=-1;
     for (i=0;i<nbodies;i++) {
         if (pfof[i]==0) continue;
@@ -1066,7 +1053,6 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
         Partsubset[i].SetType(storetype[storeindx[i]]);
     }
 
-
     if (opt.foftype==FOF6DSUBSET) {
         param[2] = opt.HaloSigmaV*(opt.halocorevfac * opt.halocorevfac);
         param[7] = param[2];
@@ -1075,7 +1061,7 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
     param[9]=opt.ellthreshold;
     //if iterating slightly increase constraints and decrease minimum number
     if (opt.iiterflag && opt.foftype==FOFSTPROB) {
-        if (opt.iverbose>=2) cout<<"Increasing thresholds to search for initial list.\n";
+        LOG(trace) << "Increasing thresholds to search for initial list";
         if (opt.foftype==FOF6DSUBSET) param[7]*=opt.vfac*opt.vfac;
         else param[7]*=opt.vfac;
         param[8]=cos(opt.thetaopen*M_PI*opt.thetafac);
@@ -1086,51 +1072,39 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
     //Set fof type
     //@{
     if (opt.foftype==FOFSTPROB) {
-        if (opt.iverbose>=2) {
-        cout<<"FOFSTPROB which uses: ellphys, vratio, thetaopen, and ellthreshold.\n";
-        cout<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, vratio="<<param[7]<<", cos(thetaopen)="<<param[8]<<", ";
-        cout<<param[9]<<" is outlier threshold.\n";
-        }
+        LOG(trace) << "FOFSTPROB which uses: ellphys, vratio, thetaopen, and ellthreshold";
+        LOG(trace) << "Parameters used are : ellphys=" << std::sqrt(param[6]) << " Lunits, vratio=" << param[7]
+                   << ", cos(thetaopen)=" << param[8] << ", " << param[9] << " is outlier threshold";
         fofcmp=&FOFStreamwithprob;
     }
     else if (opt.foftype==FOF6DSUBSET) {
-        if (opt.iverbose>=2) {
-        cout<<"FOF6D uses ellphys and ellvel.\n";
-        cout<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, ellvel="<<sqrt(param[7])<<" Vunits.\n";
-        }
+        LOG(trace) << "FOF6D uses ellphys and ellvel";
+        LOG(trace) << "Parameters used are : ellphys=" << std::sqrt(param[6]) <<" Lunits, ellvel=" << std::sqrt(param[7]) << " Vunits";
         fofcmp=&FOF6d;
     }
     else if (opt.foftype==FOFSTPROBNN) {
-        if (opt.iverbose>=2) {
-        cout<<"FOFSTPROBNN which uses: ellphys, vratio, thetaopen, and ellthreshold.\n";
-        cout<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, vratio="<<param[7]<<", cos(thetaopen)="<<param[8]<<", ";
-        cout<<param[9]<<" is outlier threshold.\n";
-        cout<<"Search is limited to nearest neighbours."<<endl;
-        }
+        LOG(trace) << "FOFSTPROBNN which uses: ellphys, vratio, thetaopen, and ellthreshold";
+        LOG(trace) << "Parameters used are : ellphys=" << std::sqrt(param[6]) << " Lunits, vratio=" << param[7]
+                   << ", cos(thetaopen)=" << param[8] << ", " << param[9] << " is outlier threshold";
+        LOG(trace) << "Search is limited to nearest neighbours";
         fofcmp=&FOFStreamwithprobNN;
     }
     else if (opt.foftype==FOFSTPROBNNLX) {
-        if (opt.iverbose>=2) {
-        cout<<"FOFSTPROBNNLX which uses: ellphys, vratio, thetaopen, and ellthreshold.\n";
-        cout<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, vratio="<<param[7]<<", cos(thetaopen)="<<param[8]<<", ";
-        cout<<param[9]<<" is outlier threshold.\n";
-        cout<<"Search is limited to nearest neighbours."<<endl;
-        }
+        LOG(trace) << "FOFSTPROBNNLX which uses: ellphys, vratio, thetaopen, and ellthreshold";
+        LOG(trace) << "Parameters used are : ellphys=" << std::sqrt(param[6]) << " Lunits, vratio=" << param[7]
+                   << ", cos(thetaopen)=" << param[8] <<", "  << param[9] << " is outlier threshold";
+        LOG(trace) << "Search is limited to nearest neighbours";
         fofcmp=&FOFStreamwithprobNNLX;
     }
     else if (opt.foftype==FOFSTPROBNNNODIST) {
-        if (opt.iverbose>=2) {
-        cout<<"FOFSTPROBNN which uses: vratio, thetaopen, and ellthreshold.\n";
-        cout<<"Parameters used are : vratio="<<param[7]<<", cos(thetaopen)="<<param[8]<<", ";
-        cout<<param[9]<<" is outlier threshold.\n";
-        cout<<"Search is limited to nearest neighbours."<<endl;
-        }
+        LOG(trace) << "FOFSTPROBNN which uses: vratio, thetaopen, and ellthreshold";
+        LOG(trace) << "Parameters used are : vratio=" << param[7] << ", cos(thetaopen)=" << param[8]
+                    << ", " << param[9] <<" is outlier threshold";
+        LOG(trace) << "Search is limited to nearest neighbours";
         fofcmp=&FOFStreamwithprobNNNODIST;
     }
     else if (opt.foftype==FOF6DCORE) {
-        if (opt.iverbose>=2) {
-        cout<<"FOF6DCORE which identifies phase-space dense regions and assigns particles, ie core identification and growth\n";
-        }
+        LOG(trace) << "FOF6DCORE which identifies phase-space dense regions and assigns particles, ie core identification and growth";
         //just build tree and initialize the pfof array
         tree=new KDTree(Partsubset,nsubset,opt.Bsize,tree->TPHYS);
         numgroups=0;
@@ -1141,12 +1115,12 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
     //now actually search for dynamically distinct substructures
     //@{
     if (!(opt.foftype==FOFSTPROBNN||opt.foftype==FOFSTPROBNNLX||opt.foftype==FOFSTPROBNNNODIST||opt.foftype==FOF6DCORE)) {
-        if (opt.iverbose>=2) cout<<"Building tree ... "<<endl;
+        LOG(trace) << "Building tree ...";
         tree=new KDTree(Partsubset,nsubset,opt.Bsize,tree->TPHYS);
         param[0]=tree->GetTreeType();
         //if large enough for statistically significant structures to be found then search. This is a robust search
         if (nsubset>=MINSUBSIZE) {
-            if (opt.iverbose>=2) cout<<"Now search ... "<<endl;
+            LOG(trace) << "Now search ...";
             pfof=tree->FOFCriterion(fofcmp,param,numgroups,minsize,1,1,FOFchecksub);
         }
         else {
@@ -1154,15 +1128,15 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
             pfof=new Int_t[nsubset];
             for (i=0;i<nsubset;i++) pfof[i]=0;
         }
-        if (opt.iverbose>=2) cout<<"Done"<<endl;
+        LOG(trace) << "Done building tree and searching for substructures";
     }
     else if (opt.foftype==FOFSTPROBNN||opt.foftype==FOFSTPROBNNLX||opt.foftype==FOFSTPROBNNNODIST) {
         //here idea is to use subset but only search NN neighbours in phase-space once that is built for each particle, look at first particle's NN and see if any meet stffof criteria for velocity
         //then examine first tagged particle that meets critera by examining its NN and so on till reach particle where all NN are either already tagged or do not meet criteria
         //delete tree;
-        if (opt.iverbose>=2) cout<<"Building tree ... "<<endl;
+        LOG(trace) << "Building tree ...";
         tree=new KDTree(Partsubset,nsubset,opt.Bsize,tree->TPHYS,tree->KEPAN,1000,1);
-        if (opt.iverbose>=2) cout<<"Finding nearest neighbours"<<endl;
+        LOG(trace) << "Finding nearest neighbours";
         nnID=new Int_t*[nsubset];
         for (i=0;i<nsubset;i++) nnID[i]=new Int_t[nsearch];
         dist2=new Double_t*[nthreads];
@@ -1184,14 +1158,14 @@ private(i,tid)
 #ifdef USEOPENMP
 }
 #endif
-        if (opt.iverbose>=2) cout<<"Done"<<endl;
-        if (opt.iverbose>=2) cout<<"search nearest neighbours"<<endl;
+        LOG(trace) << "Done";
+        LOG(trace) << "Searching nearest neighbours";
         pfof=tree->FOFNNCriterion(fofcmp,param,nsearch,nnID,numgroups,minsize);
         for (i=0;i<nsubset;i++) delete[] nnID[i];
         delete[] nnID;
         for (i=0;i<nthreads;i++) delete[] dist2[i];
         delete[] dist2;
-        if (opt.iverbose>=2) cout<<"Done"<<endl;
+        LOG(trace) << "Done";
     }
     //@}
     //iteration to search region around streams using lower thresholds
@@ -1248,11 +1222,9 @@ private(i,tid)
         //if (opt.foftype==FOF6DSUBSET) param[7]/=opt.vfac*opt.vfac;
 
         fofcmp=&FOFStreamwithprobIterative;
-        if (opt.iverbose>=2) {
-        cout<<ThisTask<<" "<<"Begin iterative search"<<endl;
-        cout<<ThisTask<<" "<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, vratio="<<param[7]<<", cos(thetaopen)="<<param[8]<<", ";
-        cout<<ThisTask<<" "<<param[9]<<" is outlier threshold.\n";
-        }
+        LOG(trace) << "Begin iterative search";
+        LOG(trace) << "Parameters used are : ellphys=" << std::sqrt(param[6]) << " Lunits, vratio=" << param[7]
+                   << ", cos(thetaopen)=" << param[8] << ", " << param[9] <<" is outlier threshold";
 
         //first identify all particles to be searched
         newlinks=0;
@@ -1284,12 +1256,10 @@ private(i,tid)
         param[7]=(opt.Vratio)*opt.vfac;
         param[8]=cos(opt.thetaopen*M_PI*opt.thetafac);
         param[9]=opt.ellthreshold*opt.ellfac;
-        if (opt.iverbose>=2) {
-        cout<<ThisTask<<" "<<"Begin second expanded search with large linking length "<<endl;
-        cout<<ThisTask<<" "<<"FOFSTPROB which uses: ellphys, vratio, thetaopen, and ellthreshold.\n";
-        cout<<ThisTask<<" "<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, vratio="<<param[7]<<", cos(thetaopen)="<<param[8]<<", ";
-        cout<<ThisTask<<" "<<param[9]<<" is outlier threshold.\n";
-        }
+        LOG(trace) << "Begin second expanded search with large linking length";
+        LOG(trace) << "FOFSTPROB which uses: ellphys, vratio, thetaopen, and ellthreshold";
+        LOG(trace) << "Parameters used are : ellphys=" << std::sqrt(param[6]) << " Lunits, vratio=" << param[7]
+                   << ", cos(thetaopen)=" << param[8] << ", " << param[9] << " is outlier threshold";
         //initialization, for merging, store old size prior to expanded search, set nnID
         newlinks=0;
         for (i=1;i<=numgroups;i++)
@@ -1309,7 +1279,7 @@ private(i,tid)
         }while(newlinks);
 
         //then search for intergroup links. When merging, identify all intergroup links and define merging criterion based on mass ratios, number of links, old mass (prior to expansion), etc
-        if (opt.iverbose>=2) cout<<ThisTask<<" "<<"Search for intergroup links"<<endl;
+        LOG(trace) << "Searching for intergroup links";
         newintergroupIndex=new Int_t*[numgroups+1];
         intergroupgidIndex=new Int_t*[numgroups+1];
         newlinks=0;
@@ -1339,12 +1309,10 @@ private(i,tid)
         param[7]=(opt.Vratio)*opt.vfac;
         param[8]=cos(opt.thetaopen*M_PI*opt.thetafac);
         param[9]=opt.ellthreshold*opt.ellfac;
-        if (opt.iverbose>=2){
-        cout<<ThisTask<<" "<<"Begin second expanded search with large linking length "<<endl;
-        cout<<ThisTask<<" "<<"FOFSTPROB which uses: ellphys, vratio, thetaopen, and ellthreshold.\n";
-        cout<<ThisTask<<" "<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, vratio="<<param[7]<<", cos(thetaopen)="<<param[8]<<", ";
-        cout<<ThisTask<<" "<<param[9]<<" is outlier threshold."<<endl;
-        }
+        LOG(trace) << "Begin second expanded search with large linking length ";
+        LOG(trace) << "FOFSTPROB which uses: ellphys, vratio, thetaopen, and ellthreshold";
+        LOG(trace) << "Parameters used are : ellphys=" << std::sqrt(param[6]) << " Lunits, vratio=" << param[7]
+                   << ", cos(thetaopen)=" << param[8] << ", " << param[9] << " is outlier threshold";
         //initialization, for merging, store old size prior to expanded search, set nnID
         newlinks=0;
         for (i=1;i<=numgroups;i++) if (igflag[i]==0)
@@ -1392,7 +1360,6 @@ private(i,tid)
         for (i=0;i<nsubset;i++) if (numingroup[pfof[i]]<opt.MinSize) pfof[i]=0;
         for (i=1;i<=numgroups;i++) numingroup[i]=0;
         for (i=0;i<nsubset;i++) numingroup[pfof[i]]++;
-        //cout<<ThisTask<<" "<<"Now determine number of groups with non zero length"<<endl;
         for (i=numgroups;i>=1;i--) {
             if (numingroup[i]==0) ng--;
             else pglist[i]=new Int_t[numingroup[i]];
@@ -1404,7 +1371,7 @@ private(i,tid)
         delete[] pglist;
         delete[] numingroup;
         numgroups=ng;
-        if (opt.iverbose>=2) cout<<ThisTask<<" "<<"After expanded search there are now "<< ng<<" groups"<<endl;
+        LOG(trace) << "After expanded search there are now " << ng << " groups";
     }
     //once substructure groups are found, ensure all substructure groups are significant
     if (numgroups)
@@ -1418,10 +1385,10 @@ private(i,tid)
         delete[] numingroup;
     }
     if (numgroups>0) {
-        if (opt.iverbose>=2) cout<<ThisTask<<": "<<numgroups<<" substructures found"<<endl;
+        LOG(trace) << numgroups << " substructures found";
     }
     else {
-        if (opt.iverbose>=2) cout<<ThisTask<<": "<<"NO SUBSTRUCTURES FOUND"<<endl;
+        LOG(trace) << "NO SUBSTRUCTURES FOUND";
     }
 
     //now search particle list for large compact substructures that are considered part of the background when using smaller grids
@@ -1429,7 +1396,7 @@ private(i,tid)
     {
         //first have to delete tree used in search so that particles are in original particle order
         //then construct a new grid with much larger cells so that new bg velocity dispersion can be estimated
-        if (opt.iverbose>=2) cout<<" entering large cell search "<<opt.iLargerCellSearch<<endl;
+        LOG(trace) << "Entering large cell search " << opt.iLargerCellSearch;
         delete tree;
         Int_t ngrid;
         Coordinate *gvel;
@@ -1437,14 +1404,15 @@ private(i,tid)
         GridCell *grid;
         Double_t nf, ncl=opt.Ncell;
         //adjust ncellfac locally
-        nf=(opt.Ncellfac*8.0,MAXCELLFRACTION);
+        nf = std::min(opt.Ncellfac * Double_t{8}, Double_t{MAXCELLFRACTION});
         opt.Ncell=nf*nsubset;
 
         //ONLY calculate grid quantities if substructures have been found
         if (numgroups>0) {
             tree=InitializeTreeGrid(opt,nsubset,Partsubset);
             ngrid=tree->GetNumLeafNodes();
-            if (opt.iverbose>=2) cout<<ThisTask<<" "<<"bg search using "<<ngrid<<" grid cells, with each node containing ~"<<(opt.Ncell=nsubset/ngrid)<<" particles"<<endl;
+            LOG(trace) << "bg search using " << ngrid << " grid cells, with each node containing ~"
+                       << (opt.Ncell = nsubset / ngrid) << " particles";
             grid=new GridCell[ngrid];
             FillTreeGrid(opt, nsubset, ngrid, tree, Partsubset, grid);
             gvel=GetCellVel(opt,nsubset,Partsubset,ngrid,grid);
@@ -1468,11 +1436,9 @@ private(i,tid)
             param[7]=opt.HaloLocalSigmaV;
             param[8]=cos(opt.thetaopen*M_PI);
             param[9]=opt.ellthreshold*opt.ellfac;
-            if (opt.iverbose>=2) {
-            cout<<ThisTask<<" "<<"FOF6D uses ellphys and ellvel."<<endl;
-            cout<<ThisTask<<" "<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, ellvel="<<sqrt(param[7])<<" Vunits."<<endl;
-            cout<<ThisTask<<" "<<param[9]<<" is outlier threshold and contains more than "<<minsize<<endl;
-            }
+            LOG(trace) << "FOF6D uses ellphys and ellvel";
+            LOG(trace) << "Parameters used are : ellphys=" << std::sqrt(param[6]) << " Lunits, ellvel=" << std::sqrt(param[7]) << " Vunits";
+            LOG(trace) << param[9] << " is outlier threshold and contains more than " << minsize;
             //then reset to find large subhalo cores close to cell size limit
             fofcmp=&FOF6dbgup;
             //here this ensures that particles belong to a 6dfof substructure that is composed of particles
@@ -1492,7 +1458,7 @@ private(i,tid)
                 Int_t ng=numgroups+(numgroupsbg-bgoffset),oldng=numgroups;
                 for (i=0;i<nsubset;i++) if (pfof[i]==bgoffset&&pfofbg[i]>0) pfof[i]=oldng+(pfofbg[i]-bgoffset);
                 numgroups+=(numgroupsbg-bgoffset);
-                if (opt.iverbose>=2) cout<<ThisTask<<" "<<"Found "<<numgroups<<endl;
+                LOG(trace) << "Found " << numgroups;
 
                 //
                 numingroup=BuildNumInGroup(nsubset, numgroups, pfof);
@@ -1524,7 +1490,7 @@ private(i,tid)
 
                 //initialize nnID list so that if particle tagged no need to check comparison function
                 for (ii=0;ii<nsubset;ii++) nnID[0][ii]=0;
-                if (opt.iverbose>=2) cout<<ThisTask<<" "<<"Search for bg intergroup links"<<endl;
+                LOG(trace) << "Search for bg intergroup links";
                 newintergroupIndex=new Int_t*[numgroups+1];
                 intergroupgidIndex=new Int_t*[numgroups+1];
                 oldlinks=0;
@@ -1554,11 +1520,9 @@ private(i,tid)
                 param[8]=cos(opt.thetaopen*M_PI);
                 param[9]=opt.ellthreshold*opt.ellfac*0.8;
                 fofcmp=&FOFStreamwithprobIterative;
-                if (opt.iverbose>=2){
-                cout<<ThisTask<<" "<<"Begin expanded search for groups near cell size"<<endl;
-                cout<<ThisTask<<" "<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, vratio="<<param[7]<<", cos(thetaopen)="<<param[8]<<", ";
-                cout<<ThisTask<<" "<<param[9]<<" is outlier threshold.\n";
-                }
+                LOG(trace) << "Begin expanded search for groups near cell size";
+                LOG(trace) << "Parameters used are : ellphys=" << std::sqrt(param[6]) << " Lunits, vratio=" << param[7]
+                           << ", cos(thetaopen)=" << param[8] << ", " << param[9] << " is outlier threshold";
                 SearchForNewLinks(nsubset, tree, Partsubset, pfof, fofcmp, param, newlinks, newlinksIndex, nnID, nthreads);
                 tid=0;
                 DetermineNewLinks(nsubset, Partsubset, pfof, numgroups, newlinks, newlinksIndex, numgrouplinksIndex, nnID[tid],&newIndex);
@@ -1618,7 +1582,7 @@ private(i,tid)
                 for (i=0;i<nsubset;i++) if (numingroup[pfof[i]]<opt.MinSize) pfof[i]=0;
                 for (i=1;i<=numgroups;i++) numingroup[i]=0;
                 for (i=0;i<nsubset;i++) numingroup[pfof[i]]++;
-                if (opt.iverbose>=2) cout<<ThisTask<<" "<<"Now determine number of groups with non zero length"<<endl;
+                LOG(trace) << "Now determine number of groups with non zero length";
                 for (i=numgroups;i>=1;i--) {
                     if (numingroup[i]==0) ng--;
                     else pglist[i]=new Int_t[numingroup[i]];
@@ -1630,18 +1594,20 @@ private(i,tid)
                 delete[] pglist;
                 delete[] numingroup;
                 numgroups=ng;
-                if (opt.iverbose>=2) cout<<ThisTask<<" "<<"After expanded search there are now "<< ng<<" groups"<<endl;
+                LOG(trace) << "After expanded search there are now " << ng << " groups";
                 numgroupsbg=0;
             }
-            else if (opt.iverbose>=2) cout<<ThisTask<<" "<<"No large background substructure groups found"<<endl;
+            else {
+                LOG(trace) << "No large background substructure groups found";
+            }
             delete[] pfofbg;
         }
         //output results of search
         if (numgroups>0) {
-            if (opt.iverbose>=2) cout<<numgroups<<" substructures found after large grid search"<<endl;
+            LOG(trace) << numgroups << " substructures found after large grid search";
         }
         else {
-            if (opt.iverbose>=2) cout<<ThisTask<<": "<<"NO SUBSTRUCTURES FOUND"<<endl;
+            LOG(trace) << "NO SUBSTRUCTURES FOUND";
         }
     }
     numsubs=numgroups;
@@ -1650,7 +1616,7 @@ private(i,tid)
     //for missing large substructure cores
     if((opt.iHaloCoreSearch>0&&((!opt.iSingleHalo&&sublevel<=maxhalocoresublevel)||(opt.iSingleHalo&&sublevel==0)))||opt.foftype==FOF6DCORE)
     {
-        if (opt.iverbose>=2) cout<<ThisTask<<" beginning 6dfof core search to find multiple cores"<<endl;
+        LOG(trace) << "Beginning 6dfof core search to find multiple cores";
         bgoffset=1;
         //if adaptive core linking then need to calculate dispersion tensors in configuration and velocity space
         if (opt.iAdaptiveCoreLinking)
@@ -1707,10 +1673,8 @@ private(i,tid)
         else if (opt.foftype==FOF6DCORE || opt.partsearchtype==PSTSTAR){
             minsize=opt.MinSize;
         }
-        if (opt.iverbose>=2) {
-            cout<<ThisTask<<" "<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, ellvel="<<sqrt(param[7])<<" Vunits"<<endl;
-            cout<<"with minimum size of "<<minsize<<endl;
-        }
+        LOG(trace) << "Parameters used are : ellphys=" << std::sqrt(param[6]) << " Lunits, ellvel=" << std::sqrt(param[7])
+                   <<" Vunits with minimum size of " << minsize;
         //start first 6d search
         fofcmp=&FOF6d;
         //here search for 6dfof groups, return ordered list. Also pass function check to ignore already tagged particles
@@ -1794,7 +1758,7 @@ private(i,tid)
         }
 
         if (numgroupsbg>=bgoffset+1) {
-            if (opt.iverbose>=2) cout<<"Number of cores: "<<numgroupsbg<<endl;
+            LOG(trace) << "Number of cores: " << numgroupsbg;
             //if cores are found, two options
             //a pnumcores pointer is passed, store the number of cores in this pointer assumes halo ids will not be reordered, making it easy to flag cores
             //if opt.iHaloCoreSearch==2 then start searching the halo to identify which particles belong to which core by linking particles to their closest
@@ -1808,11 +1772,11 @@ private(i,tid)
                     numgroupsbg-=bgoffset;
                     numgroups+=numgroupsbg;
                 }
-                if (opt.iverbose>=2) cout<<ThisTask<<": After 6dfof core search and assignment there are "<<numgroups<<" groups"<<endl;
+                LOG(trace) << "After 6dfof core search and assignment there are " << numgroups << " groups";
             }
         }
         else {
-            if (opt.iverbose>=2) cout<<ThisTask<<": has found no excess cores indicating mergers"<<endl;
+            LOG(trace) << "No excess cores found indicating mergers";
         }
 
         delete[] pfofbg;
@@ -1904,12 +1868,12 @@ private(i,tid)
     //And compile the information and remove groups smaller than minsize
     numgroups=MPICompileGroups(opt, newnbodies,Partsubset,pfof,opt.MinSize);
     MPI_Barrier(MPI_COMM_WORLD);
-    cout<<"MPI thread "<<ThisTask<<" has found "<<numgroups<<endl;
+    LOG(info) << "MPI thread " << ThisTask << " found "<< numgroups;
     //free up memory now that only need to store pfof and global ids
     if (ThisTask==0) {
         int totalgroups=0;
         for (int j=0;j<NProcs;j++) totalgroups+=mpi_ngroups[j];
-        cout<<"Total number of groups found is "<<totalgroups<<endl;
+        LOG(info) << "Total number of groups found is " << totalgroups;
     }
     //free up memory now that only need to store pfof and global ids
     delete[] FoFGroupDataLocal;
@@ -1941,7 +1905,7 @@ private(i,tid)
       Partsubset[i].SetID(i);
     }
 
-    if (opt.iverbose>=2) cout<<"Done search for substructure in this subset"<<endl;
+    LOG(trace) << "Done search for substructure in this subset";
 
     return pfof;
 }
@@ -1978,16 +1942,18 @@ void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, In
         }
     }
 
-    if (opt.iverbose>=2) {
-        cout<<"Mass ratios of cores are "<<endl;
-        for (i=1;i<=numgroupsbg;i++)cout<<i<<" "<<mcore[i]<<" "<<mcore[i]/mcore[1]<<" "<<ncore[i]<<" "<<dispfac[i]<<endl;
+    if (LOG_ENABLED(trace)) {
+        LOG(trace) << "Mass ratios of cores are:";
+        for (i=1;i<=numgroupsbg;i++) {
+          LOG(trace) << " " << i << " " << mcore[i] << " " << mcore[i] / mcore[1] << " " << ncore[i] << " " << dispfac[i];
+        }
     }
     //if number of particles in core less than number in subset then start assigning particles
     if (nincore<nsubset) {
         //if running fully adaptive core linking, then need to calculate phase-space dispersions for each core
         //about their centres and use this to determine distances
         if (opt.iPhaseCoreGrowth) {
-            if (opt.iverbose>=2) cout<<"Searching untagged particles to assign to cores using full phase-space metrics"<<endl;
+            LOG(trace) << "Searching untagged particles to assign to cores using full phase-space metrics";
             vector<GMatrix> dist(nthreads,GMatrix(6,1));
             vector<GMatrix> cmphase(numgroupsbg+1,GMatrix(6,1));
             vector<GMatrix> invdisp(numgroupsbg+1,GMatrix(6,6));
@@ -2147,7 +2113,7 @@ private(i,tid,Pval,D2,dval,mval,pid,weight)
         //otherwise, use simplier calculation: find nearest particles belonging to cores, calculate distances to these particles and assign untagged
         //particle to the same group as the closest core particle
         else {
-            if (opt.iverbose>=2) cout<<"Searching untagged particles to assign to cores using simple distance measure to nearest core particle"<<endl;
+            LOG(trace) << "Searching untagged particles to assign to cores using simple distance measure to nearest core particle";
             if (nsearch>nincore) nsearch=nincore;
             if (nbucket>=nincore/8) nbucket=max(1,(int)nincore/8);
             Pcore=new Particle[nincore];
@@ -2344,7 +2310,7 @@ void MergeSubstructuresCoresPhase(Options &opt, const Int_t nsubset, Particle *&
         for (auto k=0;k<6;k++) x.SetPhase(k,x.GetPhase(k)/x.GetPotential());
     }
     //sort indices by fof value
-    sort(indexing.begin(), indexing.end(), [](indexfof &a, indexfof &b){
+    sort(indexing.begin(), indexing.end(), [](const indexfof &a, const indexfof &b){
     return a.fofval < b.fofval;
     });
     //get the dispersions
@@ -2515,7 +2481,7 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
     }
 
     //sort indices by original fof value
-    sort(indexing.begin(), indexing.end(), [](indexfof &a, indexfof &b){
+    sort(indexing.begin(), indexing.end(), [](const indexfof &a, const indexfof &b){
     return a.fofval < b.fofval;
     });
 
@@ -2606,9 +2572,9 @@ void MergeSubstructuresPhase(Options &opt, const Int_t nsubset, Particle *&Parts
     //if nothing has changed, do nothing
     if (nummerged==0) return;
     //otherwise start merging groups
-    if (opt.iverbose>=2) cout<<ThisTask<<": merging phase-space structures which overlap significantly. Number of mergers "<<nummerged<<" of " <<numgroups<<endl;
+    LOG(trace) << "Merging phase-space structures which overlap significantly. Number of mergers " << nummerged << " of " << numgroups;
     //sort merger info by type, which would be (background if present), subs, cores, individually arranged by size, keeping original order if possible
-    sort(minfo.begin(), minfo.end(), [](mergeinfo &a, mergeinfo &b){
+    sort(minfo.begin(), minfo.end(), [](const mergeinfo &a, const mergeinfo &b){
         if (a.type<b.type) return true;
         else if (a.type==b.type) {
             if (a.numingroup > b.numingroup) return true;
@@ -2693,7 +2659,7 @@ void RemoveSpuriousDynamicalSubstructures(Options &opt, const Int_t nsubset, Int
     }
     //if most of the object is in substructures and largest object is most of host then take the largest dynamical substructure
     if (numinsub>=nsubset*opt.minfracsubsizeforremoval && numinlargest>=nsubset*opt.minfracsubsizeforremoval) {
-        if (opt.iverbose>=2) cout<<ThisTask<<": removing a large substructure "<<nsubset<<" "<<numgroups<<" "<<numsubs<<" "<<numcores<<" and size is "<<numinsub<<" "<<numinlargest<<endl;
+        LOG(trace) << "Removing a large substructure " << nsubset << " " << numgroups << " " << numsubs << " " << numcores << " and size is " << numinsub << " " << numinlargest;
         numgroups--;
         numsubs--;
         for (auto i=0;i<nsubset;i++) if (pfof[i]>0) pfof[i]--;
@@ -2731,8 +2697,7 @@ inline void PreCalcSearchSubSet(Options &opt, Int_t subnumingroup,  Particle *&s
     Coordinate *gvel;
     Matrix *gveldisp;
 
-    if (opt.iverbose) cout<< ThisTask<<" Substructure at sublevel "<<sublevel<<" with "<<subnumingroup
-        <<" particles"<<endl;
+    LOG(debug) << "Substructure at sublevel " << sublevel << " with " << subnumingroup << " particles";
     if (subnumingroup>=MINSUBSIZE&&opt.foftype!=FOF6DCORE) {
         //now if object is large enough for phase-space decomposition and search, compare local field to bg field
         opt.Ncell=opt.Ncellfac*subnumingroup;
@@ -2895,9 +2860,8 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
-    cout<<ThisTask<<" Beginning substructure search "<<endl;
-    //get memory usage
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    LOG(info) << "Beginning substructure search";
+    MEMORY_USAGE_REPORT(debug, opt);
     if (ngroup>0) {
     //point to current structure level
     pcsld=psldata;
@@ -2951,7 +2915,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
     delete[] numingroup;
     //now start searching while there are still sublevels to be searched
     while (iflag) {
-        if (opt.iverbose) cout<<ThisTask<<" There are "<<nsubsearch<<" substructures large enough to search for other substructures at sub level "<<sublevel<<endl;
+        LOG(debug) << "There are " << nsubsearch << " substructures large enough to search for other substructures at sub level " << sublevel;
         oldnsubsearch=nsubsearch;
         subsubnumingroup=new Int_t*[nsubsearch+1];
         subsubpglist=new Int_t**[nsubsearch+1];
@@ -2970,7 +2934,8 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
         //enough to be searched fully in parallel.
         ompactivesubgroups.resize(0);
 #endif
-        GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__)+string("--subelvel--")+to_string(sublevel), (opt.iverbose>=1));
+        LOG(debug) << "Going through sublevel " << sublevel;
+        MEMORY_USAGE_REPORT(debug, opt);
 
         for (Int_t i=1;i<=oldnsubsearch;i++) {
             // try running loop over largest objects in serial with parallel inside calls
@@ -3161,7 +3126,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
             ngroupidoffsetold+=pcsld->nsinlevel;
             pcsld=pcsld->nextlevel;
         }
-        if (opt.iverbose) cout<<ThisTask<<"Finished searching substructures to sublevel "<<sublevel<<endl;
+        LOG(debug) << "Finished searching substructures to sublevel " << sublevel;
         sublevel++;
         minsizeforsubsearch=min(minsizeforsubsearch*2,MINSUBSIZE);
         for (Int_t i=1;i<=oldnsubsearch;i++) delete[] subpglist[i];
@@ -3201,11 +3166,11 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
         delete[] subngroup;
         delete[] numcores;
         delete[] subpfofold;
-        if (opt.iverbose) cout<<ThisTask<<"Finished storing next level of substructures to be searched for subsubstructure"<<endl;
+        LOG(debug) << "Finished storing next level of substructures to be searched for subsubstructure";
     }
 
     ngroup+=ngroupidoffset;
-    cout<<ThisTask<<"Done searching substructure to "<<sublevel-1<<" sublevels "<<endl;
+    LOG(info) << "Done searching substructure to " << sublevel - 1 << " sublevels";
     }
     else delete[] numingroup;
     //if not an idividual halo and want bound haloes after substructure search (and not searching for baryons afterwards)
@@ -3310,9 +3275,8 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
     MPI_Allgather(&ngroup, 1, MPI_Int_t, mpi_ngroups, 1, MPI_Int_t, MPI_COMM_WORLD);
 #endif
 
-    //get memory usage
-    cout<<ThisTask<<" has found a total of "<<ngroup<<endl;
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    LOG(info) << "Found a total of " << ngroup;
+    MEMORY_USAGE_REPORT(debug, opt);
 }
 
 /*!
@@ -3339,9 +3303,7 @@ int CheckSignificance(Options &opt, const Int_t nsubset, Particle *Partsubset, I
     ellaveexp=sqrt(2.0/M_PI)*exp(-ellvallim*ellvallim)*exp(0.5*ellvallim*ellvallim)/(1.0-gsl_sf_erf(ellvallim/sqrt(2.0)));
 
     //first adjust system and store pList for each group so one can access pfof appropriately
-    if (opt.iverbose) {
-        cout<<"Checking that groups have a significance level of "<<opt.siglevel<<" and contain more than "<<opt.MinSize<<" members"<<endl;
-    }
+    LOG(debug) << "Checking that groups have a significance level of " << opt.siglevel << " and contain more than " << opt.MinSize << " members";
     for (i=0;i<=numgroups;i++) {aveell[i]=0.;maxell[i]=-MAXVALUE;minell[i]=MAXVALUE;//numingroup[i]=0;
     }
     for (i=0;i<nsubset;i++)
@@ -3358,9 +3320,9 @@ int CheckSignificance(Options &opt, const Int_t nsubset, Particle *Partsubset, I
         //flag indicating that group ids need to be adjusted
         if(betaave[i]<opt.siglevel) iflag=1;
     }
-    if (opt.iverbose) cout<<"Done"<<endl;
+    LOG(debug) << "Done";
     if (iflag){
-        if (opt.iverbose) cout<<"Remove groups below significance level"<<endl;
+        LOG(debug) << "Remove groups below significance level";
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
 private(i)
@@ -3396,10 +3358,12 @@ private(i)
 #ifdef USEOPENMP
 }
 #endif
-        if (opt.iverbose) cout<<"Done"<<endl;
+        LOG(debug) << "Done";
         for (i=1;i<=numgroups;i++) if (numingroup[i]==-1) ng--;
         if (ng) ReorderGroupIDs(numgroups, ng, numingroup, pfof, pglist, Partsubset);
-        else if (opt.iverbose) printf("No groups of significance found\n");
+        else {
+            LOG(debug) << "No groups of significance found";
+        }
     }
 
     //free memory
@@ -3429,7 +3393,7 @@ private(i)
 Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const Int_t ndark, vector<Particle> &Part, Int_t *&pfofdark, Int_t &ngroupdark, Int_t &nhalos, int ihaloflag, int iinclusive, PropData *pdata)
 {
     KDTree *tree;
-    Double_t *period;
+    std::vector<Double_t> period;
     Int_t *pfofbaryons, *pfofall, *pfofold;
     Int_t i,pindex,npartingroups,ng, baryonfofold;
     Int_t *ids, *storeval,*storeval2;
@@ -3459,23 +3423,23 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
     ndark_tot = ndark;
 #endif
     if (nparts_tot == ndark_tot) {
-        if (ThisTask == 0) cout<<"Requested baryon search but no baryons loaded. Skipping."<<endl;
+        LOG_RANK0(info) << "Requested baryon search but no baryons loaded. Skipping";
         pfofall=pfofdark;
         return pfofall;
     }
     if (opt.partsearchtype==PSTALL && nparts == ndark){
-        cout<<ThisTask<<" has no local baryons to assign. Skipping search."<<endl;
+        LOG(info) << "No local baryons to assign. Skipping search.";
 #ifdef USEMPI
         // if MPI and also unbinding then there is all gather that is invoked.
         //as number of groups could have changed has due to unbinding.
         if (opt.uinfo.unbindflag) {
-            cout<<"MPI thread "<<ThisTask<<" has found "<<ngroupdark<<endl;
+            LOG(info) << "MPI thread " << ThisTask << " has found " << ngroupdark;
             MPI_Allgather(&ngroupdark, 1, MPI_Int_t, mpi_ngroups, 1, MPI_Int_t, MPI_COMM_WORLD);
             //free up memory now that only need to store pfof and global ids
             if (ThisTask==0) {
                 int totalgroups=0;
                 for (int j=0;j<NProcs;j++) totalgroups+=mpi_ngroups[j];
-                cout<<"Total number of groups found is "<<totalgroups<<endl;
+                LOG(info) << "Total number of groups found is " << totalgroups;
             }
         }
 #endif
@@ -3483,13 +3447,12 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
         return pfofall;
     }
 
-    cout<<ThisTask<<" search baryons "<<nparts<<" "<<ndark<<endl;
-    //get memory usage
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    LOG(info) << "Search baryons " << nparts << " " << ndark;
+    MEMORY_USAGE_REPORT(debug, opt);
 
     //if searched all particles in FOF, reorder particles and also the pfof group id array
     if (opt.partsearchtype==PSTALL) {
-        cout<<" of only baryons in FOF structures as baryons have already been grouped in FOF search "<<endl;
+        LOG(info) << "Of only baryons in FOF structures as baryons have already been grouped in FOF search ";
         //store original pfof value
         pfofall=pfofdark;
 #ifndef USEMPI
@@ -3553,12 +3516,11 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
     if (npartingroups<=2*opt.MinSize) nsearch=npartingroups-1;
     else nsearch=2*opt.MinSize;
     if (opt.p>0) {
-        period=new Double_t[3];
-        for (int j=0;j<3;j++) period[j]=opt.p;
+        period = std::vector<Double_t>(3, opt.p);
     }
 
     //sort dark matter particles so that particles belonging to a group are first, then all other dm particles
-    if (opt.iverbose) cout<<"sort particles so that tree only uses particles in groups "<<npartingroups<<endl;
+    LOG(info) << "Sort particles so that tree only uses particles in groups " << npartingroups;
 
     //search all dm particles in structures
     for (i=0;i<ndark;i++) Part[i].SetPotential(2*(pfofdark[i]==0)+(pfofdark[i]>1));
@@ -3596,17 +3558,18 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
 
     //Set fof type
     fofcmp=&FOF6d;
-    if (opt.iverbose) {
-        cout<<"Baryon search "<<nbaryons<<endl;
-        cout<<"FOF6D uses ellphys and ellvel.\n";
-        cout<<"Parameters used are : ellphys="<<sqrt(param[6])<<" Lunits, ellvel="<<sqrt(param[7])<<" Vunits.\n";
-        cout<<"Building tree to search dm containing "<<npartingroups<<endl;
+    if (LOG_ENABLED(debug)) {
+        LOG(debug) << "Baryon search " << nbaryons;
+        LOG(debug) << "FOF6D uses ellphys and ellvel";
+        LOG(debug) << "Parameters used are: ellphys=" << std::sqrt(param[6])
+                   <<" Lunits, ellvel=" << std::sqrt(param[7]) << " Vunits.";
+        LOG(debug) << "Building tree to search dm containing " << npartingroups;
     }
     //build tree of baryon particles (in groups if a full particle search was done, otherwise npartingroups=nbaryons
-    tree=new KDTree(Part.data(),npartingroups,nsearch/2,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
+    tree=new KDTree(Part.data(),npartingroups,nsearch/2,tree->TPHYS,tree->KEPAN,100,0,0,0,period.data());
     //allocate memory for search
     //find the closest dm particle that belongs to the largest dm group and associate the baryon with that group (including phase-space window)
-    if (opt.iverbose) cout<<"Searching ..."<<endl;
+    LOG(debug) << "Searching ...";
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
 private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
@@ -3678,7 +3641,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
     //if all particles are searched then just need to reset the particle order
     ///\todo need to update this for mpi vector
     if (opt.partsearchtype!=PSTALL) {
-        if (opt.iverbose) cout<<ThisTask<<" finished local search"<<endl;
+        LOG(debug) << "Finished local search";
         MPI_Barrier(MPI_COMM_WORLD);
         //determine all tagged dark matter particles that have search areas that overlap another mpi domain
         if (opt.impiusemesh) MPIGetExportNumUsingMesh(opt, npartingroups, Part.data(), sqrt(param[1]));
@@ -3695,7 +3658,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
         MPIBuildParticleExportBaryonSearchList(opt, npartingroups, Part.data(), pfofdark, ids, numingroup, sqrt(param[1]));
 
         //now dark matter particles associated with a group existing on another mpi domain are local and can be searched.
-        NExport=MPISearchBaryons(nbaryons, Pbaryons, pfofbaryons, numingroup, localdist, nsearch, param, period);
+        NExport=MPISearchBaryons(nbaryons, Pbaryons, pfofbaryons, numingroup, localdist, nsearch, param, period.data());
 
         //reset order
         delete tree;
@@ -3725,7 +3688,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
         //then compile groups and if inclusive halo masses not calculated, reorder group ids
         MPIBaryonCompileGroups(opt, newnbaryons,Pbaryons,pfofbaryons,opt.MinSize,(opt.iInclusiveHalo==0));
         delete[] mpi_foftask;
-        if (opt.iverbose) cout<<ThisTask<<" finished search across domains"<<endl;
+        LOG(debug) << "Finished search across domains";
         //now allocate pfofall and store info
         pfofall=new Int_t[newnbaryons+ndark];
         for (i=0;i<ndark;i++) pfofall[i]=pfofdark[i];
@@ -3793,13 +3756,13 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
     //and free up memory
     delete[] numingroup;
 
-    cout<<"Done"<<endl;
+    LOG(info) << "Done";
 
     //if unbinding go back and redo full unbinding after including baryons
     //note that here if all particles are searched, the particle array has been reorderd from the input order
     //to dark matter first followed by baryons as has the pfofall array
     if (opt.uinfo.unbindflag&&ngroupdark>0) {
-        if (opt.iverbose) cout<<ThisTask<<" starting unbind of dm+baryons"<<endl;
+        LOG(debug) << "Starting unbind of dm+baryons";
         //build new arrays based on pfofall.
         Int_t *ningall,**pglistall;
         ningall=BuildNumInGroup(nparts, ngroupdark, pfofall);
@@ -3935,7 +3898,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
                 }
                 papsldata[i]->nsinlevel=ninlevel;
             }
-            if (opt.iverbose) cout<<ThisTask<<" Reorder after finding baryons and unbinding, previously had "<<ng<<" groups and now have "<<ngroupdark<<endl;
+            LOG(debug) << "Reorder after finding baryons and unbinding, previously had " << ng << " groups and now have " << ngroupdark;
             //reorder group ids, keeping the ordering unchanged.
             map<Int_t, Int_t> remap;
             Int_t newng=0, oldpid, newpid;
@@ -3955,7 +3918,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
                 if (oldpid==newpid) continue;
                 pfofall[Part[i].GetID()] = newpid;
             }
-            if (opt.iverbose) cout<<ThisTask<<" Done"<<endl;
+            LOG(debug) << "Done";
             delete[] ningall;
             for (i=1;i<=ng;i++) delete[] pglistall[i];
             delete[] pglistall;
@@ -3975,18 +3938,18 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
     }
 
     //get memory usage
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    MEMORY_USAGE_REPORT(debug, opt);
 
 #ifdef USEMPI
     //if number of groups has changed then update
     if (opt.uinfo.unbindflag) {
-    cout<<"MPI thread "<<ThisTask<<" has found "<<ngroupdark<<endl;
+    LOG(info) << "MPI thread " << ThisTask << " has found " << ngroupdark;
     MPI_Allgather(&ngroupdark, 1, MPI_Int_t, mpi_ngroups, 1, MPI_Int_t, MPI_COMM_WORLD);
     //free up memory now that only need to store pfof and global ids
     if (ThisTask==0) {
         int totalgroups=0;
         for (int j=0;j<NProcs;j++) totalgroups+=mpi_ngroups[j];
-        cout<<"Total number of groups found is "<<totalgroups<<endl;
+        LOG(info) << "Total number of groups found is " << totalgroups;
     }
     }
 #endif
@@ -3999,7 +3962,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
 //@{
 Int_t GetHierarchy(Options &opt,Int_t ngroups, Int_t *nsub, Int_t *parentgid, Int_t *uparentgid, Int_t* stype)
 {
-    if (opt.iverbose) cout<<"Getting Hierarchy "<<ngroups<<endl;
+    LOG(debug) << "Getting Hierarchy " << ngroups;
     Int_t nhierarchy=1;
     StrucLevelData *ppsldata,**papsldata;
     ppsldata=psldata;
@@ -4032,7 +3995,7 @@ Int_t GetHierarchy(Options &opt,Int_t ngroups, Int_t *nsub, Int_t *parentgid, In
     }
     for (int i=0;i<nhierarchy;i++)papsldata[i]=NULL;
     delete[] papsldata;
-    if(opt.iverbose) cout<<"Done"<<endl;
+    LOG(debug) << "Done";
     return nhierarchy;
 }
 

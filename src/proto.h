@@ -7,6 +7,7 @@
 #include "allvars.h"
 
 #include "fofalgo.h"
+#include "logging.h"
 #include "stf-fitting.h"
 
 #ifndef STFPROTO_H
@@ -345,7 +346,6 @@ void ReorderInclusiveMasses(const Int_t &nold, const Int_t &nnew, Int_t *&numing
 ///Get Binding Energy
 void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset);
 
-
 ///Get Morphology properties (since this is for a particular system just use pointer interface)
 void GetGlobalSpatialMorphology(const Int_t nbodies, Particle *p, Double_t& q, Double_t& s, Double_t Error, Matrix& eigenvec, int imflag=0, int itype=-1, int iiterate=1);
 ///Calculate inertia tensor and eigvector
@@ -383,6 +383,8 @@ double mycNFW_fdf(double c, void *params, double*y,double *dy);
 double mycNFWRhalf(double c, void *params);
 ///Calculate aperture quantities
 void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, PropData &pdata);
+//Calculate half-mass radii by interpolating
+Double_t GetApertureRadiusInterpolation(const Double_t &oldrc, const Double_t &rc, const Double_t &EncMass, const Double_t &mass, const Double_t refmass);
 ///determine the radial bin for calculating profiles
 int GetRadialBin(Options &opt, Double_t rc, int &ibin);
 ///add a particle's properties to the appropriate radial bin.
@@ -853,14 +855,19 @@ void ReorderGroupIDsAndHaloDatabyValue(const Int_t numgroups, const Int_t newnum
 
 int CompareInt(const void *, const void *);
 ///Get memory use
-void GetMemUsage(Options &opt, string callingfunction, bool printreport);
-///Get memory use
-void GetMemUsage(string callingfunction, bool printreport);
+std::string GetMemUsage(Options &opt, string file, int line, string function);
+// void GetMemUsage(Options &opt, string callingfunction, bool printreport);
+// ///Get memory use
+// void GetMemUsage(string callingfunction, bool printreport);
+#define MEMORY_USAGE_REPORT(lvl, opt) { if(LOG_ENABLED(lvl)) LOG(lvl) << GetMemUsage(opt, __FILE__, __LINE__, __PRETTY_FUNCTION__); }
 ///Init memory log
 void InitMemUsageLog(Options &opt);
-///get a time
-std::chrono::time_point<std::chrono::high_resolution_clock> MyGetTime();
-double MyElapsedTime(std::chrono::time_point<std::chrono::high_resolution_clock> before);
+
+namespace vr {
+	/// Get the basename of `filename`
+	std::string basename(const std::string &filename);
+}
+
 //@}
 
 /// \name Compilation functions

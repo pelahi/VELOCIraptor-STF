@@ -26,7 +26,85 @@ int CompareInt(const void *p1, const void *p2) {
       return (val1 - val2);
 }
 
+
 /// get the memory use looking at the task
+std::string GetMemUsage(Options &opt, string file, int line, string function)
+{
+    // if (!opt.memuse_log) return;
+    ifstream f;
+    size_t pos1, pos2;
+    unsigned long long size, resident, shared, text, data, library, dirty, peak;
+    map<string,float> memuse;
+    bool iflag = true;
+    char buffer[2500];
+    std::string delimiter1("VmPeak:"), delimiter2("kB");
+    ofstream Fmem;
+    // Open the file storing memory information associated with the process;
+    f.open("/proc/self/statm");
+    if (f.is_open()) {
+        f >> size >> resident >> shared >> text >> library >> data >>dirty;
+        // nscan = fscanf(file, "%lld %lld %lld %lld %lld %lld %lld",
+        //     &size, &resident, &shared, &text, &library, &data, &dirty);
+        f.close();
+    }
+    else {
+        iflag = false;
+    }
+    f.open("/proc/self/status");
+    if (f.is_open()) {
+        while (f.getline(buffer, 2500)){
+            std::string temp(buffer);
+            if ((pos1 = temp.find(delimiter1)) != string::npos) {
+                pos2 = temp.find(delimiter2);
+                temp = temp.substr(pos1+delimiter1.size(), pos2);
+                peak = stol(temp)*1024;
+                break;
+            }
+        }
+        f.close();
+    }
+    else {
+        iflag = false;
+    }
+
+    std::ostringstream memreport;
+    memreport << "Memory report at " << vr::basename(file) << ':' << line << '@' << function << ": ";
+
+    //having scanned data for memory footprint in pages, report
+    //memory footprint in GB
+    if (iflag) {
+        // Convert pages into bytes. Usually 4096, but could be 512 on some
+        // systems so take care in conversion to KB. */
+        uint64_t sz = sysconf(_SC_PAGESIZE);
+        size *= sz ;
+        resident *= sz ;
+        shared *= sz ;
+        text *= sz ;
+        library *= sz ;
+        data *=  sz ;
+        dirty *= sz ;
+        if (opt.memuse_peak < peak) opt.memuse_peak = peak;
+        opt.memuse_nsamples++;
+        opt.memuse_ave += size;
+        memuse["Size"] = size;
+        memuse["Resident"] = resident;
+        memuse["Shared"] = shared;
+        memuse["Text"] = text;
+        memuse["Library"] = library;
+        memuse["Data"] = data;
+        memuse["Dirty"] = dirty;
+        memuse["Peak"] = opt.memuse_peak;
+        memuse["Average"] = opt.memuse_ave/(float)opt.memuse_nsamples;
+
+        for (auto &entry: memuse) {
+            memreport << entry.first << ": " << vr::memory_amount(entry.second) << " ";
+        }
+    }
+    else{
+        memreport << " unable to open or scan system file storing memory use";
+    }
+    return memreport.str();
+}
 void GetMemUsage(Options &opt, string funcname, bool printreport){
 #ifndef USEMPI
     int ThisTask=0;
@@ -204,17 +282,17 @@ void InitMemUsageLog(Options &opt){
     Fmem.close();
 }
 
-std::chrono::time_point<std::chrono::high_resolution_clock> MyGetTime(){
-    auto now = std::chrono::high_resolution_clock::now();
-    return now;
-}
+// std::chrono::time_point<std::chrono::high_resolution_clock> MyGetTime(){
+//     auto now = std::chrono::high_resolution_clock::now();
+//     return now;
+// }
 
-double MyElapsedTime(std::chrono::time_point<std::chrono::high_resolution_clock> before)
-{
-    auto now = std::chrono::high_resolution_clock::now();
-    auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(now - before);
-    return elapsed.count()*1e-9;
-}
+// double MyElapsedTime(std::chrono::time_point<std::chrono::high_resolution_clock> before)
+// {
+//     auto now = std::chrono::high_resolution_clock::now();
+//     auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(now - before);
+//     return elapsed.count()*1e-9;
+// }
 
 
 #ifdef NOMASS
