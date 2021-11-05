@@ -134,10 +134,10 @@ void MPINumInDomainRAMSES(Options &opt)
         int ndark  = 0;
         int nstar  = 0;
         int nghost = 0;
-        int *ireadfile,*ireadtask,*readtaskID;
+        int *ireadtask,*readtaskID;
         ireadtask=new int[NProcs];
         readtaskID=new int[opt.nsnapread];
-        ireadfile=new int[opt.num_files];
+        std::vector<int> ireadfile (opt.num_files);
         MPIDistributeReadTasks(opt,ireadtask,readtaskID);
         MPISetFilesRead(opt,ireadfile,ireadtask);
 

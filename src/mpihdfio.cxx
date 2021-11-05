@@ -163,11 +163,11 @@ void MPINumInDomainHDF(Options &opt)
     vector<int> vintbuff;
     vector<long long> vlongbuff;
     Int_t ibuf=0,*Nbuf, *Nbaryonbuf;
-    int *ireadfile,*ireadtask,*readtaskID;
+    int *ireadtask,*readtaskID;
     hid_t plist_id = H5P_DEFAULT;
     ireadtask=new int[NProcs];
     readtaskID=new int[opt.nsnapread];
-    ireadfile=new int[opt.num_files];
+    std::vector<int> ireadfile(opt.num_files);
     MPIDistributeReadTasks(opt,ireadtask,readtaskID);
 #ifdef USEPARALLELHDF
     MPI_Comm mpi_comm_read;
@@ -324,7 +324,6 @@ void MPINumInDomainHDF(Options &opt)
 #endif
     delete[] ireadtask;
     delete[] readtaskID;
-    delete[] ireadfile;
     delete[] doublebuff;
     delete[] Nbuf;
     delete[] Nbaryonbuf;

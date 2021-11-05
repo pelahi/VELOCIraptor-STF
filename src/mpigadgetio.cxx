@@ -153,10 +153,11 @@ void MPINumInDomainGadget(Options &opt)
 #endif
     fstream *Fgad;
     struct gadget_header *header;
-    int *ireadfile,*ireadtask,*readtaskID;
+    Int_t Nlocalold=Nlocal;
+    int *ireadtask,*readtaskID;
     ireadtask=new int[NProcs];
     readtaskID=new int[opt.nsnapread];
-    ireadfile=new int[opt.num_files];
+    std::vector<int> ireadfile(opt.num_files);
     MPIDistributeReadTasks(opt,ireadtask,readtaskID);
 
     Int_t ibuf=0,*Nbuf, *Nbaryonbuf;

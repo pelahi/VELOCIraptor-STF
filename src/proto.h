@@ -551,7 +551,7 @@ void MPINumInDomain(Options &opt);
 ///determine which mpi processes read input files
 void MPIDistributeReadTasks(Options&opt, int *&ireadtask, int*&readtaskID);
 ///set which file a given task will read
-int MPISetFilesRead(Options&opt, int *&ireadfile, int *&ireadtask);
+int MPISetFilesRead(Options&opt, std::vector<int> &ireadfile, int *&ireadtask);
 
 ///generic init of write communicator to mpi world;
 void MPIInitWriteComm();
