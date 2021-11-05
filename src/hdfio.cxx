@@ -24,8 +24,8 @@
 //-- HDF5 SPECIFIC IO
 
 #include "stf.h"
-
 #include "hdfitems.h"
+
 extern "C" herr_t file_attrib_info(hid_t loc_id, const char *name, const H5L_info_t *linfo, void *opdata)
 {
     hid_t attrib_id;

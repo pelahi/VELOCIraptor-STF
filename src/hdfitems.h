@@ -7,7 +7,13 @@
 #ifndef HDFITEMS_H
 #define HDFITEMS_H
 
-#include "hdf5.h"
+#include <hdf5.h>
+#include <string>
+
+// #include "h5_utils.h"
+#include "io.h"
+#include "ioutils.h"
+#include "logging.h"
 
 
 ///\name ILLUSTRIS specific constants
@@ -299,6 +305,14 @@ template<typename T> const vector<T> read_attribute_v(const hid_t &file_id, cons
     return val;
 }
 
+static std::string get_hdf5_name(const hid_t object_id)
+{
+    char name[128];
+    if (H5Iget_name(object_id, name, 128) == 0) {
+        throw std::runtime_error("No name for object " + std::to_string(object_id));
+    }
+    return name;
+}
 
 template<typename T> const T read_attribute(const std::string &filename, const std::string &name) {
     safe_hdf5<herr_t>(H5Fopen, filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
@@ -516,11 +530,11 @@ class H5OutputFile
 
     // Called if a HDF5 call fails (might need to MPI_Abort)
     void io_error(std::string message) {
-    std::cerr << message << std::endl;
+        std::cerr << message << std::endl;
 #ifdef USEMPI
-    MPI_Abort(MPI_COMM_WORLD, 1);
+        MPI_Abort(MPI_COMM_WORLD, 1);
 #endif
-    abort();
+        abort();
     }
 
     public:
@@ -1289,7 +1303,7 @@ struct HDF_Part_Info {
     //store where properties are located
     int propindex[100];
 
-    //the HDF naming convenction for the data blocks. By default assumes ILLUSTRIS nameing convention
+    //the HDF naming convention for the data blocks. By default assumes ILLUSTRIS naming convention
     //for simplicity, all particles have basic properties listed first, x,v,ids,mass in this order
     HDF_Part_Info(int PTYPE, int hdfnametype=HDFEAGLENAMES) {
         ptype=PTYPE;
@@ -1395,7 +1409,6 @@ struct HDF_Part_Info {
               propindex[HDFGASIMETAL]=itemp;
               names[itemp++]=string("Metallicity");
             }
-
         }
         //dark matter
         if (ptype==HDFDMTYPE) {
@@ -1863,7 +1876,6 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
 
 }
 //@}
-
 
 
 /// \name Get the number of hdf files per snapshot

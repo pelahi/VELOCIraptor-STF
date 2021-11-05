@@ -2,7 +2,23 @@
  *  \brief this file contains an assortment of utilities
  */
 
+#include "ioutils.h"
+#include "logging.h"
 #include "stf.h"
+
+namespace vr {
+
+std::string basename(const std::string &filename)
+{
+    std::string basenamed(filename);
+    auto last_sep = basenamed.rfind('/');
+    if (last_sep != std::string::npos) {
+        basenamed = basenamed.substr(last_sep + 1);
+    }
+    return basenamed;
+}
+
+} // namespace vr
 
 int CompareInt(const void *p1, const void *p2) {
       Int_t val1 = *(Int_t*)p1;

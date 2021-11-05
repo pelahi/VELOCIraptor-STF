@@ -20,9 +20,12 @@ set(VR_SOURCES
     "${git_revision_cxx}"
     haloproperties.cxx
     hdfio.cxx
+    #h5_output_file.cxx
+    #h5_utils.cxx
     io.cxx
     localbgcomp.cxx
     localfield.cxx
+    logging.cxx
     mpigadgetio.cxx
     mpihdfio.cxx
     mpinchiladaio.cxx
