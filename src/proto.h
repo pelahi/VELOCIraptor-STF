@@ -378,7 +378,7 @@ double mycNFW(double c, void *params);
 ///wrappers for root finding used to get concentration
 double mycNFW_deriv(double c, void *params);
 ///wrappers for root finding used to get concentration
-double mycNFW_fdf(double c, void *params, double*y,double *dy);
+void mycNFW_fdf(double c, void *params, double*y,double *dy);
 ///wrappers for root finding used to get concentration
 double mycNFWRhalf(double c, void *params);
 ///Calculate aperture quantities

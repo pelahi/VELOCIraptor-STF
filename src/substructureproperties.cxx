@@ -4798,7 +4798,7 @@ double mycNFW_deriv(double c, void *params)
 {
   return 0.216*c/pow((1.0+c),2.0);
 }
-double mycNFW_fdf(double c, void *params, double *y, double *dy)
+void mycNFW_fdf(double c, void *params, double *y, double *dy)
 {
   double *p = (double*) params;
   Double_t VmaxVvir2=*p;

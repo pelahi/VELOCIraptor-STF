@@ -1379,8 +1379,10 @@ private(i,tid)
         numingroup=BuildNumInGroup(nsubset, numgroups, pfof);
         //pglist is constructed without assuming particles are in index order
         pglist=BuildPGList(nsubset, numgroups, numingroup, pfof, Partsubset);
+        // numgroups can change in CheckSignificance, which leads to a memleak
+        auto pglist_numgroups = numgroups;
         CheckSignificance(opt,nsubset,Partsubset,numgroups,numingroup,pfof,pglist);
-        for (i=1;i<=numgroups;i++) delete[] pglist[i];
+        for (i=1;i<=pglist_numgroups;i++) delete[] pglist[i];
         delete[] pglist;
         delete[] numingroup;
     }
@@ -2743,7 +2745,6 @@ inline void CleanAndUpdateGroupsFromSubSearch(Options &opt,
 {
     bool iunbindflag;
     Int_t ng=subngroup;
-    Int_t *coreflag;
     if (subngroup == 0) return;
 
     subsubnumingroup = BuildNumInGroup(subnumingroup, subngroup, subpfof);
@@ -2751,15 +2752,13 @@ inline void CleanAndUpdateGroupsFromSubSearch(Options &opt,
 
     if (opt.uinfo.unbindflag&&subngroup>0) {
         //if also keeping track of cores then must allocate coreflag
+        std::vector<Int_t> coreflag;
         if (numcores>0 && opt.iHaloCoreSearch>=1) {
-            coreflag=new Int_t[subngroup+1];
+            coreflag.resize(subngroup + 1);
             for (auto icore=1;icore<=subngroup;icore++) coreflag[icore]=1+(icore>subngroup-numcores);
         }
-        else {
-            coreflag=NULL;
-        }
         iunbindflag = CheckUnboundGroups(opt, subnumingroup, subPart,
-            subngroup, subpfof, subsubnumingroup, subsubpglist, 1, coreflag);
+            subngroup, subpfof, subsubnumingroup, subsubpglist, 1, coreflag.empty() ? nullptr : coreflag.data());
         if (iunbindflag) {
             for (auto j=1;j<=ng;j++) delete[] subsubpglist[j];
             delete[] subsubnumingroup;
@@ -2772,7 +2771,6 @@ inline void CleanAndUpdateGroupsFromSubSearch(Options &opt,
             if (numcores>0 && opt.iHaloCoreSearch>=1) {
                 numcores=0;
                 for (auto icore=1;icore<=subngroup;icore++) numcores += (coreflag[icore]==2);
-                delete[] coreflag;
             }
         }
     }
