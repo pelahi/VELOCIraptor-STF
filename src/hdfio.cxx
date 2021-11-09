@@ -23,8 +23,11 @@
 
 //-- HDF5 SPECIFIC IO
 
-#include "stf.h"
+#include <string>
+
 #include "hdfitems.h"
+#include "logging.h"
+#include "stf.h"
 
 extern "C" herr_t file_attrib_info(hid_t loc_id, const char *name, const H5L_info_t *linfo, void *opdata)
 {
@@ -32,7 +35,7 @@ extern "C" herr_t file_attrib_info(hid_t loc_id, const char *name, const H5L_inf
     //Open the group using its name via the c interface
     attrib_id = H5Aopen(loc_id, name, H5P_DEFAULT);
     //Display group name.
-    cout<<"Attribute Name : " <<name<<" "<<attrib_id<<endl;
+    LOG(info) << "Attribute Name: " << name << " (id=" << attrib_id << ')';
     //close the group via the c interface
     H5Aclose(attrib_id);
     return 0;
@@ -43,8 +46,7 @@ extern "C" herr_t file_data_info(hid_t loc_id, const char *name, const H5L_info_
     hid_t dataset_id;
     //Open the group using its name via the c interface
     dataset_id = H5Dopen2(loc_id, name, H5P_DEFAULT);
-    //Display group name.
-    cout<<"Data Name : " <<name<<" "<<dataset_id<<endl;
+    LOG(info) << "Dataset Name : " << name << " (id=" << dataset_id << ')';
     //close the group via the c interface
     H5Dclose(dataset_id);
     return 0;
@@ -57,7 +59,7 @@ extern "C" herr_t file_info(hid_t loc_id, const char *name, const H5L_info_t *li
     //Open the group using its name via the c interface
     group_id = H5Gopen2(loc_id, name, H5P_DEFAULT);
     //Display group name.
-    cout<<"Group Name : " <<name<<endl;
+    LOG(info) << "Group Name: " << name;
     //H5Literate(group_id, H5_INDEX_NAME, H5_ITER_INC, NULL, file_data_info, NULL);
     //close the group via the c interface
     H5Gclose(group_id);
@@ -569,7 +571,7 @@ inline void LoadExtraPropertiesFromDataset(
         unsigned long long count3=count;
         extrafield = names[iextra];
         extrafield2 = extrafield + to_string(index[iextra]);
-        if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[parttype]<<": Data set "<<extrafield<<endl;
+        LOG_RANK0(debug) << "Opening Dataset " << hdf_gnames.part_names[parttype] << '/' << extrafield;
         partsdataset_extra[i*numextrafields+iextra] = HDF5OpenDataSet(partsgroup[i*NHDFTYPE+parttype],extrafield);
         partsdataspace_extra[i*numextrafields+iextra] = HDF5OpenDataSpace(partsdataset_extra[i*numextrafields+iextra]);
         //data loaded into memory in chunks
@@ -712,14 +714,13 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 #endif
 
     //if verbose spit out the types of particles that are going to be searched for
-    if (ThisTask==0 && opt.iverbose>1) {
-        cout<<" --------------- "<<endl;
-        cout<<"Expecting "<<nusetypes<<" types of particles to be read "<<endl;
-        for (i=0;i<nusetypes;i++) cout<<"Particle "<<usetypes[i]<<" with name "<<hdf_gnames.part_names[usetypes[i]]<<endl;
-        if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
-            cout<<"Additionally, as full separate baryon search , expecting "<<nbusetypes<<" baryon particles"<<endl;
-            for (i=1;i<=nbusetypes;i++) cout<<"Particle "<<usetypes[i]<<" with name "<<hdf_gnames.part_names[usetypes[i]]<<endl;
-        }
+    LOG_RANK0(debug) << "Expecting " << nusetypes << " types of particles to be read ";
+    for (int i = 0; i < nusetypes; i++)
+        LOG_RANK0(debug) << "  Particle " << usetypes[i] << " with name " << hdf_gnames.part_names[usetypes[i]];
+    if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
+        LOG_RANK0(debug) << "Additionally, as full separate baryon search , expecting " << nbusetypes <<" baryon particles";
+        for (int i = 1; i <= nbusetypes; i++)
+            LOG_RANK0(debug) << "Particle " << usetypes[i] << " with name " << hdf_gnames.part_names[usetypes[i]];
     }
 
     //if MPI is used, read processors (all tasks with task numbers less than the number of snapshots) opens the file and loads the data into a particle buffer
@@ -791,7 +792,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     readtaskID=new int[opt.nsnapread];
     MPIDistributeReadTasks(opt,ireadtask,readtaskID);
     MPI_Comm_split(MPI_COMM_WORLD, (ireadtask[ThisTask]>=0), ThisTask, &mpi_comm_read);
-    if (ThisTask==0) cout<<"There are "<<opt.nsnapread<<" threads reading "<<opt.num_files<<" files "<<endl;
+    LOG_RANK0(info) << "There are " << opt.nsnapread << " threads reading " << opt.num_files << " files ";
     if (ireadtask[ThisTask]>=0)
     {
         //to temporarily store data from gadget file
@@ -911,22 +912,27 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
             H5Pclose(plist_id);
 #endif
             if (ThisTask==0 && i==0) {
-                cout<<buf<<endl;
-                cout<<"HDF file contains the following group structures "<<endl;
+                LOG(info) << "HDF file " << buf << " contains the following group structures:";
                 //H5Literate(Fhdf[i].getId(), H5_INDEX_NAME, H5_ITER_INC, NULL, file_info, NULL);
                 H5Literate(Fhdf[i], H5_INDEX_NAME, H5_ITER_INC, NULL, file_info, NULL);
-                cout<<" Expecting "<<endl;
-                for (j=0;j<NHDFTYPE+1;j++) cout<<hdf_gnames.names[j]<<endl;
+                LOG(info) << "Expecting:";
+                for (j=0;j<NHDFTYPE+1;j++)
+                    LOG(info) << "  " << hdf_gnames.names[j];
             }
 
             /* Read the BoxSize */
-            if (opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES)  {
+            if (opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES ||
+		        opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES)  {
+	      
                 /* SWIFT can have non-cubic boxes; but for cosmological runs they will always be cubes.
                 * This makes the BoxSize a vector attribute, with it containing three values, but they
                 * will always be the same. */
-                hdf_header_info[i].BoxSize = read_attribute_v<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IBoxSize])[0];
-            } else {
-                hdf_header_info[i].BoxSize = read_attribute<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IBoxSize]);
+                hdf_header_info[i].BoxSize = read_attribute_v<double>(Fhdf[i], 
+                    hdf_header_info[i].names[hdf_header_info[i].IBoxSize])[0];
+            } 
+            else {
+                hdf_header_info[i].BoxSize = read_attribute<double>(Fhdf[i], 
+                    hdf_header_info[i].names[hdf_header_info[i].IBoxSize]);
             }
 
             vdoublebuff=read_attribute_v<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IMass]);
@@ -937,7 +943,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                 vlongbuff = read_attribute_v<long long>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INuminFile]);
                 for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npart[k]=vlongbuff[k];
             }
-            else{
+            else {
                 vuintbuff = read_attribute_v<unsigned int>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INuminFile]);
                 for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npart[k]=vuintbuff[k];
             }
@@ -952,9 +958,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
             hdf_header_info[i].HubbleParam = read_attribute<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IHubbleParam]);
             hdf_header_info[i].num_files = read_attribute<int>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INumFiles]);
 
-	    //now if swift read extra information
+            //now if swift read extra information
             if (opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES ||
-		opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES) {	 
+                opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES) {	 
                 hdf_header_info[i].Omegab = read_attribute<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IOmegab]);
                 hdf_header_info[i].Omegar = read_attribute<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IOmegar]);
                 hdf_header_info[i].Omegak = read_attribute<double>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].IOmegak]);
@@ -963,69 +969,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
             //check extra fields dimensions and also update output names as necessary
             CheckDimensionsOfExtraFieldNames(opt, nusetypes, usetypes, Fhdf[i], hdf_gnames,  numextrafields);
         }
-        /*catch(GroupIException &error)
-        {
-          HDF5PrintError(error);
-          cerr<<"Error in group might suggest config file has the incorrect HDF naming convention. ";
-          cerr<<"Check HDF_name_convetion or add new naming convention updating hdfitems.h in the source code. "<<endl;
-          Fhdf[i].close();
-#ifdef USEMPI
-          MPI_Abort(MPI_COMM_WORLD,8);
-#else
-          exit(8);
-#endif
-        }
-        // catch failure caused by the H5File operations
-        catch( FileIException &error )
-        {
-          HDF5PrintError(error);
-          cerr<<"Error reading file. Exiting "<<endl;
-          Fhdf[i].close();
-#ifdef USEMPI
-          MPI_Abort(MPI_COMM_WORLD,8);
-#else
-          exit(8);
-#endif
-        }
-        // catch failure caused by the DataSet operations
-        catch( DataSetIException &error )
-        {
-          HDF5PrintError(error);
-          cerr<<"Error in data set might suggest config file has the incorrect HDF naming convention. ";
-          cerr<<"Check HDF_name_convetion or update hdfio.cxx in the source code to read correct format"<<endl;
-          Fhdf[i].close();
-#ifdef USEMPI
-          MPI_Abort(MPI_COMM_WORLD,8);
-#else
-          exit(8);
-#endif
-        }
-        // catch failure caused by the DataSpace operations
-        catch( DataSpaceIException &error )
-        {
-          HDF5PrintError(error);
-          cerr<<"Error in data space might suggest config file has the incorrect HDF naming convention. ";
-          cerr<<"Check HDF_name_convetion or update hdfio.cxx in the source code to read correct format"<<endl;
-          Fhdf[i].close();
-#ifdef USEMPI
-          MPI_Abort(MPI_COMM_WORLD,8);
-#else
-          exit(8);
-#endif
-        }
-        // catch failure caused by the DataSpace operations
-        catch( DataTypeIException &error )
-        {
-          HDF5PrintError(error);
-          cerr<<"Error in data type might suggest need to update hdfio.cxx in the source code to read correct format"<<endl;
-          Fhdf[i].close();
-#ifdef USEMPI
-          MPI_Abort(MPI_COMM_WORLD,8);
-#else
-          exit(8);
-#endif
-        }
-        */
     }
     //after info read, initialise cosmological parameters
     opt.p=hdf_header_info[ifirstfile].BoxSize;
@@ -1059,7 +1002,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
       opt.a=1.0;
       aadjust=opt.a;
       Hubbleflow=0.;
-      cout<<"Non-cosmological input, using h = "<< opt.h<<endl;
+      LOG(info) << "Non-cosmological input, using h = " << opt.h;
     }
 
     // SWIFT snapshots already include the 1/h factor factor,
@@ -1089,10 +1032,10 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 #ifdef NOMASS
     if (hdf_header_info[ifirstfile].mass[HDFDMTYPE] > 0) opt.MassValue = hdf_header_info[ifirstfile].mass[HDFDMTYPE]*mscale;
 #endif
-    if (ThisTask==0) {
-      cout<<"File contains "<<Ntotal<<" particles and is at time "<<opt.a<<endl;
-      cout<<"Particle system contains "<<nbodies<<" particles and is at time "<<opt.a<<" in a box of size "<<opt.p<<endl;
-    }
+    
+    LOG_RANK0(info) << "File contains " << Ntotal << " particles and is at time " << opt.a
+         << "Particle system contains "<< nbodies << " particles and is at time "<< opt.a << " in a box of size " << opt.p;
+
     //by default the interparticle spacing is determined using GDMTYPE
     //which is particle of type 1
     N_DM=hdf_header_info[ifirstfile].npartTotal[HDFDMTYPE];
@@ -1108,20 +1051,20 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     count2=bcount2=0;
     //start loding particle data
     for(i=0; i<opt.num_files; i++) {
-        cout<<ThisTask<<" is reading file "<<i<<endl;
+        LOG(info) << "Reading file " << i;
         ///\todo should be more rigorous with try/catch stuff
         //try
         {
             //open particle group structures
             for (j=0;j<nusetypes;j++) {
               k=usetypes[j];
-              if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<endl;
+              LOG_RANK0(trace) << "Opening group "<<hdf_gnames.part_names[k];
               // partsgroup[i*NHDFTYPE+k]=Fhdf[i].openGroup(hdf_gnames.part_names[k]);
               partsgroup[i*NHDFTYPE+k]=HDF5OpenGroup(Fhdf[i],hdf_gnames.part_names[k]);
             }
             if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
               k=usetypes[j];
-              if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<endl;
+              LOG_RANK0(trace) << "Opening group "<<hdf_gnames.part_names[k];
               // partsgroup[i*NHDFTYPE+k]=Fhdf[i].openGroup(hdf_gnames.part_names[k]);
               partsgroup[i*NHDFTYPE+k]=HDF5OpenGroup(Fhdf[i],hdf_gnames.part_names[k]);
             }
@@ -1129,7 +1072,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
             //get positions
             for (j=0;j<nusetypes;j++) {
               k=usetypes[j];
-              if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[itemp]<<endl;
+              LOG_RANK0(trace) << "Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[itemp];
               partsdataset[i*NHDFTYPE+k]=HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],hdf_parts[k]->names[0]);
               partsdataspace[i*NHDFTYPE+k]=HDF5OpenDataSpace(partsdataset[i*NHDFTYPE+k]);
             }
@@ -1157,12 +1100,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
               /* If we have baryon search on, but ask to only search the dark matter, we'll segfault here.
                * Better to gracefully exit here with some helpful information. */
 
-              cout << "\n";
-              cout << "You have ran with the particle search type (=2) as Dark Matter but have \n";
-              cout << "left the baryon search type as something nonzero. You should  set the \n";
-              cout << "Baryon_searchflag to 0 in your parameter file.\n";
-
-              cerr << "Incompatible choice of parameter values. See stdout for more information.\n";
+              LOG(error) << "You have ran with the particle search type (=2) as Dark Matter but have "
+                         << "left the baryon search type as something nonzero. You should  set the "
+                         << "Baryon_searchflag to 0 in your parameter file";
 
 #ifdef USE_MPI
               MPI_Abort(MPI_COMM_WORLD, 1);
@@ -1177,7 +1117,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
             itemp++;
             for (j=0;j<nusetypes;j++) {
               k=usetypes[j];
-              if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[itemp]<<endl;
+              LOG_RANK0(trace) << "Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[itemp];
               partsdataset[i*NHDFTYPE+k]=HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],hdf_parts[k]->names[itemp]);
               partsdataspace[i*NHDFTYPE+k]=HDF5OpenDataSpace(partsdataset[i*NHDFTYPE+k]);
             }
@@ -1223,7 +1163,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
             itemp++;
             for (j=0;j<nusetypes;j++) {
               k=usetypes[j];
-              if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[itemp]<<endl;
+              LOG_RANK0(debug)<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[itemp];
               partsdataset[i*NHDFTYPE+k]=HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],hdf_parts[k]->names[itemp]);
               partsdataspace[i*NHDFTYPE+k]=HDF5OpenDataSpace(partsdataset[i*NHDFTYPE+k]);
             }
@@ -1308,7 +1248,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
             itemp++;
             for (j=0;j<nusetypes;j++) {
               k=usetypes[j];
-              if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[itemp]<<endl;
+              LOG_RANK0(trace)<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[itemp];
               if (hdf_header_info[i].mass[k]==0){
                 partsdataset[i*NHDFTYPE+k]=HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],hdf_parts[k]->names[itemp]);
                 partsdataspace[i*NHDFTYPE+k]=HDF5OpenDataSpace(partsdataset[i*NHDFTYPE+k]);
@@ -1377,15 +1317,14 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
               //first gas internal energy
               for (j=0;j<nusetypes;j++) {
                 k=usetypes[j];
-                if (k==HDFGASTYPE){
-                  if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[5]<<endl;
+                if (k==HDFGASTYPE && opt.ihdfnameconvention != HDFSWIFTFLAMINGONAMES){
                   partsdataset[i*NHDFTYPE+k]=HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],hdf_parts[k]->names[5]);
                   partsdataspace[i*NHDFTYPE+k]=HDF5OpenDataSpace(partsdataset[i*NHDFTYPE+k]);
                 }
               }
               if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
                 k=usetypes[j];
-                if (k==HDFGASTYPE){
+                if (k==HDFGASTYPE && opt.ihdfnameconvention != HDFSWIFTFLAMINGONAMES){
                   partsdataset[i*NHDFTYPE+k]=HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],hdf_parts[k]->names[5]);
                   partsdataspace[i*NHDFTYPE+k]=HDF5OpenDataSpace(partsdataset[i*NHDFTYPE+k]);
                 }
@@ -1395,15 +1334,23 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
               for (j=0;j<nusetypes;j++) {
                 k=usetypes[j];
                 if (k==HDFGASTYPE) {
-                  //data loaded into memory in chunks
-                  if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
-                  else nchunk=chunksize;
-                  for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
-                  {
-                    if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
-                    HDF5ReadHyperSlabReal(doublebuff,partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 1, nchunk, n);
-                    for (int nn=0;nn<nchunk;nn++) Part[count++].SetU(doublebuff[nn]);
-                  }
+                    //data loaded into memory in chunks
+                    if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
+                    else nchunk=chunksize;
+                    for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
+                    {
+                        if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0) {
+                            nchunk=hdf_header_info[i].npart[k]-n;
+                        }
+                        if (opt.ihdfnameconvention != HDFSWIFTFLAMINGONAMES) {
+                            HDF5ReadHyperSlabReal(doublebuff,partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 1, nchunk, n);
+                            for (int nn=0;nn<nchunk;nn++) Part[count++].SetU(doublebuff[nn]);
+
+                        } 
+                        else {
+                            for (int nn=0;nn<nchunk;nn++) Part[count++].SetU(0.);
+                        }
+                    }
                 }
                 else {
                   count+=hdf_header_info[i].npart[k];
@@ -1411,21 +1358,28 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
               }
               if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
                 for (j=1;j<=nbusetypes;j++) {
-                  k=usetypes[j];
-                  if (k==HDFGASTYPE) {
-                    //data loaded into memory in chunks
-                    if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
-                    else nchunk=chunksize;
-                    for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
-                    {
-                      if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0)nchunk=hdf_header_info[i].npart[k]-n;
-                      HDF5ReadHyperSlabReal(doublebuff,partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 1, nchunk, n);
-                      for (int nn=0;nn<nchunk;nn++) Pbaryons[bcount++].SetU(doublebuff[nn]);
+                    k=usetypes[j];
+                    if (k==HDFGASTYPE) {
+                        //data loaded into memory in chunks
+                        if (hdf_header_info[i].npart[k]<chunksize)nchunk=hdf_header_info[i].npart[k];
+                        else nchunk=chunksize;
+                        for(n=0;n<hdf_header_info[i].npart[k];n+=nchunk)
+                        {
+                            if (hdf_header_info[i].npart[k]-n<chunksize&&hdf_header_info[i].npart[k]-n>0) {
+                                nchunk=hdf_header_info[i].npart[k]-n;
+                            }
+                            if (opt.ihdfnameconvention != HDFSWIFTFLAMINGONAMES) {
+                                HDF5ReadHyperSlabReal(doublebuff,partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 1, nchunk, n);
+                                for (int nn=0;nn<nchunk;nn++) Pbaryons[bcount++].SetU(doublebuff[nn]);
+                            } 
+                            else {
+                                for (int nn=0;nn<nchunk;nn++) Pbaryons[bcount++].SetU(0.);
+                            }
+                        }
                     }
-                  }
-                  else {
-                    count+=hdf_header_info[i].npart[k];
-                  }
+                    else {
+                        count+=hdf_header_info[i].npart[k];
+                    }
                 }
               }
               //close data spaces
@@ -1436,7 +1390,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
               for (j=0;j<nusetypes;j++) {
                 k=usetypes[j];
                 if (k==HDFGASTYPE){
-                  if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[6]<<endl;
+                  LOG_RANK0(trace) << "Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[6];
                   partsdataset[i*NHDFTYPE+k]=HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],hdf_parts[k]->names[6]);
                   partsdataspace[i*NHDFTYPE+k]=HDF5OpenDataSpace(partsdataset[i*NHDFTYPE+k]);
                 }
@@ -1495,12 +1449,12 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
               for (j=0;j<nusetypes;j++) {
                 k=usetypes[j];
                 if (k==HDFGASTYPE){
-                  if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[hdf_parts[k]->propindex[HDFGASIMETAL]]<<endl;
+                  LOG_RANK0(trace) << "Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[hdf_parts[k]->propindex[HDFGASIMETAL]];
                   partsdataset[i*NHDFTYPE+k]=HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],hdf_parts[k]->names[hdf_parts[k]->propindex[HDFGASIMETAL]]);
                   partsdataspace[i*NHDFTYPE+k]=HDF5OpenDataSpace(partsdataset[i*NHDFTYPE+k]);
                 }
                 if (k==HDFSTARTYPE){
-                  if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[hdf_parts[k]->propindex[HDFSTARIMETAL]]<<endl;
+                  LOG_RANK0(trace) << "Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[hdf_parts[k]->propindex[HDFSTARIMETAL]]<<endl;
                   partsdataset[i*NHDFTYPE+k]=HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],hdf_parts[k]->names[hdf_parts[k]->propindex[HDFSTARIMETAL]]);
                   partsdataspace[i*NHDFTYPE+k]=HDF5OpenDataSpace(partsdataset[i*NHDFTYPE+k]);
                 }
@@ -1563,7 +1517,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
               for (j=0;j<nusetypes;j++) {
                 k=usetypes[j];
                 if (k==HDFSTARTYPE){
-                  if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[hdf_parts[k]->propindex[HDFSTARIAGE]]<<endl;
+                  LOG_RANK0(trace) << "Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[hdf_parts[k]->propindex[HDFSTARIAGE]];
                   partsdataset[i*NHDFTYPE+k]=HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],hdf_parts[k]->names[hdf_parts[k]->propindex[HDFSTARIAGE]]);
                   partsdataspace[i*NHDFTYPE+k]=HDF5OpenDataSpace(partsdataset[i*NHDFTYPE+k]);
                 }
@@ -2261,7 +2215,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
         count2=bcount2=0;
         for(i=0; i<opt.num_files; i++) if(ireadfile[i])
         {
-            cout<<ThisTask<<" is reading file "<<i<<endl;
+            LOG(info) << "Reading file " << i;
             ///\todo should be more rigorous with try/catch stuff
             //try
             {
@@ -2283,7 +2237,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                   if (itemp!=3) {
                     for (j=0;j<nusetypes;j++) {
                       k=usetypes[j];
-                      if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[itemp]<<endl;
+                      LOG_RANK0(trace) << "Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[itemp];
                       partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],hdf_parts[k]->names[itemp]);
                       partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=HDF5OpenDataSpace(partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
                     }
@@ -2297,7 +2251,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                     for (j=0;j<nusetypes;j++) {
                       k=usetypes[j];
                       if (hdf_header_info[i].mass[k]==0){
-                        if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[itemp]<<endl;
+                        LOG_RANK0(trace) << "Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[itemp];
                         partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],hdf_parts[k]->names[itemp]);
                         partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=HDF5OpenDataSpace(partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
                       }
@@ -2317,15 +2271,14 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                   //first gas internal energy
                   for (j=0;j<nusetypes;j++) {
                     k=usetypes[j];
-                    if (k==HDFGASTYPE){
-                      if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[5]<<endl;
+                    if (k==HDFGASTYPE && opt.ihdfnameconvention != HDFSWIFTFLAMINGONAMES){
                       partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],hdf_parts[k]->names[5]);
                       partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=HDF5OpenDataSpace(partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
                     }
                   }
                   if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) for (j=1;j<=nbusetypes;j++) {
                     k=usetypes[j];
-                    if (k==HDFGASTYPE){
+                    if (k==HDFGASTYPE && opt.ihdfnameconvention != HDFSWIFTFLAMINGONAMES){
                       partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],hdf_parts[k]->names[5]);
                       partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=HDF5OpenDataSpace(partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
                     }
@@ -2336,7 +2289,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                   for (j=0;j<nusetypes;j++) {
                     k=usetypes[j];
                     if (k==HDFGASTYPE){
-                      if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[6]<<endl;
+                      LOG_RANK0(trace) << "Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[6];
                       partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],hdf_parts[k]->names[6]);
                       partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=HDF5OpenDataSpace(partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
                     }
@@ -2353,12 +2306,12 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                   for (j=0;j<nusetypes;j++) {
                     k=usetypes[j];
                     if (k==HDFGASTYPE){
-                      if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[hdf_parts[k]->propindex[HDFGASIMETAL]]<<endl;
+                      LOG_RANK0(trace) << "Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[hdf_parts[k]->propindex[HDFGASIMETAL]];
                       partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],hdf_parts[k]->names[hdf_parts[k]->propindex[HDFGASIMETAL]]);
                       partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=HDF5OpenDataSpace(partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
                     }
                     if (k==HDFSTARTYPE){
-                      if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[hdf_parts[k]->propindex[HDFSTARIMETAL]]<<endl;
+                      LOG_RANK0(trace) << "Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[hdf_parts[k]->propindex[HDFSTARIMETAL]];
                       partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],hdf_parts[k]->names[hdf_parts[k]->propindex[HDFSTARIMETAL]]);
                       partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=HDF5OpenDataSpace(partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
                     }
@@ -2379,7 +2332,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                   for (j=0;j<nusetypes;j++) {
                     k=usetypes[j];
                     if (k==HDFSTARTYPE){
-                      if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[hdf_parts[k]->propindex[HDFSTARIAGE]]<<endl;
+                      LOG_RANK0(trace) << "Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<hdf_parts[k]->names[hdf_parts[k]->propindex[HDFSTARIAGE]];
                       partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],hdf_parts[k]->names[hdf_parts[k]->propindex[HDFSTARIAGE]]);
                       partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]=HDF5OpenDataSpace(partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp]);
                     }
@@ -2403,13 +2356,15 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                     for (j=0;j<nusetypes;j++)
                     {
                         k=usetypes[j];
-                        if (k!=HDFGASTYPE) continue;
+                        if (k!=HDFGASTYPE) {
+                            continue;
+                        }
                         if (opt.gas_internalprop_names.size()>0)
                         {
                             for (auto &iextra:opt.gas_internalprop_unique_input_indexlist)
                             {
                                 extrafield = opt.gas_internalprop_names[iextra];
-                                if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
+                                LOG_RANK0(trace) << "Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield;
                                 partsdatasetall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],extrafield);
                                 partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSpace(partsdatasetall_extra[i*numextrafields+iextra+iextraoffset]);
                             }
@@ -2420,7 +2375,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             for (auto &iextra:opt.gas_chem_unique_input_indexlist)
                             {
                                 extrafield = opt.gas_chem_names[iextra];
-                                if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
+                                LOG_RANK0(trace) << "Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield;
                                 partsdatasetall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],extrafield);
                                 partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSpace(partsdatasetall_extra[i*numextrafields+iextra+iextraoffset]);
                             }
@@ -2431,7 +2386,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             for (auto &iextra:opt.gas_chemproduction_unique_input_indexlist)
                             {
                                 extrafield = opt.gas_chemproduction_names[iextra];
-                                if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
+                                LOG_RANK0(trace) << "Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield;
                                 partsdatasetall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],extrafield);
                                 partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSpace(partsdatasetall_extra[i*numextrafields+iextra+iextraoffset]);
                             }
@@ -2442,7 +2397,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             for (auto &iextra:opt.gas_internalprop_unique_input_indexlist_aperture)
                             {
                                 extrafield = opt.gas_internalprop_names_aperture[iextra];
-                                if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
+                                LOG_RANK0(trace) << "Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield;
                                 partsdatasetall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],extrafield);
                                 partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSpace(partsdatasetall_extra[i*numextrafields+iextra+iextraoffset]);
                             }
@@ -2453,7 +2408,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             for (auto &iextra:opt.gas_chem_unique_input_indexlist_aperture)
                             {
                                 extrafield = opt.gas_chem_names_aperture[iextra];
-                                if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
+                                LOG_RANK0(trace) << "Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield;
                                 partsdatasetall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],extrafield);
                                 partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSpace(partsdatasetall_extra[i*numextrafields+iextra+iextraoffset]);
                             }
@@ -2464,7 +2419,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             for (auto &iextra:opt.gas_chemproduction_unique_input_indexlist_aperture)
                             {
                                 extrafield = opt.gas_chemproduction_names_aperture[iextra];
-                                if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
+                                LOG_RANK0(trace) << "Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield;
                                 partsdatasetall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],extrafield);
                                 partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSpace(partsdatasetall_extra[i*numextrafields+iextra+iextraoffset]);
                             }
@@ -2476,13 +2431,15 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                     for (j=0;j<nusetypes;j++)
                     {
                         k=usetypes[j];
-                        if (k!=HDFSTARTYPE) continue;
+                        if (k!=HDFSTARTYPE) {
+                            continue;
+                        }
                         if (opt.star_internalprop_names.size()>0)
                         {
                             for (auto &iextra:opt.star_internalprop_unique_input_indexlist)
                             {
                                 extrafield = opt.star_internalprop_names[iextra];
-                                if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
+                                LOG_RANK0(trace) << "Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield;
                                 partsdatasetall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],extrafield);
                                 partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSpace(partsdatasetall_extra[i*numextrafields+iextra+iextraoffset]);
                             }
@@ -2493,7 +2450,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             for (auto &iextra:opt.star_chem_unique_input_indexlist)
                             {
                                 extrafield = opt.star_chem_names[iextra];
-                                if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
+                                LOG_RANK0(trace) << "Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield;
                                 partsdatasetall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],extrafield);
                                 partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSpace(partsdatasetall_extra[i*numextrafields+iextra+iextraoffset]);
                             }
@@ -2504,7 +2461,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             for (auto &iextra:opt.star_chemproduction_unique_input_indexlist)
                             {
                                 extrafield = opt.star_chemproduction_names[iextra];
-                                if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
+                                LOG_RANK0(trace) << "Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield;
                                 partsdatasetall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],extrafield);
                                 partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSpace(partsdatasetall_extra[i*numextrafields+iextra+iextraoffset]);
                             }
@@ -2515,7 +2472,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             for (auto &iextra:opt.star_internalprop_unique_input_indexlist_aperture)
                             {
                                 extrafield = opt.star_internalprop_names_aperture[iextra];
-                                if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
+                                LOG_RANK0(trace) << "Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield;
                                 partsdatasetall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],extrafield);
                                 partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSpace(partsdatasetall_extra[i*numextrafields+iextra+iextraoffset]);
                             }
@@ -2526,7 +2483,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             for (auto &iextra:opt.star_chem_unique_input_indexlist_aperture)
                             {
                                 extrafield = opt.star_chem_names_aperture[iextra];
-                                if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
+                                LOG_RANK0(trace) << "Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield;
                                 partsdatasetall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],extrafield);
                                 partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSpace(partsdatasetall_extra[i*numextrafields+iextra+iextraoffset]);
                             }
@@ -2537,7 +2494,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             for (auto &iextra:opt.star_chemproduction_unique_input_indexlist_aperture)
                             {
                                 extrafield = opt.star_chemproduction_names_aperture[iextra];
-                                if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
+                                LOG_RANK0(trace) << "Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield;
                                 partsdatasetall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],extrafield);
                                 partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSpace(partsdatasetall_extra[i*numextrafields+iextra+iextraoffset]);
                             }
@@ -2549,13 +2506,15 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                     for (j=0;j<nusetypes;j++)
                     {
                         k=usetypes[j];
-                        if (k!=HDFBHTYPE) continue;
+                        if (k!=HDFBHTYPE) {
+                            continue;
+                        }
                         if (opt.bh_internalprop_names.size()>0)
                         {
                             for (auto &iextra:opt.bh_internalprop_unique_input_indexlist)
                             {
                                 extrafield = opt.bh_internalprop_names[iextra];
-                                if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
+                                LOG_RANK0(trace) << "Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield;
                                 partsdatasetall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],extrafield);
                                 partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSpace(partsdatasetall_extra[i*numextrafields+iextra+iextraoffset]);
                             }
@@ -2566,7 +2525,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             for (auto &iextra:opt.bh_chem_unique_input_indexlist)
                             {
                                 extrafield = opt.bh_chem_names[iextra];
-                                if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
+                                LOG_RANK0(trace) << "Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield;
                                 partsdatasetall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],extrafield);
                                 partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSpace(partsdatasetall_extra[i*numextrafields+iextra+iextraoffset]);
                             }
@@ -2577,7 +2536,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             for (auto &iextra:opt.bh_chemproduction_unique_input_indexlist)
                             {
                                 extrafield = opt.bh_chemproduction_names[iextra];
-                                if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
+                                LOG_RANK0(trace) << "Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield;
                                 partsdatasetall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],extrafield);
                                 partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSpace(partsdatasetall_extra[i*numextrafields+iextra+iextraoffset]);
                             }
@@ -2588,7 +2547,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             for (auto &iextra:opt.bh_internalprop_unique_input_indexlist_aperture)
                             {
                                 extrafield = opt.bh_internalprop_names_aperture[iextra];
-                                if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
+                                LOG_RANK0(trace) << "Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield;
                                 partsdatasetall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],extrafield);
                                 partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSpace(partsdatasetall_extra[i*numextrafields+iextra+iextraoffset]);
                             }
@@ -2599,7 +2558,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             for (auto &iextra:opt.bh_chem_unique_input_indexlist_aperture)
                             {
                                 extrafield = opt.bh_chem_names_aperture[iextra];
-                                if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
+                                LOG_RANK0(trace) << "Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield;
                                 partsdatasetall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],extrafield);
                                 partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSpace(partsdatasetall_extra[i*numextrafields+iextra+iextraoffset]);
                             }
@@ -2610,7 +2569,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             for (auto &iextra:opt.bh_chemproduction_unique_input_indexlist_aperture)
                             {
                                 extrafield = opt.bh_chemproduction_names_aperture[iextra];
-                                if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
+                                LOG_RANK0(trace) << "Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield;
                                 partsdatasetall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],extrafield);
                                 partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSpace(partsdatasetall_extra[i*numextrafields+iextra+iextraoffset]);
                             }
@@ -2628,7 +2587,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             for (auto &iextra:opt.extra_dm_internalprop_unique_input_indexlist)
                             {
                                 extrafield = opt.extra_dm_internalprop_names[iextra];
-                                if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
+                                LOG_RANK0(trace) << "Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield;
                                 partsdatasetall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],extrafield);
                                 partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSpace(partsdatasetall_extra[i*numextrafields+iextra+iextraoffset]);
                             }
@@ -2639,7 +2598,7 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                             for (auto &iextra:opt.extra_dm_internalprop_unique_input_indexlist_aperture)
                             {
                                 extrafield = opt.extra_dm_internalprop_names_aperture[iextra];
-                                if (ThisTask==0 && opt.iverbose>1) cout<<"Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield<<endl;
+                                LOG_RANK0(trace) << "Opening group "<<hdf_gnames.part_names[k]<<": Data set "<<extrafield;
                                 partsdatasetall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSet(partsgroup[i*NHDFTYPE+k],extrafield);
                                 partsdataspaceall_extra[i*numextrafields+iextra+iextraoffset] = HDF5OpenDataSpace(partsdatasetall_extra[i*numextrafields+iextra+iextraoffset]);
                             }
@@ -3366,7 +3325,11 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                       //self-energy
                       itemp++;
                       if (k == HDFGASTYPE) {
+			if(opt.ihdfnameconvention != HDFSWIFTFLAMINGONAMES) {
                           HDF5ReadHyperSlabReal(udoublebuff,partsdatasetall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], partsdataspaceall[i*NHDFTYPE*NHDFDATABLOCK+k*NHDFDATABLOCK+itemp], 1, 1, nchunk, n, plist_id);
+			} else {
+			  std::memset(udoublebuff, 0, chunksize * sizeof(double));
+			}
                       }
 #ifdef STARON
                       //star formation rate
@@ -3464,50 +3427,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                 for (auto &hidval:partsdatasetall_extra) HDF5CloseDataSet(hidval);
                 for (auto &hidval:partsgroup) HDF5CloseGroup(hidval);
             }//end of try block
-            /*
-            catch(GroupIException error)
-            {
-                HDF5PrintError(error);
-        		cerr<<"Error in group might suggest config file has the incorrect HDF naming convention. ";
-        		cerr<<"Check HDF_name_convetion or add new naming convention updating hdfitems.h in the source code. "<<endl;
-        		Fhdf[i].close();
-        		MPI_Abort(MPI_COMM_WORLD,8);
-        	}
-            // catch failure caused by the H5File operations
-            catch( FileIException error )
-            {
-                HDF5PrintError(error);
-        		cerr<<"Error reading file. Exiting "<<endl;
-        		Fhdf[i].close();
-        		MPI_Abort(MPI_COMM_WORLD,8);
-            }
-            // catch failure caused by the DataSet operations
-            catch( DataSetIException error )
-            {
-                HDF5PrintError(error);
-        		cerr<<"Error in data set might suggest config file has the incorrect HDF naming convention. ";
-        		cerr<<"Check HDF_name_convetion or update hdfio.cxx in the source code to read correct format"<<endl;
-        		Fhdf[i].close();
-        		MPI_Abort(MPI_COMM_WORLD,8);
-            }
-            // catch failure caused by the DataSpace operations
-            catch( DataSpaceIException error )
-            {
-                HDF5PrintError(error);
-        		cerr<<"Error in data space might suggest config file has the incorrect HDF naming convention. ";
-        		cerr<<"Check HDF_name_convetion or update hdfio.cxx in the source code to read correct format"<<endl;
-        		Fhdf[i].close();
-        		MPI_Abort(MPI_COMM_WORLD,8);
-            }
-            // catch failure caused by the DataSpace operations
-            catch( DataTypeIException error )
-            {
-                HDF5PrintError(error);
-        		cerr<<"Error in data type might suggest need to update hdfio.cxx in the source code to read correct format"<<endl;
-        		Fhdf[i].close();
-        		MPI_Abort(MPI_COMM_WORLD,8);
-            }
-            */
             HDF5CloseFile(Fhdf[i]);
             //send info between read threads
             if (opt.nsnapread>1&&inreadsend<totreadsend){
@@ -3671,17 +3590,19 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     // SWIFT snapshot velocities already contain the sqrt(a) factor,
     // so there is no need to include it.
     if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES ||
-       opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES) {
-      vscale = opt.velocityinputconversion;
-    } else {
-      vscale = opt.velocityinputconversion*sqrt(opt.a);
+        opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES) {
+        vscale = opt.velocityinputconversion;
+    } 
+    else {
+        vscale = opt.velocityinputconversion*sqrt(opt.a);
     }
     
     if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES ||
-       opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES) {
-      opt.internalenergyinputconversion = opt.a*opt.a*opt.velocityinputconversion*opt.velocityinputconversion;
-    } else {
-      opt.internalenergyinputconversion = opt.velocityinputconversion*opt.velocityinputconversion;
+        opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES) {
+        opt.internalenergyinputconversion = opt.a*opt.a*opt.velocityinputconversion*opt.velocityinputconversion;
+    }
+    else {
+        opt.internalenergyinputconversion = opt.velocityinputconversion*opt.velocityinputconversion;
     }
 
 

@@ -13,8 +13,6 @@
 //-- For MPI
 
 #include "stf.h"
-#include <cassert>
-#include <tuple>
 
 #ifdef SWIFTINTERFACE
 #include "swiftinterface.h"

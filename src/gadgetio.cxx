@@ -794,7 +794,7 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
     for(i=0; i<opt.num_files; i++)
     if (ireadfile[i])
     {
-        if(opt.num_files>1) sprintf(buf,"%s.%lld",opt.fname,i);
+        if(opt.num_files>1) sprintf(buf,"%s.%lld",opt.fname,static_cast<long long >(i));
         else sprintf(buf,"%s",opt.fname);
 
         count=0;for(k=0;k<NGTYPE;k++)count+=header[i].npart[k];
