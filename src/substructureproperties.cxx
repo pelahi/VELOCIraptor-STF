@@ -340,7 +340,7 @@ void GetProperties(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngro
     Particle *Pval;
     Int_t i,j,k;
     Coordinate cmold(0.),cmref;
-    Double_t ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside, SFR, temp;
+    Double_t ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside, SFR;
     Double_t EncMassSF,EncMassNSF;
     Double_t cmvx,cmvy,cmvz;
     Double_t vc,rc,x,y,z,vx,vy,vz,jzval,Rdist,zdist,Ekin,Krot,mval;
@@ -413,7 +413,7 @@ private(i,j,k,Pval,cmref)
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)  \
 private(i,j,k,Pval,ri,rcmv,r2,cmx,cmy,cmz,EncMass,Ninside,cmold,change,tol)\
-private(x,y,z,vx,vy,vz,vc,rc,jval,jzval,Rdist,zdist,Ekin,Krot,mval,RV_Ekin,RV_Krot,RV_num,SFR,temp)\
+private(x,y,z,vx,vy,vz,vc,rc,jval,jzval,Rdist,zdist,Ekin,Krot,mval,RV_Ekin,RV_Krot,RV_num,SFR)\
 private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
 {
     #pragma omp for schedule(dynamic) nowait
@@ -628,7 +628,7 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                 mval = opt.MassValue;
 #endif
                 //store temperature
-                temp = Pval->GetTemperature();
+                auto temp = Pval->GetTemperature();
                 pdata[i].Temp_gas+=temp;
                 pdata[i].Temp_mean_gas+=mval*temp;
                 //pdata[i].sphden_gas+=Pval->GetMass()*Pval->GetSPHDen();
@@ -1473,7 +1473,7 @@ private(j,Pval,mval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
                 else pdata[i].M_gas_nsf+=mval;
                 #endif
                 #if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
-		temp=Pval->GetTemperature();
+                auto temp = Pval->GetTemperature();
                 if (temp > opt.temp_max_cut && SFR <= 0) {
   			pdata[i].M_gas_highT+=mval;
 		}
@@ -1508,7 +1508,9 @@ private(j,Pval,x,y,z,vx,vy,vz,J,mval,SFR)
 #endif
 #ifdef STARON
                 SFR=Pval->GetSFR();
-		temp=Pval->GetTemperature();
+                auto temp = Pval->GetTemperature();
+#else
+                Double_t temp = 0;
 #endif
 
                 x = (*Pval).X();
