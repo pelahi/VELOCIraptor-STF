@@ -3553,8 +3553,6 @@ private(i,j,k,taggedparts,radii,masses,indices,posref,posparts,velparts,typepart
         pdata[i].gJ200c = zero;
         pdata[i].gJ200m = zero;
         pdata[i].gJBN98 = zero;
-        for (auto iso=0;iso<opt.SOnum;iso++)
-             pdata[i].SO_angularmomentum[iso] = zero;
 #ifdef GASON
         pdata[i].M_200crit_gas = 0;
         pdata[i].L_200crit_gas = zero;
