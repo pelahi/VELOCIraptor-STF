@@ -862,8 +862,8 @@ namespace vr {
     memory_usage get_memory_usage();
 }
 
-std::string GetMemUsage(Options &opt, string file, int line, string function);
-#define MEMORY_USAGE_REPORT(lvl, opt) { if(LOG_ENABLED(lvl)) LOG(lvl) << GetMemUsage(opt, __FILE__, __LINE__, __FUNCTION__); }
+std::string GetMemUsage(const std::string &function);
+#define MEMORY_USAGE_REPORT(lvl) { if(LOG_ENABLED(lvl)) LOG(lvl) << GetMemUsage(__FUNCTION__); }
 ///Init memory log
 void InitMemUsageLog(Options &opt);
 

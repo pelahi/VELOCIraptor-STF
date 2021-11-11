@@ -497,7 +497,7 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
               << "Largest mem needed for preliminary FOF search. "
               << "Rough estimate is " << vr::memory_amount(Nlocal * (sizeof(Int_tree_t) * 8));
 
-    MEMORY_USAGE_REPORT(info, libvelociraptorOpt);
+    MEMORY_USAGE_REPORT(info);
 
     //
     // Perform FOF search.
@@ -622,7 +622,7 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
     delete[] stype;
     delete psldata;
 
-    MEMORY_USAGE_REPORT(info, libvelociraptorOpt);
+    MEMORY_USAGE_REPORT(info);
 
     // Make array of most bound particle indexes if we have groups and it was requested
     Int_t num_most_bound = 0;

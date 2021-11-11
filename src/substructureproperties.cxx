@@ -5084,7 +5084,7 @@ Int_t **SortAccordingtoBindingEnergy(Options &opt, const Int_t nbodies, Particle
         for (i=1;i<=ngroup;i++) pdata[i].num=numingroup[i];
     }
 
-    MEMORY_USAGE_REPORT(debug, opt);
+    MEMORY_USAGE_REPORT(debug);
 
     GetCM(opt, nbodies, Part, ngroup, pfof, numingroup, pdata, noffset);
     if (opt.iPropertyReferencePosition == PROPREFCM) {
@@ -5143,7 +5143,7 @@ private(i,j)
         }
     }
 
-    MEMORY_USAGE_REPORT(debug, opt);
+    MEMORY_USAGE_REPORT(debug);
 
     delete[] noffset;
     //reset particles back to id order
@@ -5200,7 +5200,7 @@ void CalculateHaloProperties(Options &opt, const Int_t nbodies, Particle *Part, 
     for (i=1;i<=ngroup;i++) pdata[i].ibound=Part[noffset[i]].GetPID();
     for (i=1;i<=ngroup;i++) pdata[i].iunbound=Part[noffset[i]+numingroup[i]-1].GetPID();
 
-    MEMORY_USAGE_REPORT(debug, opt);
+    MEMORY_USAGE_REPORT(debug);
     delete[] noffset;
 }
 

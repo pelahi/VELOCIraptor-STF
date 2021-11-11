@@ -31,7 +31,7 @@ void finish_vr(Options &opt)
 {
     //get memory useage
     LOG(info) << "Finished running VR";
-    MEMORY_USAGE_REPORT(info, opt);
+    MEMORY_USAGE_REPORT(info);
 
 #ifdef USEMPI
 #ifdef USEADIOS

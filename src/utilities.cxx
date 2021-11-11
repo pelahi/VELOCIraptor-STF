@@ -72,14 +72,14 @@ namespace vr {
     }
 } // namespace vr
 
-std::string GetMemUsage(Options &opt, string file, int line, string function)
+std::string GetMemUsage(const std::string &function)
 {
     auto memory_usage = vr::get_memory_usage();
     std::ostringstream memory_report;
     auto append_memory_stats = [&memory_report](const char *name, const vr::memory_stats &stats) {
         memory_report << name << " current/peak: " << vr::memory_amount(stats.current) << " / " << vr::memory_amount(stats.peak);
     };
-    memory_report << "Memory report at " << vr::basename(file) << ':' << line << '@' << function << ": ";
+    memory_report << "Memory report @ " << function << ": ";
     append_memory_stats("VM", memory_usage.vm);
     memory_report << "; ";
     append_memory_stats("RSS", memory_usage.rss);
