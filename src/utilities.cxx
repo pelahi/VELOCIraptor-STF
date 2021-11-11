@@ -27,82 +27,63 @@ int CompareInt(const void *p1, const void *p2) {
 }
 
 /// get the memory use looking at the task
-std::string GetMemUsage(Options &opt, string file, int line, string function)
-{
-    // if (!opt.memuse_log) return;
-    ifstream f;
-    size_t pos1, pos2;
-    unsigned long long size, resident, shared, text, data, library, dirty, peak;
-    map<string,float> memuse;
-    bool iflag = true;
-    char buffer[2500];
-    std::string delimiter1("VmPeak:"), delimiter2("kB");
-    ofstream Fmem;
-    // Open the file storing memory information associated with the process;
-    f.open("/proc/self/statm");
-    if (f.is_open()) {
-        f >> size >> resident >> shared >> text >> library >> data >>dirty;
-        // nscan = fscanf(file, "%lld %lld %lld %lld %lld %lld %lld",
-        //     &size, &resident, &shared, &text, &library, &data, &dirty);
-        f.close();
-    }
-    else {
-        iflag = false;
-    }
-    f.open("/proc/self/status");
-    if (f.is_open()) {
-        while (f.getline(buffer, 2500)){
-            std::string temp(buffer);
-            if ((pos1 = temp.find(delimiter1)) != string::npos) {
-                pos2 = temp.find(delimiter2);
-                temp = temp.substr(pos1+delimiter1.size(), pos2);
-                peak = stol(temp)*1024;
-                break;
+namespace vr {
+    memory_usage get_memory_usage() {
+        memory_usage usage;
+
+        const char *stat_file = "/proc/self/status";
+        std::ifstream f(stat_file);
+        if (!f.is_open()) {
+            LOG(warning) << "Couldn't open " << stat_file << " for memory usage reading";
+        }
+        for (std::string line; std::getline(f, line); ) {
+            auto start = line.find("VmSize:");
+            if (start != std::string::npos) {
+                std::istringstream is(line.substr(start + 7));
+                is >> usage.vm.current;
+                continue;
+            }
+            start = line.find("VmPeak:");
+            if (start != std::string::npos) {
+                std::istringstream is(line.substr(start + 7));
+                is >> usage.vm.peak;
+                continue;
+            }
+            start = line.find("VmRSS:");
+            if (start != std::string::npos) {
+                std::istringstream is(line.substr(start + 6));
+                is >> usage.rss.current;
+                continue;
+            }
+            start = line.find("VmHWM:");
+            if (start != std::string::npos) {
+                std::istringstream is(line.substr(start + 6));
+                is >> usage.rss.peak;
+                continue;
             }
         }
-        f.close();
-    }
-    else {
-        iflag = false;
-    }
 
-    std::ostringstream memreport;
-    memreport << "Memory report at " << vr::basename(file) << ':' << line << '@' << function << ": ";
-
-    //having scanned data for memory footprint in pages, report
-    //memory footprint in GB
-    if (iflag) {
-        // Convert pages into bytes. Usually 4096, but could be 512 on some
-        // systems so take care in conversion to KB. */
-        uint64_t sz = sysconf(_SC_PAGESIZE);
-        size *= sz ;
-        resident *= sz ;
-        shared *= sz ;
-        text *= sz ;
-        library *= sz ;
-        data *=  sz ;
-        dirty *= sz ;
-        if (opt.memuse_peak < peak) opt.memuse_peak = peak;
-        opt.memuse_nsamples++;
-        opt.memuse_ave += size;
-        memuse["Size"] = size;
-        memuse["Resident"] = resident;
-        memuse["Shared"] = shared;
-        memuse["Text"] = text;
-        memuse["Library"] = library;
-        memuse["Data"] = data;
-        memuse["Dirty"] = dirty;
-        memuse["Peak"] = opt.memuse_peak;
-        memuse["Average"] = opt.memuse_ave/(float)opt.memuse_nsamples;
-
-        for (auto &entry: memuse) {
-            memreport << entry.first << ": " << vr::memory_amount(entry.second) << " ";
-        }
+        // all values above are in kB
+        usage.vm.current *= 1024;
+        usage.vm.peak *= 1024;
+        usage.rss.current *= 1024;
+        usage.rss.peak *= 1024;
+        return usage;
     }
-    else{
-        memreport << " unable to open or scan system file storing memory use";
-    }
-    return memreport.str();
+} // namespace vr
+
+std::string GetMemUsage(Options &opt, string file, int line, string function)
+{
+    auto memory_usage = vr::get_memory_usage();
+    std::ostringstream memory_report;
+    auto append_memory_stats = [&memory_report](const char *name, const vr::memory_stats &stats) {
+        memory_report << name << " current/peak: " << vr::memory_amount(stats.current) << " / " << vr::memory_amount(stats.peak);
+    };
+    memory_report << "Memory report at " << vr::basename(file) << ':' << line << '@' << function << ": ";
+    append_memory_stats("VM", memory_usage.vm);
+    memory_report << "; ";
+    append_memory_stats("RSS", memory_usage.rss);
+    return memory_report.str();
 }
 
 void InitMemUsageLog(Options &opt){
