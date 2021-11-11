@@ -863,7 +863,7 @@ namespace vr {
 }
 
 std::string GetMemUsage(Options &opt, string file, int line, string function);
-#define MEMORY_USAGE_REPORT(lvl, opt) { if(LOG_ENABLED(lvl)) LOG(lvl) << GetMemUsage(opt, __FILE__, __LINE__, __PRETTY_FUNCTION__); }
+#define MEMORY_USAGE_REPORT(lvl, opt) { if(LOG_ENABLED(lvl)) LOG(lvl) << GetMemUsage(opt, __FILE__, __LINE__, __FUNCTION__); }
 ///Init memory log
 void InitMemUsageLog(Options &opt);
 
