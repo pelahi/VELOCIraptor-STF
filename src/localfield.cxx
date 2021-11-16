@@ -924,6 +924,9 @@ reduction(+:nprocessed,ntot)
     //determines export AND import numbers
     if (opt.impiusemesh) MPIGetNNExportNumUsingMesh(opt, nbodies, Part, maxrdist);
     else MPIGetNNExportNum(nbodies, Part, maxrdist);
+    LOG(debug) << "nndata_in to export/import: " << NExport << " / " << NImport << " ("
+               << vr::memory_amount(NExport * sizeof(nndata_in)) << " / "
+               << vr::memory_amount(NImport * sizeof(nndata_in)) << ')';
 
     NNDataIn = NNDataGet = NULL;
     if (NExport>0) NNDataIn = new nndata_in[NExport];
@@ -933,6 +936,9 @@ reduction(+:nprocessed,ntot)
     else MPIBuildParticleNNExportList(nbodies, Part, maxrdist);
     delete[] maxrdist;
     MPIGetNNImportNum(nbodies, tree, Part,(!(opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL)));
+    LOG(debug) << "Particles to export/import: " << NExport << " / " << NImport << " ("
+               << vr::memory_amount(NExport * sizeof(Particle)) << " / "
+               << vr::memory_amount(NImport * sizeof(Particle)) << ')';
     PartDataIn = PartDataGet = NULL;
     if (NExport>0) PartDataIn = new Particle[NExport];
     if (NImport>0) PartDataGet = new Particle[NImport];
