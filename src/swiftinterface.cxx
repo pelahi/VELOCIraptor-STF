@@ -322,15 +322,11 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
 
     libvelociraptorOpt.outname = outputname;
     libvelociraptorOpt.snapshotvalue = HALOIDSNVAL* snapnum;
-    libvelociraptorOpt.memuse_peak = 0;
-    libvelociraptorOpt.memuse_ave = 0;
-    libvelociraptorOpt.memuse_nsamples = 0;
 
     //write associated units and simulation details (which contains scale factor/time information)
     SetVelociraptorSimulationState(c, s);
     WriteSimulationInfo(libvelociraptorOpt);
     WriteUnitInfo(libvelociraptorOpt);
-    InitMemUsageLog(libvelociraptorOpt);
 
     vector<Particle> parts;
     #ifdef GASON

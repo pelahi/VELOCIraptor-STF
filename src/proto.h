@@ -864,8 +864,6 @@ namespace vr {
 
 std::string GetMemUsage(const std::string &function);
 #define MEMORY_USAGE_REPORT(lvl) { if(LOG_ENABLED(lvl)) LOG(lvl) << GetMemUsage(__FUNCTION__); }
-///Init memory log
-void InitMemUsageLog(Options &opt);
 
 namespace vr {
 	/// Get the basename of `filename`

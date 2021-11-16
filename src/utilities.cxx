@@ -86,19 +86,6 @@ std::string GetMemUsage(const std::string &function)
     return memory_report.str();
 }
 
-void InitMemUsageLog(Options &opt){
-#ifndef USEMPI
-    int ThisTask=0;
-#endif
-    if (!opt.memuse_log) return;
-    ofstream Fmem;
-    char buffer[2500];
-    sprintf(buffer,"%s.memlog.%d",opt.outname,ThisTask);
-    Fmem.open(buffer);
-    Fmem<<"Memory Log"<<endl;
-    Fmem.close();
-}
-
 #ifdef NOMASS
 void VR_NOMASS(){};
 #endif
