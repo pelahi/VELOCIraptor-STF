@@ -20,8 +20,8 @@ set(VR_SOURCES
     "${git_revision_cxx}"
     haloproperties.cxx
     hdfio.cxx
-    #h5_output_file.cxx
-    #h5_utils.cxx
+    h5_output_file.cxx
+    h5_utils.cxx
     io.cxx
     localbgcomp.cxx
     localfield.cxx
@@ -66,4 +66,6 @@ endif()
 set_target_properties(stf PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 sanitizer_options(velociraptor)
 
-
+if (BUILD_TESTING)
+	add_subdirectory(tests)
+endif()

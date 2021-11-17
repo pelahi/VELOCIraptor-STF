@@ -31,9 +31,6 @@ void NOMASSCheck(Options &opt);
 /// see \ref io.cxx for implementation or for reading data see for example \ref gadgetio.cxx or \ref tipsyio.cxx
 //@{
 
-///simple check to see if file exists
-bool FileExists(const char *fname);
-
 //-- Read routines
 
 ///Reads the header information
