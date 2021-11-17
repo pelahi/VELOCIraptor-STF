@@ -304,7 +304,7 @@ static inline hid_t HDF5OpenFile(string name, unsigned int flags){
 }
 
 static inline hid_t HDF5OpenGroup(const hid_t &file, string name){
-    LOG_RANK0(debug) << "Opening Group " << get_hdf5_name(id) << '/' << name;
+    LOG_RANK0(debug) << "Opening Group " << name << '/' << name;
     hid_t idval = safe_hdf5(H5Gopen, file, name.c_str(), H5P_DEFAULT);
     return idval;
 }
