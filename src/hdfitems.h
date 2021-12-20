@@ -232,7 +232,7 @@ template<typename T> static inline void _do_read_v(const hid_t &attr, const hid_
     H5Sclose(space);
 }
 
-template<typename T> const T read_attribute(const hid_t &file_id, const std::string &name) {
+template<typename T> T read_attribute(const hid_t &file_id, const std::string &name) {
     std::string attr_name;
     T val;
     hid_t type;
@@ -257,7 +257,7 @@ template<typename T> const T read_attribute(const hid_t &file_id, const std::str
 }
 
 //read vector attribute
-template<typename T> const vector<T> read_attribute_v(const hid_t &file_id, const std::string &name) {
+template<typename T> vector<T> read_attribute_v(const hid_t &file_id, const std::string &name) {
     std::string attr_name;
     vector<T> val;
     hid_t type;
@@ -290,7 +290,7 @@ static std::string get_hdf5_name(const hid_t object_id)
     return name;
 }
 
-template<typename T> const T read_attribute(const std::string &filename, const std::string &name) {
+template<typename T> T read_attribute(const std::string &filename, const std::string &name) {
     LOG_RANK0(debug) << "Reading attribute " << name;
     safe_hdf5(H5Fopen, filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
     hid_t file_id = H5Fopen(filename.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
