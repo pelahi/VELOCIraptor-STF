@@ -1621,6 +1621,10 @@ struct PropData
     ///mean accretion rate, metallicty
     Double_t acc_bh, acc_bh_mostmassive;
 
+    ///ID of most bound BH and its position
+    Int_t ibound_bh = 0;
+    Coordinate gposmbp_bh;
+
     ///\name blackhole aperture/radial profiles
     //@{
     vector<int> aperture_npart_bh;
@@ -2478,6 +2482,7 @@ struct PropData
 #endif
 #ifdef BHON
         M_bh*=opt.h;
+        gposmbp_bh*=opt.h/opt.a;
 #endif
 #ifdef HIGHRES
         M_interloper*=opt.h;
