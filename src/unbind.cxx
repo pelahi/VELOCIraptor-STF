@@ -1180,10 +1180,7 @@ void PotentialTree(Options &opt, Int_t nbodies, Particle *&Part, KDTree* &tree)
     bool runomp = false;
 #ifdef USEOPENMP
     runomp = (nbodies > POTOMPCALCNUM);
-    #pragma omp parallel
-    {
-        if (omp_get_thread_num() == 0) maxnthreads = nthreads = omp_get_num_threads();
-    }
+    nthreads = omp_get_max_threads();
 #endif
 
     ncell=tree->GetNumNodes();

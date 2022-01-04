@@ -300,6 +300,7 @@ template<typename T> T read_attribute(const std::string &filename, const std::st
 }
 
 static inline hid_t HDF5OpenFile(string name, unsigned int flags){
+    LOG_RANK0(info) << "Opening " << name;
     return H5Fopen(name.c_str(),flags, H5P_DEFAULT);
 }
 
@@ -577,7 +578,9 @@ public:
     void write_dataset(Options opt, string name, hsize_t len, string data, bool flag_parallel = true);
 
     /// Write a multidimensional dataset. Data type of the new dataset is taken to be the type of
-    /// the input data if not explicitly specified with the filetype_id parameter.
+    /// the input data if not explicitly specified with the filetype_id parameter. This is just
+    /// a wrapper which uses the type of the supplied array to set the memtype_id parameter
+    /// if it's not set explicitly.
     template <typename T> void write_dataset_nd(Options opt, std::string name, int rank, hsize_t *dims, T *data,
         hid_t memtype_id = -1, hid_t filetype_id = -1,
         bool flag_parallel = true)
@@ -1133,23 +1136,32 @@ inline void HDFSetUsedParticleTypes(Options &opt, int &nusetypes, int &nbusetype
 }
 //@}
 
+static std::string find_hdf5_file(const char *prefix)
+{
+    for (auto *suffix : {".0.hdf5", ".hdf5"}) {
+        std::string filename(prefix);
+        filename += suffix;
+        LOG(debug) << "Looking for " << filename;
+        if (FileExists(filename.c_str())) {
+            return filename;
+        }
+    }
+    LOG(error) << "Can't find HDF5 file with prefix " << prefix;
+    exit(9);
+}
+
 /// \name Get the number of particles in the hdf files
 //@{
 inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
 {
-    char buf[2000],buf1[2000],buf2[2000];
-    sprintf(buf1,"%s.0.hdf5",fname);
-    sprintf(buf2,"%s.hdf5",fname);
-    if (FileExists(buf1)) sprintf(buf,"%s",buf1);
-    else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
-    else {
-        printf("Error. Can't find snapshot!\nneither as `%s'\nnor as `%s'\n\n", buf1, buf2);
-        exit(9);
-    }
+    auto buf = find_hdf5_file(fname);
 
     //H5File Fhdf;
     hid_t Fhdf;
     HDF_Group_Names hdf_gnames;
+    //to store the groups, data sets and their associated data spaces
+    //Attribute headerattribs;
+    hid_t headerattribs;
     HDF_Header hdf_header_info = HDF_Header(opt.ihdfnameconvention);
     //buffers to load data
     string stringbuff, dataname;
@@ -1173,8 +1185,8 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
 
         //Open the specified file and the specified dataset in the file.
         //Fhdf.openFile(buf, H5F_ACC_RDONLY);
-        Fhdf = H5Fopen(buf, H5F_ACC_RDONLY, H5P_DEFAULT);
-        cout<<"Loading HDF header info in header group: "<<hdf_gnames.Header_name<<endl;
+        Fhdf = H5Fopen(buf.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+        LOG(info) << "Loading HDF header info in header group: " << hdf_gnames.Header_name;
 
         if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES) {
 
@@ -1346,19 +1358,14 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
 //@{
 inline Int_t HDF_get_nfiles(char *fname, int ptype)
 {
-    char buf[2000],buf1[2000],buf2[2000];
-    sprintf(buf1,"%s.0.hdf5",fname);
-    sprintf(buf2,"%s.hdf5",fname);
-    if (FileExists(buf1)) sprintf(buf,"%s",buf1);
-    else if (FileExists(buf2)) sprintf(buf,"%s",buf2);
-    else {
-        printf("Error. Can't find snapshot!\nneither as `%s'\nnor as `%s'\n\n", buf1, buf2);
-        exit(9);
-    }
+    auto buf = find_hdf5_file(fname);
 
     //H5File Fhdf;
     hid_t Fhdf;
     HDF_Group_Names hdf_gnames;
+    //to store the groups, data sets and their associated data spaces
+    //Attribute headerattribs;
+    hid_t headerattribs;
     HDF_Header hdf_header_info;
     Int_t nfiles = 0;
     //IntType inttype;
@@ -1372,7 +1379,7 @@ inline Int_t HDF_get_nfiles(char *fname, int ptype)
 
         //Open the specified file and the specified dataset in the file.
         //Fhdf.openFile(buf, H5F_ACC_RDONLY);
-        Fhdf = H5Fopen(buf, H5F_ACC_RDONLY, H5P_DEFAULT);
+        Fhdf = H5Fopen(buf.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
         //get header group
         hdf_header_info.num_files = read_attribute<int>(Fhdf, hdf_header_info.names[hdf_header_info.INumFiles]);
     }

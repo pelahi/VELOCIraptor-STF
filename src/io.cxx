@@ -1378,7 +1378,9 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups,
             //reopen for parallel write
             Fhdf.append(string(fname));
         }
-        else{
+        else
+#endif // USEPARALLELHDF
+        {
             itemp=0;
             Fhdf.write_dataset(opt, datagroupnames.SO[itemp++], 1, &ThisTask);
             Fhdf.write_dataset(opt, datagroupnames.SO[itemp++], 1, &NProcs);
@@ -1387,15 +1389,6 @@ void WriteSOCatalog(Options &opt, const Int_t ngroups,
             Fhdf.write_dataset(opt, datagroupnames.SO[itemp++], 1, &nSOids);
             Fhdf.write_dataset(opt, datagroupnames.SO[itemp++], 1, &nSOidstot);
         }
-#else
-        itemp=0;
-        Fhdf.write_dataset(opt, datagroupnames.SO[itemp++], 1, &ThisTask);
-        Fhdf.write_dataset(opt, datagroupnames.SO[itemp++], 1, &NProcs);
-        Fhdf.write_dataset(opt, datagroupnames.SO[itemp++], 1, &ng);
-        Fhdf.write_dataset(opt, datagroupnames.SO[itemp++], 1, &ngtot);
-        Fhdf.write_dataset(opt, datagroupnames.SO[itemp++], 1, &nSOids);
-        Fhdf.write_dataset(opt, datagroupnames.SO[itemp++], 1, &nSOidstot);
-#endif
     }
 #endif
 #ifdef USEADIOS
