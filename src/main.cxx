@@ -30,7 +30,7 @@ void finish_vr(Options &opt)
 {
     //get memory useage
     LOG(info) << "Finished running VR";
-    MEMORY_USAGE_REPORT(info, opt);
+    MEMORY_USAGE_REPORT(info);
 
 #ifdef USEMPI
 #ifdef USEADIOS
@@ -85,37 +85,14 @@ void show_version_info(int argc, char *argv[])
 #endif
 }
 
-int main(int argc,char **argv)
+int run(int argc,char **argv)
 {
-#ifdef USEMPI
-    //start MPI
-#ifdef USEOPENMP
-    //if using hybrid then need to check that threads are available and use the correct initialization
-    //Each thread will call MPI routines, but these calls will be coordinated to occur only one at a time within a process.
-    int required=MPI_THREAD_FUNNELED;  // Required level of MPI threading support
-    int provided; // Provided level of MPI threading support
-    MPI_Init_thread(&argc, &argv, required, &provided);
-#else
-    MPI_Init(&argc,&argv);
-#endif
 
+#ifdef USEMPI
     //find out how big the SPMD world is
     MPI_Comm_size(MPI_COMM_WORLD,&NProcs);
     //and this processes' rank is
     MPI_Comm_rank(MPI_COMM_WORLD,&ThisTask);
-
-#ifdef USEOPENMP
-    // Check the threading support level
-    if (provided < required)
-    {
-        // Insufficient support, degrade to 1 thread and warn the user
-        if (ThisTask == 0) cout << "Warning: This MPI implementation provides insufficient threading support. Required was " <<required<<" but provided was "<<provided<<endl;
-        omp_set_num_threads(1);
-        MPI_Finalize();
-        exit(9);
-    }
-#endif
-
 #else
     int ThisTask=0,NProcs=1;
     Int_t Nlocal,Ntotal;
@@ -151,8 +128,6 @@ int main(int argc,char **argv)
     adios_set_max_buffer_size(opt.mpiparticletotbufsize/1024/1024);
 #endif
 #endif
-
-    InitMemUsageLog(opt);
 
     //variables
     //number of particles, (also number of baryons if use dm+baryon search)
@@ -616,4 +591,46 @@ int main(int argc,char **argv)
 
     finish_vr(opt);
     return 0;
+}
+
+
+int main(int argc, char *argv[])
+{
+#ifdef USEMPI
+#ifndef USEOPENMP
+    MPI_Init(&argc, &argv);
+#else
+    // if using hybrid then need to check that threads are available and use the correct initialization
+    // Each thread will call MPI routines, but these calls will be coordinated to occur only one at a time within a process.
+    int required = MPI_THREAD_FUNNELED;
+    int provided;
+    MPI_Init_thread(&argc, &argv, required, &provided);
+    if (provided < required) {
+        LOG_RANK0(error) << "This MPI implementation provides insufficient threading support. "
+                         << "Required was " << required << " but provided was " << provided;
+        MPI_Finalize();
+        exit(9);
+    }
+#endif // USEOPENMP
+#endif // USEMPI
+
+    auto do_abort = [](const char *error_message) {
+        LOG(error) << error_message;
+#ifdef USEMPI
+        MPI_Abort(MPI_COMM_WORLD, 1);
+#else
+        exit(1);
+#endif
+    };
+
+    try {
+        run(argc, argv);
+    } catch (const std::exception &e) {
+        std::ostringstream os;
+        os << "Exception while running VR, aborting now: " << e.what();
+        do_abort(os.str().c_str());
+    } catch (...) {
+        do_abort("Unexpected exception while running VR, aborting now");
+    }
+
 }

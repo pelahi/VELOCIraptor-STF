@@ -129,7 +129,7 @@ void ReadData(Options &opt, vector<Particle> &Part, const Int_t nbodies, Particl
     MPIAdjustDomain(opt);
 #endif
     LOG_RANK0(info) << "Done loading input data";
-    MEMORY_USAGE_REPORT(debug, opt);
+    MEMORY_USAGE_REPORT(debug);
 }
 
 

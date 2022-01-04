@@ -855,13 +855,23 @@ void ReorderGroupIDsAndHaloDatabyValue(const Int_t numgroups, const Int_t newnum
 
 int CompareInt(const void *, const void *);
 ///Get memory use
-std::string GetMemUsage(Options &opt, string file, int line, string function);
-// void GetMemUsage(Options &opt, string callingfunction, bool printreport);
-// ///Get memory use
-// void GetMemUsage(string callingfunction, bool printreport);
-#define MEMORY_USAGE_REPORT(lvl, opt) { if(LOG_ENABLED(lvl)) LOG(lvl) << GetMemUsage(opt, __FILE__, __LINE__, __PRETTY_FUNCTION__); }
-///Init memory log
-void InitMemUsageLog(Options &opt);
+namespace vr {
+
+    struct memory_stats {
+        std::size_t current;
+        std::size_t peak;
+    };
+
+    struct memory_usage {
+        memory_stats vm;
+        memory_stats rss;
+    };
+
+    memory_usage get_memory_usage();
+}
+
+std::string GetMemUsage(const std::string &function);
+#define MEMORY_USAGE_REPORT(lvl) { if(LOG_ENABLED(lvl)) LOG(lvl) << GetMemUsage(__FUNCTION__); }
 
 namespace vr {
 	/// Get the basename of `filename`

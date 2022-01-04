@@ -75,7 +75,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     }
 #endif
 
-    MEMORY_USAGE_REPORT(debug, opt);
+    MEMORY_USAGE_REPORT(debug);
 
     LOG(info) << "Starting FOF search of entire particle data set";
     vr::Timer fof_timer;
@@ -122,7 +122,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     Head=NULL;Next=NULL;
 #endif
 
-    MEMORY_USAGE_REPORT(debug, opt);
+    MEMORY_USAGE_REPORT(debug);
 
 #ifdef USEOPENMP
     //if enough regions then search each individually
@@ -220,7 +220,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
         LOG(info) << "Finished FOF in " << t;
     }
 
-    MEMORY_USAGE_REPORT(debug, opt);
+    MEMORY_USAGE_REPORT(debug);
 
 #ifndef USEMPI
     totalgroups=numgroups;
@@ -332,7 +332,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
 
     Int_t links_across,links_across_total;
 
-    MEMORY_USAGE_REPORT(debug, opt);
+    MEMORY_USAGE_REPORT(debug);
 
     LOG(info) << "Starting to linking across MPI domains";
     do {
@@ -925,7 +925,7 @@ private(i,tid,xscaling,vscaling)
     }
 
     //get memory usage
-    MEMORY_USAGE_REPORT(debug, opt);
+    MEMORY_USAGE_REPORT(debug);
     LOG(info) << "Done storing halo substructure level data";
     return pfof;
 }
@@ -2859,7 +2859,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
     int ThisTask=0,NProcs=1;
 #endif
     LOG(info) << "Beginning substructure search";
-    MEMORY_USAGE_REPORT(debug, opt);
+    MEMORY_USAGE_REPORT(debug);
     if (ngroup>0) {
     //point to current structure level
     pcsld=psldata;
@@ -2933,7 +2933,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
         ompactivesubgroups.resize(0);
 #endif
         LOG(debug) << "Going through sublevel " << sublevel;
-        MEMORY_USAGE_REPORT(debug, opt);
+        MEMORY_USAGE_REPORT(debug);
 
         for (Int_t i=1;i<=oldnsubsearch;i++) {
             // try running loop over largest objects in serial with parallel inside calls
@@ -3274,7 +3274,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
 #endif
 
     LOG(info) << "Found a total of " << ngroup;
-    MEMORY_USAGE_REPORT(debug, opt);
+    MEMORY_USAGE_REPORT(debug);
 }
 
 /*!
@@ -3446,7 +3446,7 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
     }
 
     LOG(info) << "Search baryons " << nparts << " " << ndark;
-    MEMORY_USAGE_REPORT(debug, opt);
+    MEMORY_USAGE_REPORT(debug);
 
     //if searched all particles in FOF, reorder particles and also the pfof group id array
     if (opt.partsearchtype==PSTALL) {
@@ -3936,7 +3936,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
     }
 
     //get memory usage
-    MEMORY_USAGE_REPORT(debug, opt);
+    MEMORY_USAGE_REPORT(debug);
 
 #ifdef USEMPI
     //if number of groups has changed then update

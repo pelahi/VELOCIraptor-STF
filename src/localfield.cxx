@@ -462,7 +462,7 @@ void GetVelocityDensityHaloOnlyDen(Options &opt, const Int_t nbodies, Particle *
     }
 
     //get memory useage
-    MEMORY_USAGE_REPORT(debug, opt);
+    MEMORY_USAGE_REPORT(debug);
 
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
@@ -533,7 +533,7 @@ void GetVelocityDensityExact(Options &opt, const Int_t nbodies, Particle *Part, 
     nchunk = std::max(nchunk,std::min(opt.Nsearch,static_cast<int>(static_cast<double>(nbodies)/static_cast<double>(nthreads))));
 #endif
 
-    MEMORY_USAGE_REPORT(debug, opt);
+    MEMORY_USAGE_REPORT(debug);
     vr::Timer local_densities_timer;
 
     //In loop determine if particles NN search radius overlaps another mpi threads domain.
@@ -626,7 +626,7 @@ private(i,j,k,tid,id,v2,nnids,nnr2,weight,pqv)
     KDTree *treeneighbours=NULL;
     if (nimport>0) treeneighbours=new KDTree(PartDataGet,nimport,1,tree->TPHYS,tree->KEPAN,100,0,0,0,period);
 
-    MEMORY_USAGE_REPORT(debug, opt);
+    MEMORY_USAGE_REPORT(debug);
 
     //then run search
 #ifdef USEOPENMP
@@ -823,7 +823,7 @@ void GetVelocityDensityApproximative(Options &opt, const Int_t nbodies, Particle
     }
     node=NULL;
 
-    MEMORY_USAGE_REPORT(debug, opt);
+    MEMORY_USAGE_REPORT(debug);
 
 #ifdef USEOPENMP
 #pragma omp parallel default(shared)
@@ -982,7 +982,7 @@ reduction(+:nprocessed,ntot)
         nprocessed=0;
     }
 
-    MEMORY_USAGE_REPORT(debug, opt);
+    MEMORY_USAGE_REPORT(debug);
 
     // if no particles have been imported AND no particles have been skipped locally
     // do not need to do anything
