@@ -1345,7 +1345,6 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                         if (opt.ihdfnameconvention != HDFSWIFTFLAMINGONAMES) {
                             HDF5ReadHyperSlabReal(doublebuff,partsdataset[i*NHDFTYPE+k], partsdataspace[i*NHDFTYPE+k], 1, 1, nchunk, n);
                             for (int nn=0;nn<nchunk;nn++) Part[count++].SetU(doublebuff[nn]);
-
                         } 
                         else {
                             for (int nn=0;nn<nchunk;nn++) Part[count++].SetU(0.);

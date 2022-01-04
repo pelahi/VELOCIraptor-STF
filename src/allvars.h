@@ -1037,14 +1037,6 @@ struct Options
 
     //@}
 
-    /// \name memory related info
-    //@{
-    unsigned long long memuse_peak = 0;
-    unsigned long long memuse_ave = 0;
-    int memuse_nsamples = 0;
-    bool memuse_log = false;
-    //@}
-
     //silly flag to store whether input has little h's in it.
     bool inputcontainslittleh = true;
 };
