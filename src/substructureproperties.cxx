@@ -1043,6 +1043,14 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
                 mval = opt.MassValue;
 #endif
                 pdata[i].M_bh+=mval;
+
+		//save particle information if the most bound id has not been assigned.
+		//note that this works because particles has been previously ordered by distance to defined centre.
+		if(pdata[i].ibound_bh == 0){
+			pdata[i].ibound_bh = Pval->GetPID();
+			for (k=0;k<3;k++) pdata[i].gposmbp_bh[k] = Pval->GetPosition(k) + pdata[i].gposmbp[k];
+		}
+
             }
         }
 #endif
@@ -1912,6 +1920,14 @@ private(j,Pval,x,y,z,vx,vy,vz,jval,jzval,zdist,Rdist)
                 mval = opt.MassValue;
 #endif
                 pdata[i].M_bh+=mval;
+
+                //save particle information if the most bound id has not been assigned.
+                //note that this works because particles has been previously ordered by distance to defined centre.
+                if(pdata[i].ibound_bh == 0){
+                        pdata[i].ibound_bh = Pval->GetPID();
+                        for (k=0;k<3;k++) pdata[i].gposmbp_bh[k] = Pval->GetPosition(k) + pdata[i].gposmbp[k];
+                }
+
             }
         }
 #endif

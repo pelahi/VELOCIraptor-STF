@@ -1811,6 +1811,9 @@ void PropDataHeader::declare_all_datasets(const Options &opt)
 #ifdef BHON
     declare_dataset<unsigned long>("n_bh");
     declare_dataset("Mass_bh", MASS);
+    //save ID most bound BH and its position
+    declare_dataset<long>("ID_mbp_bh");
+    declare_XYZ_datasets("cmbp_bh", LENGTH);
 #endif // BHON
 
 #ifdef HIGHRES
