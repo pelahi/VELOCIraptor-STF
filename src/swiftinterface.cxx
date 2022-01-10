@@ -2,6 +2,7 @@
  *  \brief this file contains routines that allow the velociraptor library to interface with the swift N-body code from within swift.
  */
 
+#include "ioutils.h"
 #include "swiftinterface.h"
 
 #ifdef SWIFTINTERFACE
@@ -476,8 +477,8 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
     parts.resize(Nmemlocal);
 
     cout<<"Copying particle data..."<< endl;
-    auto time1=MyGetTime();
 
+    vr::Timer copy_timer;
     ndark = num_gravity_parts - num_hydro_parts - num_star_parts - num_bh_parts;
     nbaryons = num_hydro_parts + num_star_parts + num_bh_parts;
     Nlocalbaryon[0]=nbaryons;
@@ -589,23 +590,30 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
     //lets free the memory of swift_parts
     free(swift_parts);
 
-    cout<<ThisTask<<" Finished copying particle data."<< endl;
+    LOG(info) << "Finished copying particle data";
 #ifdef HIGHRES
-    cout<<ThisTask<<" zoom simulation where there are "<<ninterloper<<" low resolution interloper particles "<<endl;
+    LOG(info) << "Zoom simulation where there are " << ninterloper << " low resolution interloper particles";
 #endif
-    cout<<ThisTask<<" took "<<MyElapsedTime(time1)<<" to copy "<<Nlocal<<" particles from SWIFT to a local format. Out of "<<Ntotal<<endl;
-    cout<<ThisTask<<" There are "<<Nlocal<<" particles and have allocated enough memory for "<<Nmemlocal<<" requiring "<<Nmemlocal*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
-    if (libvelociraptorOpt.iBaryonSearch>0) cout<<ThisTask<<"There are "<<Nlocalbaryon[0]<<" baryon particles and have allocated enough memory for "<<Nmemlocalbaryon<<" requiring "<<Nmemlocalbaryon*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
-    cout<<ThisTask<<" will also require additional memory for FOF algorithms and substructure search. Largest mem needed for preliminary FOF search. Rough estimate is "<<Nlocal*(sizeof(Int_tree_t)*8)/1024./1024./1024.<<"GB of memory"<<endl;
+    LOG(info) << "It took " << copy_timer << " to copy " << Nlocal << " particles from SWIFT to a local format (out of " << Ntotal << ')';
+    LOG(info) << "There are " << Nlocal << " particles and have allocated enough memory for "
+              << Nmemlocal << " requiring "<< vr::memory_amount(Nmemlocal * sizeof(Particle));
+    if (libvelociraptorOpt.iBaryonSearch > 0)
+        LOG(info) << "There are " << Nlocalbaryon[0] << " baryon particles "
+                  << "and have allocated enough memory for " << Nmemlocalbaryon
+                  << " requiring " << vr::memory_amount(Nmemlocalbaryon*sizeof(Particle));
+    LOG(info) << "Will also require additional memory for FOF algorithms and substructure search. "
+              << "Largest mem needed for preliminary FOF search. "
+              << "Rough estimate is " << vr::memory_amount(Nlocal * (sizeof(Int_tree_t) * 8));
 
     MEMORY_USAGE_REPORT(info);
 
     //
     // Perform FOF search.
     //
-    time1=MyGetTime();
+    vr::Timer fof_timer;
     pfof=SearchFullSet(libvelociraptorOpt,Nlocal,parts,ngroup);
-    cout<<"TIME::"<<ThisTask<<" took "<<MyElapsedTime(time1)<<" to search "<<Nlocal<<" with "<<nthreads<<endl;
+    LOG(info) << "FOF search with " << Nlocal << " particles and "
+              << nthreads << " threads took " << fof_timer;
     nhalos=ngroup;
     //if caculating inclusive halo masses, then for simplicity, I assume halo id order NOT rearranged!
     //this is not necessarily true if baryons are searched for separately.
@@ -630,11 +638,12 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
     // Substructure search.
     //
     if (libvelociraptorOpt.iSubSearch) {
-        cout<<"Searching subset"<<endl;
-        time1=MyGetTime();
+        vr::Timer timer;
+        LOG(info) << "Searching subset";
         //if groups have been found (and localized to single MPI thread) then proceed to search for subsubstructures
         SearchSubSub(libvelociraptorOpt, Nlocal, parts, pfof,ngroup,nhalos,pdatahalos);
-        cout<<"TIME::"<<ThisTask<<" took "<<MyElapsedTime(time1)<<" to search for substructures "<<Nlocal<<" with "<<nthreads<<endl;
+        LOG(info) << "Search for substructures " << Nlocal << " with " << nthreads
+                  << " threads finished in " << timer;
     }
     pdata=new PropData[ngroup+1];
     //if inclusive halo mass required
@@ -649,7 +658,7 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
 
     //if only searching initially for dark matter groups, once found, search for associated baryonic structures if requried
     if (libvelociraptorOpt.iBaryonSearch>0) {
-        time1=MyGetTime();
+        vr::Timer timer;
         if (libvelociraptorOpt.partsearchtype==PSTDARK) {
             pfofall=SearchBaryons(libvelociraptorOpt, nbaryons, pbaryons, Nlocal, parts, pfof, ngroup,nhalos,libvelociraptorOpt.iseparatefiles,libvelociraptorOpt.iInclusiveHalo,pdata);
             pfofbaryons=&pfofall[Nlocal];
@@ -666,7 +675,7 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
             pbaryons=NULL;
             SearchBaryons(libvelociraptorOpt, nbaryons, pbaryons, ndark, parts, pfof, ngroup,nhalos,libvelociraptorOpt.iseparatefiles,libvelociraptorOpt.iInclusiveHalo,pdata);
         }
-        cout<<"TIME::"<<ThisTask<<" took "<<MyElapsedTime(time1)<<" to search baryons  with "<<nthreads<<endl;
+        LOG(info) << "Baryon search with " << nthreads << " threads finished in " << timer;
     }
 
     //get mpi local hierarchy
@@ -693,6 +702,7 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
     //if returning to swift as swift is writing a snapshot, then write for the groups where the particles are found in a file
     //assuming that the swift task and swift index can be used to determine where a particle will be written.
     if (ireturngroupinfoflag != 1 ) WriteSwiftExtendedOutput (libvelociraptorOpt, ngroup, numingroup, pglist, parts);
+    LOG(info) << "Wrote all data in " << write_timer;
 
     // Find offset to first group on each MPI rank
     Int_t ngoffset=0,ngtot=0;
@@ -767,7 +777,7 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
     Int_t nig=0;
     if(ireturngroupinfoflag && ngtot > 0) {
       //first sort so all particles in groups first
-      cout<<"VELOCIraptor sorting info to return group ids to swift"<<endl;
+      LOG(info) << "VELOCIraptor sorting info to return group ids to swift";
 #ifdef USEMPI
       if (NProcs > 1) {
         for (auto i=0;i<Nlocal; i++) parts[i].SetID((parts[i].GetSwiftTask()!=ThisTask));
@@ -803,7 +813,7 @@ vr_return_data InvokeVelociraptorHydro(const int snapnum, char* outputname,
     free(cell_node_ids);
     parts.clear();
 
-    cout<<"VELOCIraptor returning."<< endl;
+    LOG(info) << "VELOCIraptor returning.";
     return return_data;
 }
 
