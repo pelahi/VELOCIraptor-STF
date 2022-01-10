@@ -132,7 +132,7 @@ inline bool CheckSwiftPartType(int type)
 }
 
 
-int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthreads)
+int InitVelociraptor(Options &opt, char* configname, unitinfo u, siminfo s, const int numthreads)
 {
     // if mpi invokved, init the velociraptor tasks and openmp threads
 #ifdef USEMPI
@@ -159,54 +159,54 @@ int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthrea
 
     int iconfigflag;
     ///read the parameter file
-    libvelociraptorOpt.pname = configname;
+    opt.pname = configname;
     if (ThisTask == 0) cout<<"Initialising VELOCIraptor git revision "<<velociraptor::git_sha1()<<" ..."<< endl;
     if (ThisTask == 0) cout<<"Reading VELOCIraptor config file..."<< endl;
-    GetParamFile(libvelociraptorOpt);
+    GetParamFile(opt);
     //on the fly finding and using swift's mesh mpi decomposition
-    libvelociraptorOpt.iontheflyfinding = true;
-    libvelociraptorOpt.impiusemesh = true;
+    opt.iontheflyfinding = true;
+    opt.impiusemesh = true;
     ///check configuration
-    iconfigflag = ConfigCheckSwift(libvelociraptorOpt, s);
+    iconfigflag = ConfigCheckSwift(opt, s);
     if (iconfigflag != 1) return iconfigflag;
 
     if (ThisTask == 0) cout<<"Setting cosmology, units, sim stuff "<<endl;
     ///set units, here idea is to convert internal units so that have kpc, km/s, solar mass
     ///\todo switch this so run in reasonable swift units and store conversion
-    libvelociraptorOpt.lengthtokpc=u.lengthtokpc;
-    libvelociraptorOpt.velocitytokms=u.velocitytokms;
-    libvelociraptorOpt.masstosolarmass=u.masstosolarmass;
-    //libvelociraptorOpt.energyperunitmass=u.energyperunitmass;
+    opt.lengthtokpc=u.lengthtokpc;
+    opt.velocitytokms=u.velocitytokms;
+    opt.masstosolarmass=u.masstosolarmass;
+    opt.energyperunitmass=u.energyperunitmass;
 
     //run in swift internal units, don't convert units
-    libvelociraptorOpt.lengthinputconversion=1.0;
-    libvelociraptorOpt.massinputconversion=1.0;
-    libvelociraptorOpt.velocityinputconversion=1.0;
-    libvelociraptorOpt.energyinputconversion=1.0;
-    libvelociraptorOpt.SFRinputconversion=1.0;
-    libvelociraptorOpt.metallicityinputconversion=1.0;
-    libvelociraptorOpt.istellaragescalefactor = 1;
+    opt.lengthinputconversion=1.0;
+    opt.massinputconversion=1.0;
+    opt.velocityinputconversion=1.0;
+    opt.energyinputconversion=1.0;
+    opt.SFRinputconversion=1.0;
+    opt.metallicityinputconversion=1.0;
+    opt.istellaragescalefactor = 1;
 
     //set cosmological parameters that do not change
     ///these should be in units of kpc, km/s, and solar mass
-    libvelociraptorOpt.G=u.gravity;
-    libvelociraptorOpt.H=u.hubbleunit;
+    opt.G=u.gravity;
+    opt.H=u.hubbleunit;
 
     //set if cosmological
-    libvelociraptorOpt.icosmologicalin = s.icosmologicalsim;
+    opt.icosmologicalin = s.icosmologicalsim;
 
     //store a general mass unit, useful if running uniform box with single mass
     //and saving memory by not storing mass per particle.
 #ifdef NOMASS
-    libvelociraptorOpt.MassValue = s.mass_uniform_box;
-    NOMASSCheck(libvelociraptorOpt);
+    opt.MassValue = s.mass_uniform_box;
+    NOMASSCheck(opt);
 #endif
 
     //write velociraptor configuration info, appending .configuration to the input config file and writing every config option
-    libvelociraptorOpt.outname = configname;
+    opt.outname = configname;
 
     //store list of names that
-    WriteVELOCIraptorConfig(libvelociraptorOpt);
+    WriteVELOCIraptorConfig(opt);
 
 #ifdef USEMPI
     //initialize the mpi write communicator to comm world;
@@ -220,81 +220,14 @@ int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthrea
 
 }
 
+int InitVelociraptor(char* configname, unitinfo u, siminfo s, const int numthreads)
+{
+	return InitVelociraptor(libvelociraptorOpt, configname, u, s, numthreads);
+}
+
 int InitVelociraptorExtra(const int iextra, char* configname, unitinfo u, siminfo s, const int numthreads)
 {
-    // if mpi invokved, init the velociraptor tasks and openmp threads
-#ifdef USEMPI
-    //find out how big the SPMD world is
-    MPI_Comm_size(MPI_COMM_WORLD,&NProcs);
-    //mpi_domain=new MPI_Domain[NProcs];
-    mpi_nlocal=new Int_t[NProcs];
-    mpi_nsend=new Int_t[NProcs*NProcs];
-    mpi_ngroups=new Int_t[NProcs];
-    mpi_nhalos=new Int_t[NProcs];
-    //and this processes' rank is
-    MPI_Comm_rank(MPI_COMM_WORLD,&ThisTask);
-    //store MinSize as when using mpi prior to stitching use min of 2;
-    MinNumMPI=2;
-#else
-    int ThisTask = 0;
-#endif
-#ifdef USEOPENMP
-    omp_set_num_threads(numthreads);
-#endif
-    int iconfigflag;
-    ///read the parameter file
-    libvelociraptorOptextra[iextra].pname = configname;
-    if (ThisTask == 0) cout<<"Initialising VELOCIraptor git revision "<<velociraptor::git_sha1()<<" ..."<< endl;
-    if (ThisTask == 0) cout<<"Reading VELOCIraptor config file..."<< endl;
-    GetParamFile(libvelociraptorOptextra[iextra]);
-    //on the fly finding
-    libvelociraptorOptextra[iextra].iontheflyfinding = true;
-    libvelociraptorOptextra[iextra].impiusemesh = true;
-    ///check configuration
-    iconfigflag = ConfigCheckSwift(libvelociraptorOptextra[iextra], s);
-    if (iconfigflag != 1) return iconfigflag;
-
-    if (ThisTask == 0) cout<<"Setting cosmology, units, sim stuff "<<endl;
-    ///set units, here idea is to convert internal units so that have kpc, km/s, solar mass
-    ///\todo switch this so run in reasonable swift units and store conversion
-    libvelociraptorOptextra[iextra].lengthtokpc=u.lengthtokpc;
-    libvelociraptorOptextra[iextra].velocitytokms=u.velocitytokms;
-    libvelociraptorOptextra[iextra].masstosolarmass=u.masstosolarmass;
-    //libvelociraptorOptextra[iextra].energyperunitmass=u.energyperunitmass;
-
-    //run in swift internal units, don't convert units
-    libvelociraptorOptextra[iextra].lengthinputconversion=1.0;
-    libvelociraptorOptextra[iextra].massinputconversion=1.0;
-    libvelociraptorOptextra[iextra].velocityinputconversion=1.0;
-    libvelociraptorOptextra[iextra].energyinputconversion=1.0;
-    libvelociraptorOptextra[iextra].SFRinputconversion=1.0;
-    libvelociraptorOptextra[iextra].metallicityinputconversion=1.0;
-    libvelociraptorOptextra[iextra].istellaragescalefactor = 1;
-
-    //set cosmological parameters that do not change
-    ///these should be in units of kpc, km/s, and solar mass
-    libvelociraptorOptextra[iextra].G=u.gravity;
-    libvelociraptorOptextra[iextra].H=u.hubbleunit;
-
-    //set if cosmological
-    libvelociraptorOptextra[iextra].icosmologicalin = s.icosmologicalsim;
-
-    //store a general mass unit, useful if running uniform box with single mass
-    //and saving memory by not storing mass per particle.
-#ifdef NOMASS
-    libvelociraptorOptextra[iextra].MassValue = s.mass_uniform_box;
-    NOMASSCheck(libvelociraptorOptextra[iextra]);
-#endif
-
-    //write velociraptor configuration info, appending .configuration to the input config file and writing every config option
-    libvelociraptorOptextra[iextra].outname = configname;
-    WriteVELOCIraptorConfig(libvelociraptorOptextra[iextra]);
-
-    if (ThisTask == 0) cout<<"Finished initialising VELOCIraptor"<<endl;
-
-    //return the configuration flag value
-    return iconfigflag;
-
+	return InitVelociraptor(libvelociraptorOptextra[iextra], configname, u, s, numthreads);
 }
 
 void SetVelociraptorCosmology(cosmoinfo c)
