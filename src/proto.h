@@ -425,7 +425,13 @@ void Interpolate_SphericalOverdensity(Options &opt, PropData &pdata, Double_t &m
 void CalculateSphericalOverdensitySubhalo(Options &opt, PropData &pdata,
     Int_t &numingroup, Particle *Part,
     Double_t &m200val, Double_t &m200mval, Double_t &mBN98val, Double_t &virval, Double_t &m500val,
-    vector<Double_t> &SOlgrhovals, int SOnum);
+    vector<Double_t> &SOlgrhovals);
+void Loop_over_spherical_overdensities_subhalo(Options &opt, PropData &pdata, Int_t &num_parts, Particle *Part, 
+    Double_t &m200val, Double_t &m200mval, Double_t &mBN98val, Double_t &virval, Double_t &m500val,
+    vector<Double_t> &rhovals, vector<Double_t> &radius, vector<Double_t> &mass);
+void Check_spherical_overdensities_subhalo_minmass(Options &opt, PropData &pdata, Double_t MinMass);
+void Loop_over_spherical_overdensities_for_halfmassradii_subhalo(Options &opt, PropData &pdata,
+    Int_t &numingroup, Particle *Part);
 void CalculateSphericalOverdensityExclusive(Options &opt, PropData &pdata,
     Int_t &numingroup, Particle *Part,
     Double_t &m200val, Double_t &m200mval, Double_t &mBN98val, Double_t &virval, Double_t &m500val,
