@@ -37,6 +37,9 @@
 #include <unordered_set>
 #include <unistd.h>
 #include <vector>
+#include <sys/types.h>
+#include <sys/sysctl.h>
+#include <sched.h>
 
 #include <gsl/gsl_heapsort.h>
 #include <gsl/gsl_errno.h>

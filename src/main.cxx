@@ -83,6 +83,8 @@ void show_version_info(int argc, char *argv[])
 #else
 	<< "no";
 #endif
+    // report binding
+    report_binding();
 }
 
 int run(int argc,char **argv)
