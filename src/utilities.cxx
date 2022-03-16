@@ -150,38 +150,34 @@ void report_binding()
 #if !defined(USEMPI) && !defined(USEOPENMP)
     return; 
 #endif
-    int rank, size, thread;
-    string pinning_report = "";
+#ifdef USEMPI
+    MPI_Barrier(MPI_COMM_WORLD);
+#else
+    int ThisTask=0, NProcs=1;
+#endif
+    string binding_report = "Core binding \n ";
     cpu_set_t coremask;
     char clbuf[7 * CPU_SETSIZE], hnbuf[64];
-#ifdef USEMPI
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &size);
-    LOG_RANK0(info) <<"MPI Comm size = "<<size;
-#else 
-    rank = 0; size = 1;
-    LOG_RANK0(info) <<"Not using MPI";
-#endif
     memset(clbuf, 0, sizeof(clbuf));
     memset(hnbuf, 0, sizeof(hnbuf));
     (void)gethostname(hnbuf, sizeof(hnbuf));
-    for (auto itask=0;itask<size;itask++) 
+    for (auto itask=0;itask<NProcs;itask++) 
     {
-        if (itask==rank) 
+        if (itask==ThisTask) 
         {
 #ifdef USEOPENMP
-            #pragma omp parallel shared (pinning_report) private(thread, coremask, clbuf) 
+            #pragma omp parallel shared (binding_report) private(coremask, clbuf) 
 #endif
             {
                 string result;
                 (void)sched_getaffinity(0, sizeof(coremask), &coremask);
                 cpuset_to_cstr(&coremask, clbuf);
-                result = "On node " + string(hnbuf) + " : ";
+                result = "\t On node " + string(hnbuf) + " : ";
 #ifdef USEMPI 
-                result += "MPI Rank " + to_string(rank) + " : ";
+                result += "MPI Rank " + to_string(ThisTask) + " : ";
 #endif
 #ifdef USEOPENMP
-                thread = omp_get_thread_num();
+                auto thread = omp_get_thread_num();
                 result +=" OMP Thread " + to_string(thread) + " : ";
 #endif
                 result += " Core affinity = " + string(clbuf) + " \n ";
@@ -189,13 +185,16 @@ void report_binding()
                 #pragma omp critical 
 #endif 
                 {
-                    pinning_report +=result;
+                    binding_report +=result;
 
                 }
             }
         }
     }
-    LOG(info)<<pinning_report;
+    LOG(info)<<binding_report;
+#ifdef USEMPI
+    MPI_Barrier(MPI_COMM_WORLD);
+#endif
 }
 
 
