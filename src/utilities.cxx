@@ -161,34 +161,28 @@ void report_binding()
     memset(clbuf, 0, sizeof(clbuf));
     memset(hnbuf, 0, sizeof(hnbuf));
     (void)gethostname(hnbuf, sizeof(hnbuf));
-    for (auto itask=0;itask<NProcs;itask++) 
+#ifdef USEOPENMP
+    #pragma omp parallel shared (binding_report) private(coremask, clbuf) 
+#endif
     {
-        if (itask==ThisTask) 
-        {
-#ifdef USEOPENMP
-            #pragma omp parallel shared (binding_report) private(coremask, clbuf) 
-#endif
-            {
-                string result;
-                (void)sched_getaffinity(0, sizeof(coremask), &coremask);
-                cpuset_to_cstr(&coremask, clbuf);
-                result = "\t On node " + string(hnbuf) + " : ";
+        string result;
+        (void)sched_getaffinity(0, sizeof(coremask), &coremask);
+        cpuset_to_cstr(&coremask, clbuf);
+        result = "\t On node " + string(hnbuf) + " : ";
 #ifdef USEMPI 
-                result += "MPI Rank " + to_string(ThisTask) + " : ";
+        result += "MPI Rank " + to_string(ThisTask) + " : ";
 #endif
 #ifdef USEOPENMP
-                auto thread = omp_get_thread_num();
-                result +=" OMP Thread " + to_string(thread) + " : ";
+        auto thread = omp_get_thread_num();
+        result +=" OMP Thread " + to_string(thread) + " : ";
 #endif
-                result += " Core affinity = " + string(clbuf) + " \n ";
+        result += " Core affinity = " + string(clbuf) + " \n ";
 #ifdef USEOPENMP 
-                #pragma omp critical 
+        #pragma omp critical 
 #endif 
-                {
-                    binding_report +=result;
+        {
+            binding_report +=result;
 
-                }
-            }
         }
     }
     LOG(info)<<binding_report;
