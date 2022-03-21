@@ -6,6 +6,7 @@
 
 //-- For MPI
 
+#include "logging.h"
 #include "stf.h"
 #include "hdfitems.h"
 
@@ -43,9 +44,10 @@ void MPIDomainExtentHDF(Options &opt){
 
             //Open the specified file and the specified dataset in the file.
             Fhdf = H5Fopen(buf, H5F_ACC_RDONLY, H5P_DEFAULT);
-            cout<<"Loading HDF header info in header group: "<<hdf_gnames.Header_name<<endl;
+            LOG(info) << "Loading HDF header info in header group: " << hdf_gnames.Header_name;
 
-            if (opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES)
+            if (opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES ||
+		opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES)
             {
                 /* SWIFT can have non-cubic boxes; but for cosmological runs they will always be cubes.
                 * This makes the BoxSize a vector attribute, with it containing three values, but they
@@ -163,11 +165,11 @@ void MPINumInDomainHDF(Options &opt)
     vector<int> vintbuff;
     vector<long long> vlongbuff;
     Int_t ibuf=0,*Nbuf, *Nbaryonbuf;
-    int *ireadfile,*ireadtask,*readtaskID;
+    int *ireadtask,*readtaskID;
     hid_t plist_id = H5P_DEFAULT;
     ireadtask=new int[NProcs];
     readtaskID=new int[opt.nsnapread];
-    ireadfile=new int[opt.num_files];
+    std::vector<int> ireadfile(opt.num_files);
     MPIDistributeReadTasks(opt,ireadtask,readtaskID);
 #ifdef USEPARALLELHDF
     MPI_Comm mpi_comm_read;
@@ -217,7 +219,9 @@ void MPINumInDomainHDF(Options &opt)
             H5Pclose(plist_id);
 #endif
             //get number in file
-            if (opt.ihdfnameconvention==HDFSWIFTEAGLENAMES || opt.ihdfnameconvention==HDFOLDSWIFTEAGLENAMES) {
+            if (opt.ihdfnameconvention==HDFSWIFTEAGLENAMES || opt.ihdfnameconvention==HDFOLDSWIFTEAGLENAMES ||
+		opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES) {
+	      
                 vlongbuff = read_attribute_v<long long>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INuminFile]);
                 for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npart[k]=vlongbuff[k];
             }
@@ -322,7 +326,6 @@ void MPINumInDomainHDF(Options &opt)
 #endif
     delete[] ireadtask;
     delete[] readtaskID;
-    delete[] ireadfile;
     delete[] doublebuff;
     delete[] Nbuf;
     delete[] Nbaryonbuf;

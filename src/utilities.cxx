@@ -2,7 +2,23 @@
  *  \brief this file contains an assortment of utilities
  */
 
+#include "ioutils.h"
+#include "logging.h"
 #include "stf.h"
+
+namespace vr {
+
+std::string basename(const std::string &filename)
+{
+    std::string basenamed(filename);
+    auto last_sep = basenamed.rfind('/');
+    if (last_sep != std::string::npos) {
+        basenamed = basenamed.substr(last_sep + 1);
+    }
+    return basenamed;
+}
+
+} // namespace vr
 
 int CompareInt(const void *p1, const void *p2) {
       Int_t val1 = *(Int_t*)p1;
@@ -11,193 +27,168 @@ int CompareInt(const void *p1, const void *p2) {
 }
 
 /// get the memory use looking at the task
-void GetMemUsage(Options &opt, string funcname, bool printreport){
-#ifndef USEMPI
-    int ThisTask=0;
-#endif
-    // if (!opt.memuse_log) return;
-    ifstream f;
-    size_t pos1, pos2;
-    unsigned long long size, resident, shared, text, data, library, dirty, peak;
-    map<string,float> memuse;
-    bool iflag = true;
-    char buffer[2500];
-    string memreport, temp, delimiter1("VmPeak:"), delimiter2("kB");
-    ofstream Fmem;
-    // Open the file storing memory information associated with the process;
-    f.open("/proc/self/statm");
-    if (f.is_open()) {
-        f >> size >> resident >> shared >> text >> library >> data >>dirty;
-        // nscan = fscanf(file, "%lld %lld %lld %lld %lld %lld %lld",
-        //     &size, &resident, &shared, &text, &library, &data, &dirty);
-        f.close();
-    }
-    else {
-        iflag = false;
-    }
-    f.open("/proc/self/status");
-    if (f.is_open()) {
-        while (f.getline(buffer, 2500)){
-            temp = string(buffer);
-            if ((pos1 = temp.find(delimiter1)) != string::npos) {
-                pos2 = temp.find(delimiter2);
-                temp = temp.substr(pos1+delimiter1.size(), pos2);
-                peak = stol(temp)*1024;
-                break;
+namespace vr {
+    memory_usage get_memory_usage() {
+        memory_usage usage;
+
+        const char *stat_file = "/proc/self/status";
+        std::ifstream f(stat_file);
+        if (!f.is_open()) {
+            LOG(warning) << "Couldn't open " << stat_file << " for memory usage reading";
+        }
+        for (std::string line; std::getline(f, line); ) {
+            auto start = line.find("VmSize:");
+            if (start != std::string::npos) {
+                std::istringstream is(line.substr(start + 7));
+                is >> usage.vm.current;
+                continue;
+            }
+            start = line.find("VmPeak:");
+            if (start != std::string::npos) {
+                std::istringstream is(line.substr(start + 7));
+                is >> usage.vm.peak;
+                continue;
+            }
+            start = line.find("VmRSS:");
+            if (start != std::string::npos) {
+                std::istringstream is(line.substr(start + 6));
+                is >> usage.rss.current;
+                continue;
+            }
+            start = line.find("VmHWM:");
+            if (start != std::string::npos) {
+                std::istringstream is(line.substr(start + 6));
+                is >> usage.rss.peak;
+                continue;
             }
         }
-        f.close();
-    }
-    else {
-        iflag = false;
-    }
 
-    memreport += string("Memory report, func = ")+funcname+string(" task = ")+to_string(ThisTask)+ string(" : ");
-
-    //having scanned data for memory footprint in pages, report
-    //memory footprint in GB
-    if (iflag) {
-        // Convert pages into bytes. Usually 4096, but could be 512 on some
-        // systems so take care in conversion to KB. */
-        uint64_t sz = sysconf(_SC_PAGESIZE);
-        size *= sz ;
-        resident *= sz ;
-        shared *= sz ;
-        text *= sz ;
-        library *= sz ;
-        data *=  sz ;
-        dirty *= sz ;
-        float bytestoGB;
-        bytestoGB = 1.0/(1024.0*1024.*1024.);
-        // bytestoGB = 1.0;
-        if (opt.memuse_peak < peak) opt.memuse_peak = peak;
-        opt.memuse_nsamples++;
-        opt.memuse_ave += size;
-        memuse["Size"] = size*bytestoGB;
-        memuse["Resident"] = resident*bytestoGB;
-        memuse["Shared"] = shared*bytestoGB;
-        memuse["Text"] = text*bytestoGB;
-        memuse["Library"] = library*bytestoGB;
-        memuse["Data"] = data*bytestoGB;
-        memuse["Dirty"] = dirty*bytestoGB;
-        memuse["Peak"] = opt.memuse_peak*bytestoGB;
-        memuse["Average"] = opt.memuse_ave/(float)opt.memuse_nsamples*bytestoGB;
-
-        for (map<string,float>::iterator it=memuse.begin(); it!=memuse.end(); ++it) {
-            memreport += it->first + string(" = ") + to_string(it->second) + string(" GB, ");
-        }
+        // all values above are in kB
+        usage.vm.current *= 1024;
+        usage.vm.peak *= 1024;
+        usage.rss.current *= 1024;
+        usage.rss.peak *= 1024;
+        return usage;
     }
-    else{
-        memreport+= string(" unable to open or scane system file storing memory use");
-    }
-    // sprintf(buffer,"%s.memlog.%d",opt.outname,ThisTask);
-    // Fmem.open(buffer,ios::app);
-    // Fmem<<memreport<<endl;
-    // Fmem.close();
-    if (printreport) cout<<memreport<<endl;
-}
+} // namespace vr
 
-/// get the memory use looking at the task
-void GetMemUsage(string funcname, bool printreport){
-#ifndef USEMPI
-    int ThisTask=0;
-#endif
-    ifstream f;
-    size_t pos1, pos2;
-    unsigned long long size, resident, shared, text, data, library, dirty, peak;
-    map<string,float> memuse;
-    bool iflag = true;
-    char buffer[2500];
-    string memreport, temp, delimiter1("VmPeak:"), delimiter2("kB");
-    ofstream Fmem;
-    // Open the file storing memory information associated with the process;
-    f.open("/proc/self/statm");
-    if (f.is_open()) {
-        f >> size >> resident >> shared >> text >> library >> data >>dirty;
-        // nscan = fscanf(file, "%lld %lld %lld %lld %lld %lld %lld",
-        //     &size, &resident, &shared, &text, &library, &data, &dirty);
-        f.close();
-    }
-    else {
-        iflag = false;
-    }
-    f.open("/proc/self/status");
-    if (f.is_open()) {
-        while (f.getline(buffer, 2500)){
-            temp = string(buffer);
-            if ((pos1 = temp.find(delimiter1)) != string::npos) {
-                pos2 = temp.find(delimiter2);
-                temp = temp.substr(pos1+delimiter1.size(), pos2);
-                peak = stol(temp)*1024;
-                break;
-            }
-        }
-        f.close();
-    }
-    else {
-        iflag = false;
-    }
-
-    memreport += string("Memory report, func = ")+funcname+string(" task = ")+to_string(ThisTask)+ string(" : ");
-
-    //having scanned data for memory footprint in pages, report
-    //memory footprint in GB
-    if (iflag) {
-        // Convert pages into bytes. Usually 4096, but could be 512 on some
-        // systems so take care in conversion to KB. */
-        uint64_t sz = sysconf(_SC_PAGESIZE);
-        size *= sz ;
-        resident *= sz ;
-        shared *= sz ;
-        text *= sz ;
-        library *= sz ;
-        data *=  sz ;
-        dirty *= sz ;
-        float bytestoGB;
-        bytestoGB = 1.0/(1024.0*1024.*1024.);
-        // float bytestoGB = 1.0;
-        // if (opt.memuse_peak < peak) opt.memuse_peak = peak;
-        // opt.memuse_nsamples++;
-        // opt.memuse_ave += size;
-        memuse["Size"] = size*bytestoGB;
-        memuse["Resident"] = resident*bytestoGB;
-        memuse["Shared"] = shared*bytestoGB;
-        memuse["Text"] = text*bytestoGB;
-        memuse["Data"] = data*bytestoGB;
-        memuse["Peak"] = peak*bytestoGB;
-        for (map<string,float>::iterator it=memuse.begin(); it!=memuse.end(); ++it) {
-            memreport += it->first + string(" = ") + to_string(it->second) + string(" GB, ");
-        }
-    }
-    else{
-        memreport+= string(" unable to open or scane system file storing memory use");
-    }
-    if (printreport) cout<<memreport<<endl;
-}
-
-void InitMemUsageLog(Options &opt){
-#ifndef USEMPI
-    int ThisTask=0;
-#endif
-    if (!opt.memuse_log) return;
-    ofstream Fmem;
-    char buffer[2500];
-    sprintf(buffer,"%s.memlog.%d",opt.outname,ThisTask);
-    Fmem.open(buffer);
-    Fmem<<"Memory Log"<<endl;
-    Fmem.close();
-}
-
-std::chrono::time_point<std::chrono::high_resolution_clock> MyGetTime(){
-    auto now = std::chrono::high_resolution_clock::now();
-    return now;
-}
-
-double MyElapsedTime(std::chrono::time_point<std::chrono::high_resolution_clock> before)
+std::string GetMemUsage(const std::string &function)
 {
-    auto now = std::chrono::high_resolution_clock::now();
-    auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(now - before);
-    return elapsed.count()*1e-9;
+    auto memory_usage = vr::get_memory_usage();
+    std::ostringstream memory_report;
+    auto append_memory_stats = [&memory_report](const char *name, const vr::memory_stats &stats) {
+        memory_report << name << " current/peak: " << vr::memory_amount(stats.current) << " / " << vr::memory_amount(stats.peak);
+    };
+    memory_report << "Memory report @ " << function << ": ";
+    append_memory_stats("VM", memory_usage.vm);
+    memory_report << "; ";
+    append_memory_stats("RSS", memory_usage.rss);
+    return memory_report.str();
+}
+
+/* Borrowed from util-linux-2.13-pre7/schedutils/taskset.c */
+#ifdef __APPLE__
+
+static inline void
+CPU_ZERO(cpu_set_t *cs) { cs->count = 0; }
+
+static inline void
+CPU_SET(int num, cpu_set_t *cs) { cs->count |= (1 << num); }
+
+static inline int
+CPU_ISSET(int num, cpu_set_t *cs) { return (cs->count & (1 << num)); }
+
+int sched_getaffinity(pid_t pid, size_t cpu_size, cpu_set_t *cpu_set)
+{
+  int32_t core_count = 0;
+  size_t  len = sizeof(core_count);
+  int ret = sysctlbyname(SYSCTL_CORE_COUNT, &core_count, &len, 0, 0);
+  if (ret) {
+    printf("error while get core count %d\n", ret);
+    return -1;
+  }
+  cpu_set->count = 0;
+  for (int i = 0; i < core_count; i++) {
+    cpu_set->count |= (1 << i);
+  }
+
+  return 0;
+}
+#endif
+
+void cpuset_to_cstr(cpu_set_t *mask, char *str)
+{
+  char *ptr = str;
+  int i, j, entry_made = 0;
+  for (i = 0; i < CPU_SETSIZE; i++) {
+    if (CPU_ISSET(i, mask)) {
+      int run = 0;
+      entry_made = 1;
+      for (j = i + 1; j < CPU_SETSIZE; j++) {
+        if (CPU_ISSET(j, mask)) run++;
+        else break;
+      }
+      if (!run)
+        sprintf(ptr, "%d ", i);
+      else if (run == 1) {
+        sprintf(ptr, "%d,%d ", i, i + 1);
+        i++;
+      } else {
+        sprintf(ptr, "%d-%d ", i, i + run);
+        i += run;
+      }
+      while (*ptr != 0) ptr++;
+    }
+  }
+  ptr -= entry_made;
+  ptr = nullptr;
+}
+
+void report_binding()
+{
+    // if there is no MPI do not report any binding
+#if !defined(USEMPI) && !defined(USEOPENMP)
+    return; 
+#endif
+#ifdef USEMPI
+    MPI_Barrier(MPI_COMM_WORLD);
+#else
+    int ThisTask=0, NProcs=1;
+#endif
+    string binding_report = "Core binding \n ";
+    cpu_set_t coremask;
+    char clbuf[7 * CPU_SETSIZE], hnbuf[64];
+    memset(clbuf, 0, sizeof(clbuf));
+    memset(hnbuf, 0, sizeof(hnbuf));
+    (void)gethostname(hnbuf, sizeof(hnbuf));
+#ifdef USEOPENMP
+    #pragma omp parallel shared (binding_report) private(coremask, clbuf) 
+#endif
+    {
+        string result;
+        (void)sched_getaffinity(0, sizeof(coremask), &coremask);
+        cpuset_to_cstr(&coremask, clbuf);
+        result = "\t On node " + string(hnbuf) + " : ";
+#ifdef USEMPI 
+        result += "MPI Rank " + to_string(ThisTask) + " : ";
+#endif
+#ifdef USEOPENMP
+        auto thread = omp_get_thread_num();
+        result +=" OMP Thread " + to_string(thread) + " : ";
+#endif
+        result += " Core affinity = " + string(clbuf) + " \n ";
+#ifdef USEOPENMP 
+        #pragma omp critical 
+#endif 
+        {
+            binding_report +=result;
+
+        }
+    }
+    LOG(info)<<binding_report;
+#ifdef USEMPI
+    MPI_Barrier(MPI_COMM_WORLD);
+#endif
 }
 
 
