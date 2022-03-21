@@ -890,6 +890,21 @@ namespace vr {
 std::string GetMemUsage(const std::string &function);
 #define MEMORY_USAGE_REPORT(lvl) { if(LOG_ENABLED(lvl)) LOG(lvl) << GetMemUsage(__FUNCTION__); }
 
+/// Core binding 
+//@{
+#ifdef __APPLE__
+
+#define SYSCTL_CORE_COUNT   "machdep.cpu.core_count"
+#define CPU_SETSIZE 1024
+typedef struct cpu_set {
+  uint32_t    count;
+} cpu_set_t;
+int sched_getaffinity(pid_t pid, size_t cpu_size, cpu_set_t *cpu_set);
+#endif 
+void cpuset_to_cstr(cpu_set_t *mask, char *str);
+void report_binding();
+//@}
+
 namespace vr {
 	/// Get the basename of `filename`
 	std::string basename(const std::string &filename);
