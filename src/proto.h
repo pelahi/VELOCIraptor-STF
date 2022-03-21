@@ -951,6 +951,7 @@ void ProduceBackground(Options &opt, vector<Particle> &Part, Int_t noffset);
 vector<GaussianDistrib> ProduceGaussians(Options &opt, vector<Particle> &Part);
 void PopulateGaussians(Options &opt, vector<Particle> &Part, vector<GaussianDistrib> &Gaus);
 void WriteGeneratedInput(Options &opt, vector<Particle> &Part, vector<GaussianDistrib> &Gaus);
+void VectorizationTest(Options &opt);
 
 /// generate some variety of MPI calls 
 /// from Bcast, AllReduce, Allgather, SendRecv, Send, Recv and ISend, IRece

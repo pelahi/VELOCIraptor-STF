@@ -3,7 +3,10 @@
  */
 
 
+#include "logging.h"
 #include "stf.h"
+#include "timer.h"
+
 #include <random>
 #ifdef USEHDF
 #include "hdfitems.h"
@@ -16,8 +19,8 @@ void GenerateInput(Options &opt, vector<Particle> &Part) {
     Int_t Nlocal;
 #endif
     if (opt.iGenerateInput == false) return;
-    auto time1 = MyGetTime();
-    cout<<ThisTask<<" Generating Input ... "<<endl;
+    vr::Timer total_timer;
+    LOG(info)<<" Generating Input ... ";
     opt.Ngenerate = pow(opt.Ngenerate, 3.0);
     //set some cosmology
     opt.h = 1;
@@ -61,21 +64,21 @@ void GenerateInput(Options &opt, vector<Particle> &Part) {
     opt.Nbackground = opt.fbackground * opt.Ngenerate;
     Part.resize(Nlocal);
     for (auto p:Part) p.SetMass(opt.mpgenerate);
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    LOG(info) << GetMemUsage(__func__+string("--line--")+to_string(__LINE__));
 
     vector<GaussianDistrib> Gaus = ProduceGaussians(opt, Part);
     Int_t npoints = 0;
     for (auto &x:Gaus) npoints += x.npoints;
     //update the background number of points
     opt.Nbackground = Nlocal - npoints;
-    cout<<ThisTask<<" producing positions for "<<opt.Ngeneratehalos<<" locally containing "<<npoints<<" particles and a background of "<<opt.Nbackground<<endl;
+    LOG(info)<<" producing positions for "<<opt.Ngeneratehalos<<" locally containing "<<npoints<<" particles and a background of "<<opt.Nbackground;
 #ifdef USEMPI
 #endif
     opt.fbackground = opt.Nbackground/(double)opt.Ngenerate;
     PopulateGaussians(opt, Part, Gaus);
     ProduceBackground(opt, Part, npoints);
     //WriteGeneratedInput(opt, Part, Gaus);
-    cout<<ThisTask<<" Generating input: Done "<<MyElapsedTime(time1)<<endl;
+    LOG(info)<<" Generating input: Done " << total_timer;
 #ifdef USEMPI
     MPI_Finalize();
 #endif
@@ -89,8 +92,8 @@ void ProduceBackground(Options &opt, vector<Particle> &Part, Int_t noffset)
     int ThisTask = 0, NProcs = 1;
     unsigned long long Nlocal = Part.size();
 #endif
-    auto time1 = MyGetTime();
-    cout<<ThisTask<<" Produce Background ... "<<endl;
+    vr::Timer local_timer;
+    LOG(info)<<" Produce Background ... ";
 
     if (opt.fbackground == 0) return;
     Int_t nbg = Nlocal - noffset;
@@ -116,8 +119,8 @@ void ProduceBackground(Options &opt, vector<Particle> &Part, Int_t noffset)
 #if defined(USEOPENMP)
 }
 #endif
-    cout<<ThisTask<<" Produce Background: Done "<<MyElapsedTime(time1)<<endl;
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    LOG(info)<<" Produce Background: Done " << local_timer;
+    LOG(info)<<GetMemUsage(__func__+string("--line--")+to_string(__LINE__));
 }
 
 inline Matrix NormalizeDisp(double sX[3], double ssX[3], double norm, uniform_real_distribution<double> &disp, default_random_engine& generator){
@@ -147,8 +150,8 @@ vector<GaussianDistrib> ProduceGaussians(Options &opt, vector<Particle> &Part)
     int ThisTask = 0, NProcs = 1;
     unsigned long long Nlocal = Part.size();
 #endif
-    auto time1 = MyGetTime();
-    cout<<ThisTask<<" Produce Gaussians ... "<<endl;
+    vr::Timer local_timer;
+    LOG(info)<<" Produce Gaussians ... ";
 
     vector<GaussianDistrib> Gaus;
     if (opt.fbackground == 1 || opt.Ngeneratehalos == 0) return Gaus;
@@ -208,8 +211,8 @@ vector<GaussianDistrib> ProduceGaussians(Options &opt, vector<Particle> &Part)
 #if defined(USEOPENMP)
 }
 #endif
-    cout<<ThisTask<<" Produce Gaussians: Done "<<MyElapsedTime(time1)<<endl;
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    LOG(info)<<" Produce Gaussians: Done "<<local_timer;
+    LOG(info)<<GetMemUsage(__func__+string("--line--")+to_string(__LINE__));
     return Gaus;
 
 }
@@ -222,8 +225,8 @@ void PopulateGaussians(Options &opt, vector<Particle> &Part, vector<GaussianDist
     int ThisTask = 0, NProcs = 1;
 #endif
     int nthreads = 1;
-    auto time1 = MyGetTime();
-    cout<<ThisTask<<" Populate Gaussians ... "<<endl;
+    vr::Timer local_timer;
+    LOG(info)<<" Populate Gaussians ... ";
     if (opt.Ngeneratehalos == 0) return;
 
     // get random numbers first then transform them as necessary
@@ -399,8 +402,8 @@ delete[] yy;
 // #endif //end of if openacc else
     delete[] rn;
     delete[] noffset;
-    cout<<ThisTask<<" Populate Gaussians: Done "<<MyElapsedTime(time1)<<endl;
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
+    LOG(info)<<" Populate Gaussians: Done "<< local_timer;
+    LOG(info)<<GetMemUsage(__func__+string("--line--")+to_string(__LINE__));
 }
 
 //write a file
@@ -411,8 +414,9 @@ void WriteGeneratedInput(Options &opt, vector<Particle> &Part, vector<GaussianDi
     int ThisTask=0,NProcs=1;
     unsigned long long Nlocal = Part.size();
 #endif
-    auto time1 = MyGetTime();
-    cout<<ThisTask<<" Writing input ... "<<endl;
+    vr::Timer local_timer;
+
+    LOG(info)<<" Writing input ... ";
 
     fstream Fout;
     string fname;
@@ -612,6 +616,76 @@ void WriteGeneratedInput(Options &opt, vector<Particle> &Part, vector<GaussianDi
 
         Fhdf.close();
 
-        cout<<ThisTask<<" Done writing "<<MyElapsedTime(time1)<<endl;
+        LOG(info)<<" Done writing "<<local_timer;
 #endif
+}
+
+void VectorizationTest(Options &opt) 
+{
+    if (!opt.test_vectorization) return;
+    vr::Timer total_timer;
+
+    // silly compute to test performance 
+    LOG(info)<<" Running silly calcs to test vectorization ";
+
+    vector<int> x_int, y_int;
+    vector<float> x_float, y_float;
+    vector<double> x_double, y_double;
+    unsigned int Nentries = 120.0*1024.0*1024.0*1024.0/8.0/6.0;
+    LOG(info)<<" Vectorization tests running with "<<Nentries;
+    vr::Timer timer_mem;
+    x_int.resize(Nentries);
+    y_int.resize(Nentries);
+    x_float.resize(Nentries);
+    y_float.resize(Nentries);
+    x_double.resize(Nentries);
+    y_double.resize(Nentries);
+    LOG(info)<<" mem alloc "<<timer_mem;
+    LOG(info) << GetMemUsage(__func__+string("--line--")+to_string(__LINE__));
+    vr::Timer timer_vec;
+
+#pragma omp parallel for \
+default(none) shared(x_int, y_int, x_float, y_float, x_double, y_double, Nentries) \
+schedule(static) if (nthreads > 1)
+   for (auto i=0u; i<Nentries; i++) {
+      x_int[i] = i;
+      auto temp = x_int[i];
+      y_int[i] = temp+temp*pow(temp,2) + temp/(temp+1);
+     //y_int[i] = x_int[i]+x_int[i]*pow(x_int[i],2) + x_int[i]/(x_int[i]+1);
+//   }
+
+//#pragma omp parallel for \
+//default(none) shared(x_float, y_float, Nentries) \
+//schedule(static) if (nthreads > 1) 
+ //  for (auto i=0u; i<Nentries; i++) {
+      x_float[i] = i;
+      auto tempf = x_float[i];
+      y_float[i] = tempf+tempf*pow(tempf,2) + tempf/(tempf+1);
+//   }
+
+//#pragma omp parallel for \
+//default(none) shared(x_double, y_double, Nentries) \
+//schedule(static) if (nthreads > 1)
+//   for (auto i=0u; i<Nentries; i++) {
+      x_double[i] = i;
+      auto tempd = x_double[i];
+      y_double[i] = tempd+tempd*pow(tempd,2) + tempd/(tempd+1);
+   }
+    LOG(info)<<" Finished "<< timer_vec;
+
+    x_int.clear();
+    x_float.clear();
+    x_double.clear();
+    y_int.clear();
+    y_float.clear();
+    y_double.clear();
+    x_int.shrink_to_fit();
+    x_float.shrink_to_fit();
+    x_double.shrink_to_fit();
+    y_int.shrink_to_fit();
+    y_float.shrink_to_fit();
+    y_double.shrink_to_fit();
+ 
+    LOG(info)<<" Finished and mem cleared "<<timer_vec;
+    exit(9);
 }

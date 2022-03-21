@@ -5772,8 +5772,9 @@ void MPISwiftExchange(vector<Particle> &Part){
 
 /// \name MPI tests
 //@{
-void MPITest(Options &opt) {
-
+void MPITest(Options &opt) 
+{
+    if (!opt.test_mpi) return;
     Int_t nsend_local[NProcs], noffset[NProcs];
     Int_t sendTask, recvTask;
     vector<Particle> Plocal, Pbuff;
@@ -5789,18 +5790,18 @@ void MPITest(Options &opt) {
     string mpifunc = "Bcast";
 
     // run broadcast 
-    if (ThisTask == 0) cout<<ThisTask<<" function "<<__func__<<" @ "<<__LINE__<<" running "<<mpifunc<<endl;
+    LOG_RANK0(info)<<" running "<<mpifunc<< " test";
     for (auto itask=0;itask<NProcs;itask++) {
         if (ThisTask == itask) cout<<mpifunc<<" from "<<itask<<endl;
         for (auto i=0;i<sizeofsends.size();i++) {
             if (ThisTask == itask) {
-                cout<<"Send size of "<<sizeofsends[i]<<" doubles or "<<sizeofsends[i]*sizeof(double)/1024./1024./1024.<<" GB"<<endl;
+                LOG(info)<<"Send size of "<<sizeofsends[i]<<" doubles or "<<sizeofsends[i]*sizeof(double)/1024./1024./1024.<<" GB";
             }
             data.resize(sizeofsends[i]);
             p1 = data.data();
             MPI_Bcast(p1, sizeofsends[i], MPI_DOUBLE, itask, MPI_COMM_WORLD);
             if (ThisTask == itask) {
-                cout<<"Completed "<<mpifunc<<endl;
+                LOG(info)<<"Completed "<<mpifunc;
             }
         }
     }
@@ -5810,10 +5811,10 @@ void MPITest(Options &opt) {
 
     // now allreduce 
     mpifunc = "allreduce";
-    if (ThisTask == 0) cout<<ThisTask<<" function "<<__func__<<" @ "<<__LINE__<<" running "<<mpifunc<<endl;
+    LOG_RANK0(info)<<" running "<<mpifunc<< " test";
     for (auto i=0;i<sizeofsends.size();i++) {
         if (ThisTask == 0) {
-            cout<<"Send size of "<<sizeofsends[i]<<" doubles or "<<sizeofsends[i]*sizeof(double)/1024./1024./1024.<<" GB"<<endl;
+            LOG(info)<<"Send size of "<<sizeofsends[i]<<" doubles or "<<sizeofsends[i]*sizeof(double)/1024./1024./1024.<<" GB";
         }
         data.resize(sizeofsends[i]);
         allreducesum.resize(sizeofsends[i]);
@@ -5823,7 +5824,7 @@ void MPITest(Options &opt) {
         MPI_Allreduce(p1, p2, sizeofsends[i], MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
         //MPI_Allreduce(p1, MPI_IN_PLACE, sizeofsends[i], MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
         if (ThisTask == 0) {
-            cout<<"Completed "<<mpifunc<<endl;
+            LOG(info)<<"Completed "<<mpifunc;
         }
     }
     data.clear();

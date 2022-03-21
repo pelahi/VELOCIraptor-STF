@@ -170,7 +170,7 @@ void GetArgs(int argc, char *argv[], Options &opt)
     int option;
     int NumArgs = 0;
     int configflag=0;
-    while ((option = getopt(argc, argv, ":C:I:i:s:Z:o:G:S:B:t:g:n:h:f:")) != EOF)
+    while ((option = getopt(argc, argv, ":C:I:i:s:Z:o:G:S:B:t:g:n:h:f:m:v:")) != EOF)
     {
         switch(option)
         {
@@ -231,6 +231,14 @@ void GetArgs(int argc, char *argv[], Options &opt)
                 opt.fbackground = atof(optarg);
                 NumArgs += 2;
                 break;
+            case 'm':
+                opt.test_mpi = atoi(optarg);
+                NumArgs += 2;
+                break;
+            case 'v':
+                opt.test_vectorization = atoi(optarg);
+                NumArgs += 2;
+                break;
             case '?':
                 usage();
         }
@@ -264,13 +272,13 @@ void usage(void)
     cerr<<"-s <number of files per output for gadget input 1 [default]>"<<endl;
     cerr<<"-Z <number of threads used in parallel read ("<<opt.nsnapread<<")>"<<endl;
     cerr<<"-o <output filename>"<<endl;
-    cerr<<" ===== EXTRA OPTIONS FOR GADGET INPUT ====== "<<endl;
-    cerr<<"-g <number of extra sph/gas blocks for gadget>"<<endl;
-    cerr<<"-s <number of extra star blocks for gadget>"<<endl;
-    cerr<<"-b <number of extra bh blocks for gadget>"<<endl;
-    cerr<<" ===== EXTRA OPTIONS REQUIRED FOR RAMSES INPUT ====== "<<endl;
-    cerr<<"-t <ramses snapnumber>"<<endl;
-
+    cerr<<" ===== Generate input ====== "<<endl;
+    cerr<<"-g <Generate input 0/1>"<<endl;
+    cerr<<"-n <n^3 number of particles to generate>"<<endl;
+    cerr<<"-h <number of halos>"<<endl;
+    cerr<<"-f <fraction of particles in background>"<<endl;
+    cerr<<"-m <Run mpi tests 0/1>"<<endl;
+    cerr<<"-v <Run vectorization tests 0/1>"<<endl;
     }
 #ifdef USEMPI
     MPI_Finalize();

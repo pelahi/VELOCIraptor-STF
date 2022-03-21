@@ -122,12 +122,8 @@ int run(int argc,char **argv)
     cout.precision(10);
 
 
-//PJE
-MPITest(opt);
-MPI_Finalize();
-exit(0);
-
-
+    //PJE
+    MPITest(opt);
 
 #ifdef USEMPI
     MPIInitWriteComm();
@@ -181,73 +177,10 @@ exit(0);
     else MinNumOld=opt.HaloMinSize;
 #endif
 
-    // silly compute to test performance 
-    cout<<ThisTask<<" Running silly calcs "<<endl;
-auto time_mem = MyGetTime();
-    vector<int> x_int, y_int;
-    vector<float> x_float, y_float;
-    vector<double> x_double, y_double;
-    unsigned int Nentries = 120.0*1024.0*1024.0*1024.0/8.0/6.0;
-    std::cout<<" Silly calcs running with "<<Nentries<<endl;
-    x_int.resize(Nentries);
-    y_int.resize(Nentries);
-    x_float.resize(Nentries);
-    y_float.resize(Nentries);
-    x_double.resize(Nentries);
-    y_double.resize(Nentries);
+    VectorizationTest(opt);
 
-cout<<"mem alloc "<<MyElapsedTime(time_mem)<<endl;
-
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=1));
-    auto time_sillycalc = MyGetTime();
-
-#pragma omp parallel for \
-default(none) shared(x_int, y_int, x_float, y_float, x_double, y_double, Nentries) \
-schedule(static) if (nthreads > 1)
-   for (auto i=0u; i<Nentries; i++) {
-      x_int[i] = i;
-      auto temp = x_int[i];
-      y_int[i] = temp+temp*pow(temp,2) + temp/(temp+1);
-     //y_int[i] = x_int[i]+x_int[i]*pow(x_int[i],2) + x_int[i]/(x_int[i]+1);
-//   }
-
-//#pragma omp parallel for \
-//default(none) shared(x_float, y_float, Nentries) \
-//schedule(static) if (nthreads > 1) 
- //  for (auto i=0u; i<Nentries; i++) {
-      x_float[i] = i;
-      auto tempf = x_float[i];
-      y_float[i] = tempf+tempf*pow(tempf,2) + tempf/(tempf+1);
-//   }
-
-//#pragma omp parallel for \
-//default(none) shared(x_double, y_double, Nentries) \
-//schedule(static) if (nthreads > 1)
-//   for (auto i=0u; i<Nentries; i++) {
-      x_double[i] = i;
-      auto tempd = x_double[i];
-      y_double[i] = tempd+tempd*pow(tempd,2) + tempd/(tempd+1);
-   }
-    cout<<ThisTask<<" Silly calcs finished "<<MyElapsedTime(time_sillycalc)<<endl;
-
-x_int.clear();
-x_float.clear();
-x_double.clear();
-y_int.clear();
-y_float.clear();
-y_double.clear();
-x_int.shrink_to_fit();
-x_float.shrink_to_fit();
-x_double.shrink_to_fit();
-y_int.shrink_to_fit();
-y_float.shrink_to_fit();
-y_double.shrink_to_fit();
- 
-    cout<<ThisTask<<" Silly calcs finished and mem cleared "<<MyElapsedTime(time_sillycalc)<<endl;
-exit(9);
     //generate input if necessary
     GenerateInput(opt, Part);
-
 
     //read particle information and allocate memory
     vr::Timer loading_timer;

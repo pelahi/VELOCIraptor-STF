@@ -1041,11 +1041,12 @@ struct Options
     //@}
 
     //@{ \name generate input
-    bool iGenerateInput;
-    Int_t Ngenerate, Nbackground;
-    Int_t Ngeneratehalos;
-    float fbackground;
-    double mpgenerate;
+    bool test_mpi = false, test_vectorization = false;
+    bool iGenerateInput = false ;
+    Int_t Ngenerate = 0 , Nbackground = 0;
+    Int_t Ngeneratehalos = 0;
+    float fbackground = 0;
+    double mpgenerate = 0;
     //@}
     //silly flag to store whether input has little h's in it.
     bool inputcontainslittleh = true;
