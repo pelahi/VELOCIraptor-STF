@@ -58,7 +58,7 @@ void GenerateInput(Options &opt, vector<Particle> &Part) {
     if (NProcs > 1) {
         if (ThisTask == NProcs - 1)
         {
-            Nlocal = opt.Ngenerate*Nlocal*(NProcs-1);
+            Nlocal = opt.Ngenerate-Nlocal*(NProcs-1);
         }
     }
     opt.Nbackground = opt.fbackground * opt.Ngenerate;
@@ -628,10 +628,15 @@ void VectorizationTest(Options &opt)
     // silly compute to test performance 
     LOG(info)<<" Running silly calcs to test vectorization ";
 
+    int nthreads = 1;
+#ifdef USEOPENMP
+    nthreads = omp_get_max_threads();
+#endif
+
     vector<int> x_int, y_int;
     vector<float> x_float, y_float;
     vector<double> x_double, y_double;
-    unsigned int Nentries = 120.0*1024.0*1024.0*1024.0/8.0/6.0;
+    unsigned int Nentries = 20.0*1024.0*1024.0*1024.0/8.0/6.0;
     LOG(info)<<" Vectorization tests running with "<<Nentries;
     vr::Timer timer_mem;
     x_int.resize(Nentries);
@@ -687,5 +692,4 @@ schedule(static) if (nthreads > 1)
     y_double.shrink_to_fit();
  
     LOG(info)<<" Finished and mem cleared "<<timer_vec;
-    exit(9);
 }
