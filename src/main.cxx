@@ -69,8 +69,11 @@ void show_version_info(int argc, char *argv[])
 	    for (int rank = 0; rank != NProcs; rank++) {
 	        proper_hostnames.emplace_back(all_hostnames.data() + (NAME_MAX + 1) * rank);
 	    }
-	    mpi_info << " running in " << std::set<std::string>(proper_hostnames.begin(), proper_hostnames.end()).size() << " nodes: ";
-	    mpi_info << vr::printable_range(proper_hostnames);
+        std::set<std::string> s(proper_hostnames.begin(), proper_hostnames.end());
+        std::vector<std::string> unique_hostnames(s.size());
+        std::copy(s.begin(), s.end(), unique_hostnames.begin());
+	    mpi_info << " running in " << unique_hostnames.size() << " nodes: ";
+	    mpi_info << vr::printable_range(unique_hostnames);
 	}
 #else
 	mpi_info << "no";
