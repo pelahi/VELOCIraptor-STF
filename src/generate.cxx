@@ -62,6 +62,7 @@ void GenerateInput(Options &opt, vector<Particle> &Part) {
         }
     }
     opt.Nbackground = opt.fbackground * opt.Ngenerate;
+    LOG(info)<<" producing positions for "<<opt.Ngenerate<<" particles, echo of size "<<sizeof(Particle)<<" requiring "<<opt.Ngenerate*sizeof(Particle)/1024./1024./1024.<<" GB of memory";
     Part.resize(Nlocal);
     for (auto p:Part) p.SetMass(opt.mpgenerate);
     LOG(info) << GetMemUsage(__func__+string("--line--")+to_string(__LINE__));
@@ -77,7 +78,7 @@ void GenerateInput(Options &opt, vector<Particle> &Part) {
     opt.fbackground = opt.Nbackground/(double)opt.Ngenerate;
     PopulateGaussians(opt, Part, Gaus);
     ProduceBackground(opt, Part, npoints);
-    //WriteGeneratedInput(opt, Part, Gaus);
+    WriteGeneratedInput(opt, Part, Gaus);
     LOG(info)<<" Generating input: Done " << total_timer;
 #ifdef USEMPI
     MPI_Finalize();
@@ -238,7 +239,9 @@ void PopulateGaussians(Options &opt, vector<Particle> &Part, vector<GaussianDist
         noffset[i] = npoints;
         npoints += Gaus[i].npoints;
     }
+    LOG(info)<<" Gaussians contain "<<npoints;
     float *rn = new float[npoints*6];
+    LOG(info)<<GetMemUsage(__func__+string("--line--")+to_string(__LINE__));
 #if defined(USEOPENMP)
 #pragma omp parallel default(shared)
 {
@@ -423,6 +426,7 @@ void WriteGeneratedInput(Options &opt, vector<Particle> &Part, vector<GaussianDi
     ostringstream os;
     char buf[40];
     long long unsigned nwritecommtot=0;
+    long long unsigned noffset = 0;
     vector<unsigned long long> npart(6,0);
     vector<double> mass(6,0);
     void *data;
@@ -431,10 +435,16 @@ void WriteGeneratedInput(Options &opt, vector<Particle> &Part, vector<GaussianDi
 
 #ifdef USEMPI
     MPIBuildWriteComm(opt);
+    MPI_Allreduce(&Nlocal, &nwritecommtot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, mpi_comm_write);
+    if (NProcs > 1) {
+        std::vector<Int_t> mpi_nparts(NProcsWrite);
+        MPI_Allgather(&Nlocal, 1, MPI_Int_t, mpi_nparts.data(), 1, MPI_Int_t, mpi_comm_write);
+        for (int j=0;j<ThisWriteTask;j++)noffset+=mpi_nparts[j];
+    }
 #endif
 
     H5OutputFile Fhdf;
-    int itemp=0;
+    Fhdf.set_verbose(true);
     int ival;
 
     os << opt.outname <<".generatedinput";
@@ -448,87 +458,55 @@ void WriteGeneratedInput(Options &opt, vector<Particle> &Part, vector<GaussianDi
 #endif
     os <<".hdf5";
     fname = os.str();
-
-#ifdef USEPARALLELHDF
-        if(opt.mpinprocswritesize>1){
-            //if parallel then open file in serial so task 0 writes header
-            Fhdf.create(string(fname),H5F_ACC_TRUNC, 0, false);
-        }
-        else{
-             Fhdf.create(string(fname),H5F_ACC_TRUNC, ThisWriteComm, false);
-        }
-#else
-        Fhdf.create(string(fname));
+#ifdef USEMPI
 #endif
-        itemp=0;
+    LOG(info) << ThisWriteTask <<" and "<<ThisWriteComm<<" writing "<<fname<< "data is "<<Nlocal<<" with offset "<<noffset;
+    LOG(info) << GetMemUsage(__func__+string("--line--")+to_string(__LINE__));
+    LOG(info) <<"Expected memory needed to write data is max "<<3*sizeof(float)*Nlocal/1024./1024./1024.<<" GB";
+    // create groups
+    Fhdf.create(string(fname));
+    Fhdf.close_group(Fhdf.create_group("Header"));
+    Fhdf.close_group(Fhdf.create_group("Cosmology"));
+    Fhdf.close_group(Fhdf.create_group("PartType1"));
+    Fhdf.close_group(Fhdf.create_group("PartType1/Gaussians"));
+    Fhdf.close();
 
 #ifdef USEPARALLELHDF
-        if(opt.mpinprocswritesize>1){
-            MPI_Allreduce(&Nlocal, &nwritecommtot, 1, MPI_UNSIGNED_LONG_LONG, MPI_SUM, mpi_comm_write);
+    if(opt.mpinprocswritesize>1)
+    {
+        //if parallel then open file in serial so task 0 writes attributes
+        Fhdf.append(string(fname),H5F_ACC_TRUNC, 0, false);
+        npart[1] = nwritecommtot;
+        //if parallel HDF then only
+        if (ThisWriteTask==0) 
+        {
+            Fhdf.write_attribute(string("Header"), "BoxSize", opt.p);
+            Fhdf.write_attribute(string("Header"), "NumFilesPerSnapshot", NWriteComms);
             npart[1] = nwritecommtot;
-            //if parallel HDF then only
-            if (ThisWriteTask==0) {
-                Fhdf.create_group("Header");
-                Fhdf.create_group("Cosmology");
-                Fhdf.create_group("PartType1");
-                Fhdf.create_group("PartType1/Gaussians");
-                Fhdf.write_attribute(string("/Header"), "BoxSize", opt.p);
-                Fhdf.write_attribute(string("/Header"), "NumFilesPerSnapshot", NWriteComms);
-                npart[1] = nwritecommtot;
-                Fhdf.write_attribute(string("/Header"), "NumPart_ThisFile", npart);
-                npart[1] = opt.Ngenerate;
-                Fhdf.write_attribute(string("/Header"), "NumPart_Total", npart);
-                npart[1] = 0;
-                Fhdf.write_attribute(string("/Header"), "NumPart_Total_HighWord", npart);
-                mass[1] = opt.mpgenerate;
-                Fhdf.write_attribute(string("/Header"), "MassTable", mass);
-                Fhdf.write_attribute(string("/Header"), "Redshift", opt.a);
-                Fhdf.write_attribute(string("/Header"), "Time", opt.a);
-                Fhdf.write_attribute(string("/Cosmology"), "Cosmological run", 1);
-                Fhdf.write_attribute(string("/Cosmology"), "Omega_m", opt.Omega_m);
-                Fhdf.write_attribute(string("/Cosmology"), "Omega_lambda", opt.Omega_Lambda);
-                Fhdf.write_attribute(string("/Cosmology"), "Omega_b", opt.Omega_b);
-                Fhdf.write_attribute(string("/Cosmology"), "Omega_r", opt.Omega_r);
-                Fhdf.write_attribute(string("/Cosmology"), "Omega_k", opt.Omega_k);
-                Fhdf.write_attribute(string("/Cosmology"), "h", opt.h);
-                Fhdf.write_attribute(string("/Header"), "Code", string("SWIFT"));
-            }
-            Fhdf.close();
-            MPI_Barrier(MPI_COMM_WORLD);
-            //reopen for parallel write
-            Fhdf.append(string(fname));
-        }
-        else{
-            Fhdf.create_group("Header");
-            Fhdf.create_group("Cosmology");
-            Fhdf.create_group("PartType1");
-            Fhdf.create_group("PartType1/Gaussians");
-            Fhdf.write_attribute(string("/Header"), "BoxSize", opt.p);
-            Fhdf.write_attribute(string("/Header"), "NumFilesPerSnapshot", NProcs);
-            npart[1] = Nlocal;
-            Fhdf.write_attribute(string("/Header"), "NumPart_ThisFile", npart);
+            Fhdf.write_attribute(string("Header"), "NumPart_ThisFile", npart);
             npart[1] = opt.Ngenerate;
-            Fhdf.write_attribute(string("/Header"), "NumPart_Total", npart);
+            Fhdf.write_attribute(string("Header"), "NumPart_Total", npart);
             npart[1] = 0;
-            Fhdf.write_attribute(string("/Header"), "NumPart_Total_HighWord", npart);
+            Fhdf.write_attribute(string("Header"), "NumPart_Total_HighWord", npart);
             mass[1] = opt.mpgenerate;
-            Fhdf.write_attribute(string("/Header"), "MassTable", mass);
-            Fhdf.write_attribute(string("/Header"), "Redshift", opt.a);
-            Fhdf.write_attribute(string("/Header"), "Time", opt.a);
-            Fhdf.write_attribute(string("/Cosmology"), "Cosmological run", 1);
-            Fhdf.write_attribute(string("/Cosmology"), "Omega_m", opt.Omega_m);
-            Fhdf.write_attribute(string("/Cosmology"), "Omega_lambda", opt.Omega_Lambda);
-            Fhdf.write_attribute(string("/Cosmology"), "Omega_b", opt.Omega_b);
-            Fhdf.write_attribute(string("/Cosmology"), "Omega_r", opt.Omega_r);
-            Fhdf.write_attribute(string("/Cosmology"), "Omega_k", opt.Omega_k);
-            Fhdf.write_attribute(string("/Cosmology"), "h", opt.h);
-            Fhdf.write_attribute(string("/Header"), "Code", string("SWIFT"));
+            Fhdf.write_attribute(string("Header"), "MassTable", mass);
+            Fhdf.write_attribute(string("Header"), "Redshift", opt.a);
+            Fhdf.write_attribute(string("Header"), "Time", opt.a);
+            Fhdf.write_attribute(string("Cosmology"), "Cosmological run", 1);
+            Fhdf.write_attribute(string("Cosmology"), "Omega_m", opt.Omega_m);
+            Fhdf.write_attribute(string("Cosmology"), "Omega_lambda", opt.Omega_Lambda);
+            Fhdf.write_attribute(string("Cosmology"), "Omega_b", opt.Omega_b);
+            Fhdf.write_attribute(string("Cosmology"), "Omega_r", opt.Omega_r);
+            Fhdf.write_attribute(string("Cosmology"), "Omega_k", opt.Omega_k);
+            Fhdf.write_attribute(string("Cosmology"), "h", opt.h);
+            Fhdf.write_attribute(string("Header"), "Code", string("SWIFT"));
         }
-#else
-        Fhdf.create_group("Header");
-        Fhdf.create_group("Cosmology");
-        Fhdf.create_group("PartType1");
-        Fhdf.create_group("PartType1/Gaussians");
+        Fhdf.close();
+        MPI_Barrier(mpi_comm_write);
+        Fhdf.append(string(fname));
+    }
+    else{
+        Fhdf.append(string(fname));
         Fhdf.write_attribute(string("/Header"), "BoxSize", opt.p);
         Fhdf.write_attribute(string("/Header"), "NumFilesPerSnapshot", NProcs);
         npart[1] = Nlocal;
@@ -549,74 +527,97 @@ void WriteGeneratedInput(Options &opt, vector<Particle> &Part, vector<GaussianDi
         Fhdf.write_attribute(string("/Cosmology"), "Omega_k", opt.Omega_k);
         Fhdf.write_attribute(string("/Cosmology"), "h", opt.h);
         Fhdf.write_attribute(string("/Header"), "Code", string("SWIFT"));
+    }
+#else
+    Fhdf.append(string(fname));
+    Fhdf.write_attribute(string("/Header"), "BoxSize", opt.p);
+    Fhdf.write_attribute(string("/Header"), "NumFilesPerSnapshot", NProcs);
+    npart[1] = Nlocal;
+    Fhdf.write_attribute(string("/Header"), "NumPart_ThisFile", npart);
+    npart[1] = opt.Ngenerate;
+    Fhdf.write_attribute(string("/Header"), "NumPart_Total", npart);
+    npart[1] = 0;
+    Fhdf.write_attribute(string("/Header"), "NumPart_Total_HighWord", npart);
+    mass[1] = opt.mpgenerate;
+    Fhdf.write_attribute(string("/Header"), "MassTable", mass);
+    Fhdf.write_attribute(string("/Header"), "Redshift", opt.a);
+    Fhdf.write_attribute(string("/Header"), "Time", opt.a);
+    Fhdf.write_attribute(string("/Cosmology"), "Cosmological run", 1);
+    Fhdf.write_attribute(string("/Cosmology"), "Omega_m", opt.Omega_m);
+    Fhdf.write_attribute(string("/Cosmology"), "Omega_lambda", opt.Omega_Lambda);
+    Fhdf.write_attribute(string("/Cosmology"), "Omega_b", opt.Omega_b);
+    Fhdf.write_attribute(string("/Cosmology"), "Omega_r", opt.Omega_r);
+    Fhdf.write_attribute(string("/Cosmology"), "Omega_k", opt.Omega_k);
+    Fhdf.write_attribute(string("/Cosmology"), "h", opt.h);
+    Fhdf.write_attribute(string("/Header"), "Code", string("SWIFT"));
 #endif
-        datatype = H5T_NATIVE_FLOAT;
-        data= ::operator new(sizeof(float)*(3*Nlocal));
-        dims.resize(2);dims[0]=Nlocal;dims[1]=3;
-        for (auto i=0;i<Nlocal;i++) {
-            for (auto j=0;j<3;j++) {
-                ((float*)data)[i*3+j]=Part[i].GetPosition(j);
-            }
-        }
-        Fhdf.write_dataset_nd(opt, "/PartType1/Coordinates", 2, dims.data(), data, datatype);
-        for (auto i=0;i<Nlocal;i++) {
-            for (auto j=0;j<3;j++) {
-                ((float*)data)[i*3l+j]=Part[i].GetVelocity(j);
-            }
-        }
-        Fhdf.write_dataset_nd(opt, "/PartType1/Velocities", 2, dims.data(), data, datatype);
-        ::operator delete(data);
-        mass.clear();
-        mass.resize(Nlocal,opt.mpgenerate);
-        Fhdf.write_dataset(opt, "/PartType1/Masses", Nlocal, mass.data(), datatype);
-        datatype = H5T_NATIVE_ULLONG;
-        npart.clear();
-        npart.resize(Nlocal);
-        for (auto i=0; i<Nlocal; i++) npart[i] = i+1;
-        Fhdf.write_dataset(opt, "/PartType1/ParticleIDs", Nlocal, npart.data(), datatype);
 
-        datatype = H5T_NATIVE_FLOAT;
-        data= ::operator new(sizeof(float)*(3*opt.Ngeneratehalos));
-        dims.resize(2);dims[0]=opt.Ngeneratehalos;dims[1]=3;
-        for (auto i=0;i<opt.Ngeneratehalos;i++) {
-            for (auto j=0;j<3;j++) {
-                ((float*)data)[i*3+j]=Gaus[i].mean[j];
-            }
+    datatype = H5T_NATIVE_ULLONG;
+    npart.clear();
+    npart.resize(Nlocal);
+    for (auto i=0; i<Nlocal; i++) npart[i] = noffset+i+1;
+    Fhdf.write_dataset(opt, "PartType1/ParticleIDs", Nlocal, npart.data(), datatype);
+    npart.clear();
+    npart.shrink_to_fit();
+    datatype = H5T_NATIVE_FLOAT;
+    data= ::operator new(sizeof(float)*(3*Nlocal));
+    dims.resize(2);dims[0]=Nlocal;dims[1]=3;
+    for (auto i=0;i<Nlocal;i++) {
+        for (auto j=0;j<3;j++) {
+            ((float*)data)[i*3+j]=Part[i].GetPosition(j);
         }
-        Fhdf.write_dataset_nd(opt, "/PartType1/Gaussians/Coordinates", 2, dims.data(), data, datatype);
-        for (auto i=0;i<opt.Ngeneratehalos;i++) {
-            for (auto j=0;j<3;j++) {
-                ((float*)data)[i*3+j]=Gaus[i].mean[j+3];
-            }
+    }
+    Fhdf.write_dataset_nd(opt, "PartType1/Coordinates", 2, dims.data(), data, datatype);
+    for (auto i=0;i<Nlocal;i++) {
+        for (auto j=0;j<3;j++) {
+            ((float*)data)[i*3l+j]=Part[i].GetVelocity(j);
         }
-        Fhdf.write_dataset_nd(opt, "/PartType1/Gaussians/Velocities", 2, dims.data(), data, datatype);
-        ::operator delete(data);
+    }
+    Fhdf.write_dataset_nd(opt, "PartType1/Velocities", 2, dims.data(), data, datatype);
+    ::operator delete(data);
+    // mass.clear();
+    // mass.resize(Nlocal,opt.mpgenerate);
+    // Fhdf.write_dataset(opt, "/PartType1/Masses", Nlocal, mass.data(), datatype);
+    data= ::operator new(sizeof(float)*(3*opt.Ngeneratehalos));
+    dims.resize(2);dims[0]=opt.Ngeneratehalos;dims[1]=3;
+    for (auto i=0;i<opt.Ngeneratehalos;i++) {
+        for (auto j=0;j<3;j++) {
+            ((float*)data)[i*3+j]=Gaus[i].mean[j];
+        }
+    }
+    Fhdf.write_dataset_nd(opt, "PartType1/Gaussians/Coordinates", 2, dims.data(), data, datatype);
+    for (auto i=0;i<opt.Ngeneratehalos;i++) {
+        for (auto j=0;j<3;j++) {
+            ((float*)data)[i*3+j]=Gaus[i].mean[j+3];
+        }
+    }
+    Fhdf.write_dataset_nd(opt, "PartType1/Gaussians/Velocities", 2, dims.data(), data, datatype);
+    ::operator delete(data);
 
-        datatype = H5T_NATIVE_ULLONG;
-        data= ::operator new(sizeof(unsigned long long)*(opt.Ngeneratehalos));
-        dims.resize(1);dims[0]=opt.Ngeneratehalos;
-        for (auto i=0;i<opt.Ngeneratehalos;i++) {
-            ((unsigned long long*)data)[i]=Gaus[i].npoints;
-        }
-        Fhdf.write_dataset(opt, "/PartType1/Gaussians/N", opt.Ngeneratehalos, data, datatype);
-        ::operator delete(data);
+    datatype = H5T_NATIVE_ULLONG;
+    data= ::operator new(sizeof(unsigned long long)*(opt.Ngeneratehalos));
+    dims.resize(1);dims[0]=opt.Ngeneratehalos;
+    for (auto i=0;i<opt.Ngeneratehalos;i++) {
+        ((unsigned long long*)data)[i]=Gaus[i].npoints;
+    }
+    Fhdf.write_dataset(opt, "PartType1/Gaussians/N", opt.Ngeneratehalos, data, datatype);
+    ::operator delete(data);
 
-        datatype = H5T_NATIVE_FLOAT;
-        data= ::operator new(sizeof(float)*(opt.Ngeneratehalos));
-        dims.resize(1);dims[0]=opt.Ngeneratehalos;
-        for (auto i=0;i<opt.Ngeneratehalos;i++) {
-            ((float*)data)[i]=Gaus[i].sigX;
-        }
-        Fhdf.write_dataset(opt, "/PartType1/Gaussians/sigX", opt.Ngeneratehalos, data, datatype);
-        for (auto i=0;i<opt.Ngeneratehalos;i++) {
-            ((float*)data)[i]=Gaus[i].sigV;
-        }
-        Fhdf.write_dataset(opt, "/PartType1/Gaussians/sigV", opt.Ngeneratehalos, data, datatype);
-        ::operator delete(data);
+    datatype = H5T_NATIVE_FLOAT;
+    data= ::operator new(sizeof(float)*(opt.Ngeneratehalos));
+    dims.resize(1);dims[0]=opt.Ngeneratehalos;
+    for (auto i=0;i<opt.Ngeneratehalos;i++) {
+        ((float*)data)[i]=Gaus[i].sigX;
+    }
+    Fhdf.write_dataset(opt, "PartType1/Gaussians/sigX", opt.Ngeneratehalos, data, datatype);
+    for (auto i=0;i<opt.Ngeneratehalos;i++) {
+        ((float*)data)[i]=Gaus[i].sigV;
+    }
+    Fhdf.write_dataset(opt, "PartType1/Gaussians/sigV", opt.Ngeneratehalos, data, datatype);
+    ::operator delete(data);
 
-        Fhdf.close();
-
-        LOG(info)<<" Done writing "<<local_timer;
+    Fhdf.close();
+    LOG(info)<<" Done writing "<<local_timer;
 #endif
 }
 
