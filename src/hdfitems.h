@@ -77,7 +77,7 @@
 
 ///\defgroup HDFNAMES labels for HDF naming conventions
 //@{
-#define HDFNUMNAMETYPES  9
+#define HDFNUMNAMETYPES  11
 #define HDFILLUSTISNAMES 0
 #define HDFGADGETXNAMES  1
 #define HDFEAGLENAMES    2
@@ -88,6 +88,7 @@
 #define HDFOLDSWIFTEAGLENAMES    8
 #define HDFEAGLEVERSION2NAMES    7
 #define HDFSWIFTFLAMINGONAMES    9
+#define HDFVRGENERATEDINPUTNAMES    10
 //@}
 
 ///size of chunks in hdf files for Compression
@@ -305,7 +306,7 @@ static inline hid_t HDF5OpenFile(string name, unsigned int flags){
 }
 
 static inline hid_t HDF5OpenGroup(const hid_t &file, string name){
-    LOG_RANK0(debug) << "Opening Group " << name << '/' << name;
+    LOG_RANK0(debug) << "Opening Group " << name ;
     hid_t idval = safe_hdf5(H5Gopen, file, name.c_str(), H5P_DEFAULT);
     return idval;
 }
@@ -651,7 +652,8 @@ struct HDF_Group_Names {
     HDF_Group_Names(int hdfnametype=HDFEAGLENAMES){
         switch (hdfnametype) {
           case HDFSWIFTEAGLENAMES:
-	  case HDFSWIFTFLAMINGONAMES:
+    	  case HDFSWIFTFLAMINGONAMES:
+    	  case HDFVRGENERATEDINPUTNAMES:
             Header_name=string("Header");
             GASpart_name=string("PartType0");
             DMpart_name=string("PartType1");
@@ -760,6 +762,21 @@ struct HDF_Header {
             names[itemp++]=string("Cosmology/w_a");
             break;
           case HDFOLDSWIFTEAGLENAMES:
+            names[itemp++]=string("Header/BoxSize");
+            names[itemp++]=string("Header/MassTable");
+            names[itemp++]=string("Header/NumPart_ThisFile");
+            names[itemp++]=string("Header/NumPart_Total");
+            names[itemp++]=string("Header/NumPart_Total_HighWord");
+            names[itemp++]=string("Cosmology/Omega_m");
+            names[itemp++]=string("Cosmology/Omega_lambda");
+            names[itemp++]=string("Header/Redshift");
+            names[itemp++]=string("Header/Time");
+            names[itemp++]=string("Header/NumFilesPerSnapshot");
+            names[itemp++]=string("Cosmology/h");
+            names[itemp++]=string("Cosmology/Cosmological run");
+            break;
+
+          case HDFVRGENERATEDINPUTNAMES:
             names[itemp++]=string("Header/BoxSize");
             names[itemp++]=string("Header/MassTable");
             names[itemp++]=string("Header/NumPart_ThisFile");
@@ -1195,6 +1212,7 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
     string stringbuff, dataname;
     string swift_str = "SWIFT";
     vector<unsigned int> vuintbuff;
+    vector<unsigned long long> vulongbuff;
     int j,k;
     Int_t nbodies=0;
 
@@ -1216,7 +1234,7 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
         Fhdf = H5Fopen(buf.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
         LOG(info) << "Loading HDF header info in header group: " << hdf_gnames.Header_name;
 
-        if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES) {
+        if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES || opt.ihdfnameconvention == HDFVRGENERATEDINPUTNAMES) {
 
             // Check if it is a SWIFT snapshot.
             dataname = string("Header/Code");
@@ -1255,11 +1273,19 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
 #endif
             }
         }
-
-        vuintbuff=read_attribute_v<unsigned int>(Fhdf, hdf_header_info.names[hdf_header_info.INumTot]);
-        for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotal[j]=vuintbuff[j];
-        vuintbuff=read_attribute_v<unsigned int>(Fhdf, hdf_header_info.names[hdf_header_info.INumTotHW]);
-        for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotalHW[j]=vuintbuff[j];
+        if (opt.ihdfnameconvention == HDFVRGENERATEDINPUTNAMES) 
+        {
+            vulongbuff=read_attribute_v<unsigned long long>(Fhdf, hdf_header_info.names[hdf_header_info.INumTot]);
+            for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotal[j]=vulongbuff[j];
+            for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotalHW[j] = static_cast<unsigned int>((vulongbuff[j] - hdf_header_info.npartTotal[k]) >> 32);
+        }
+        else 
+        {
+            vuintbuff=read_attribute_v<unsigned int>(Fhdf, hdf_header_info.names[hdf_header_info.INumTot]);
+            for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotal[j]=vuintbuff[j];
+            vuintbuff=read_attribute_v<unsigned int>(Fhdf, hdf_header_info.names[hdf_header_info.INumTotHW]);
+            for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotalHW[j]=vuintbuff[j];
+        }
 
         if (opt.partsearchtype==PSTALL) {
             if (opt.iusestarparticles && hdf_header_info.npartTotalHW[HDFSTARTYPE] == 0 && hdf_header_info.npartTotal[HDFSTARTYPE] == 0)
@@ -1292,89 +1318,13 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
 #endif
         }
     }
-    /*
-    catch(GroupIException &error)
-    {
-        HDF5PrintError(error);
-        cerr<<"Error in group might suggest config file has the incorrect HDF naming convention. ";
-        cerr<<"Check HDF_name_convetion or add new naming convention updating hdfitems.h in the source code. "<<endl;
-        Fhdf.close();
-#ifdef USEMPI
-        MPI_Abort(MPI_COMM_WORLD,8);
-#else
-        exit(8);
-#endif
-    }
-    // catch failure caused by the H5File operations
-    catch( FileIException &error )
-    {
-      HDF5PrintError(error);
-      cerr<<"Error reading file. Exiting "<<endl;
-      Fhdf.close();
-#ifdef USEMPI
-      MPI_Abort(MPI_COMM_WORLD,8);
-#else
-      exit(8);
-#endif
-    }
-    // catch failure caused by the DataSet operations
-    catch( DataSetIException &error )
-    {
-      HDF5PrintError(error);
-      cerr<<"Error in data set might suggest config file has the incorrect HDF naming convention. ";
-      cerr<<"Check HDF_name_convetion or update hdfio.cxx in the source code to read correct format"<<endl;
-      Fhdf.close();
-#ifdef USEMPI
-      MPI_Abort(MPI_COMM_WORLD,8);
-#else
-      exit(8);
-#endif
-    }
-    // catch failure caused by the DataSpace operations
-    catch( DataSpaceIException &error )
-    {
-      HDF5PrintError(error);
-      cerr<<"Error in data space might suggest config file has the incorrect HDF naming convention. ";
-      cerr<<"Check HDF_name_convetion or update hdfio.cxx in the source code to read correct format"<<endl;
-      Fhdf.close();
-#ifdef USEMPI
-      MPI_Abort(MPI_COMM_WORLD,8);
-#else
-      exit(8);
-#endif
-    }
-    // catch failure caused by the DataSpace operations
-    catch( DataTypeIException &error )
-    {
-      HDF5PrintError(error);
-      cerr<<"Error in data type might suggest need to update hdfio.cxx in the source code to read correct format"<<endl;
-      Fhdf.close();
-#ifdef USEMPI
-      MPI_Abort(MPI_COMM_WORLD,8);
-#else
-      exit(8);
-#endif
-    }
-    // catch failure caused by missing attribute
-    catch( invalid_argument error )
-    {
-      if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES) {
-        cerr<<"Reading SWIFT EAGLE HDF5 file: "<<error.what()<<endl;
-#ifdef USEMPI
-        MPI_Abort(MPI_COMM_WORLD, 8);
-#else
-        exit(8);
-#endif
-      }
-    }
-    Fhdf.close();
-    */
     HDF5CloseFile(Fhdf);
 
-    for(j=0, nbodies=0; j<nusetypes; j++) {
+    for(j=0, nbodies=0; j<nusetypes; j++) 
+    {
         k=usetypes[j];
         nbodies+=hdf_header_info.npartTotal[k];
-        nbodies+=((long long)(hdf_header_info.npartTotalHW[k]) << 32);
+        nbodies+=(static_cast<unsigned long long>(hdf_header_info.npartTotalHW[k]) << 32);
     }
     return nbodies;
 
@@ -1411,36 +1361,6 @@ inline Int_t HDF_get_nfiles(char *fname, int ptype)
         //get header group
         hdf_header_info.num_files = read_attribute<int>(Fhdf, hdf_header_info.names[hdf_header_info.INumFiles]);
     }
-    /*
-    catch(GroupIException &error)
-    {
-        HDF5PrintError(error);
-    }
-    // catch failure caused by the H5File operations
-    catch( FileIException &error )
-    {
-        HDF5PrintError(error);
-    }
-    // catch failure caused by the DataSet operations
-    catch( DataSetIException &error )
-    {
-        HDF5PrintError(error);
-        ireaderror=1;
-    }
-    // catch failure caused by the DataSpace operations
-    catch( DataSpaceIException &error )
-    {
-        HDF5PrintError(error);
-        ireaderror=1;
-    }
-    // catch failure caused by the DataSpace operations
-    catch( DataTypeIException &error )
-    {
-        HDF5PrintError(error);
-        ireaderror=1;
-    }
-    Fhdf.close();
-    */
     HDF5CloseFile(Fhdf);
 
     return nfiles = hdf_header_info.num_files;

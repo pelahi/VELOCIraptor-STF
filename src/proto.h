@@ -871,6 +871,8 @@ void ReorderGroupIDsAndHaloDatabyValue(const Int_t numgroups, const Int_t newnum
 //@{
 
 int CompareInt(const void *, const void *);
+template<class T> std::vector<double> statsofdata(std::vector<T> data);
+
 ///Get memory use
 namespace vr {
 

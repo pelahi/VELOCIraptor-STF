@@ -202,6 +202,7 @@ void H5OutputFile::write_dataset_nd(Options opt, std::string name,
     bool flag_parallel)
 {
     bool write_in_parallel = flag_parallel && opt.mpinprocswritesize > 1;
+    bool notempty = (dims[0] > 0);
     assert(ndims > 0);
 
     if (verbose && LOG_ENABLED(debug)) {
@@ -260,6 +261,7 @@ void H5OutputFile::write_dataset_nd(Options opt, std::string name,
                 offsets[0] += first_dim_size;
             }
         }
+        notempty = (extended_dims[0] > 0);
     }
 #endif
 
@@ -299,7 +301,8 @@ void H5OutputFile::write_dataset_nd(Options opt, std::string name,
         safe_hdf5(H5Pset_dxpl_mpio, prop_id, H5FD_MPIO_COLLECTIVE);
     }
 #endif // USEPARALLELHDF
-    write_in_chunks(data, dims, offsets, dset_id, prop_id, filespace_id, memtype_id, write_in_parallel, verbose);
+    // only write if dataset not empty 
+    if (notempty) write_in_chunks(data, dims, offsets, dset_id, prop_id, filespace_id, memtype_id, write_in_parallel, verbose);
 
     // Clean up (note that dtype_id is NOT a new object so don't need to close it)
     safe_hdf5(H5Pclose, prop_id);

@@ -26,6 +26,44 @@ int CompareInt(const void *p1, const void *p2) {
       return (val1 - val2);
 }
 
+//find min/max, average and std and quantiles of some input data
+//because data is sorted, make a copy of input vector
+template<class T> std::vector<double> statsofdata(std::vector<T> data) 
+{
+    auto N = data.size();
+    sort(data.begin(), data.end());
+    unsigned long long numwithzero=0;
+    double avevalue = 0, stdvalue = 0;
+    for (auto &x:data) {
+        numwithzero += (x == 0);
+        avevalue += x;
+        stdvalue += x*x;
+    }
+    avevalue /= static_cast<float>(N);
+    stdvalue = sqrt((stdvalue - avevalue*avevalue)/(N - 1.0));
+    // store num with zero, ave, std, and (min,2.5,16,50,86,97.5,max)
+    vector<double> stats(10);
+    stats[0] = numwithzero;
+    stats[1] = avevalue;
+    stats[2] = stdvalue;
+    stats[3] = data[0];
+    stats[4] = data[static_cast<int>(std::floor(0.025*N))];
+    stats[5] = data[static_cast<int>(std::floor(0.160*N))];
+    stats[6] = data[static_cast<int>(std::floor(0.500*N))];
+    stats[7] = data[static_cast<int>(std::floor(0.860*N))];
+    stats[8] = data[static_cast<int>(std::floor(0.975*N))];
+    stats[9] = data[N-1];
+    return stats;
+}
+template std::vector<double> statsofdata<float>(std::vector<float> data) ;
+template std::vector<double> statsofdata<double>(std::vector<double> data) ;
+template std::vector<double> statsofdata<long long>(std::vector<long long> data);
+template std::vector<double> statsofdata<unsigned long long>(std::vector<unsigned long long> data);
+template std::vector<double> statsofdata<unsigned int>(std::vector<unsigned int> data) ;
+template std::vector<double> statsofdata<int>(std::vector<int> data) ;
+
+
+
 /// get the memory use looking at the task
 namespace vr {
     memory_usage get_memory_usage() {
@@ -185,7 +223,7 @@ void report_binding()
 
         }
     }
-    LOG(info)<<binding_report;
+    LOG(debug)<<binding_report;
 #ifdef USEMPI
     MPI_Barrier(MPI_COMM_WORLD);
 #endif

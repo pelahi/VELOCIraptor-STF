@@ -59,36 +59,6 @@ void MPIDomainExtentHDF(Options &opt){
                 hdf_header_info.BoxSize = read_attribute<double>(Fhdf, hdf_header_info.names[hdf_header_info.IBoxSize]);
             }
         }
-        /*
-        catch(GroupIException error)
-        {
-            HDF5PrintError(error);
-        }
-        // catch failure caused by the H5File operations
-        catch( FileIException error )
-        {
-            HDF5PrintError(error);
-        }
-        // catch failure caused by the DataSet operations
-        catch( DataSetIException error )
-        {
-            HDF5PrintError(error);
-            ireaderror=1;
-        }
-        // catch failure caused by the DataSpace operations
-        catch( DataSpaceIException error )
-        {
-            HDF5PrintError(error);
-            ireaderror=1;
-        }
-        // catch failure caused by the DataSpace operations
-        catch( DataTypeIException error )
-        {
-            HDF5PrintError(error);
-            ireaderror=1;
-        }
-        Fhdf.close();
-        */
         H5Fclose(Fhdf);
         for (int i=0;i<3;i++) {mpi_xlim[i][0]=0;mpi_xlim[i][1]=hdf_header_info.BoxSize;}
     }
@@ -220,8 +190,8 @@ void MPINumInDomainHDF(Options &opt)
 #endif
             //get number in file
             if (opt.ihdfnameconvention==HDFSWIFTEAGLENAMES || opt.ihdfnameconvention==HDFOLDSWIFTEAGLENAMES ||
-		opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES) {
-	      
+		opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES || opt.ihdfnameconvention == HDFVRGENERATEDINPUTNAMES) 
+            {
                 vlongbuff = read_attribute_v<long long>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INuminFile]);
                 for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npart[k]=vlongbuff[k];
             }
@@ -234,7 +204,6 @@ void MPINumInDomainHDF(Options &opt)
             if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
                  for (j=1;j<=nbusetypes;j++) {k=usetypes[j];partsgroup[i*NHDFTYPE+k]=HDF5OpenGroup(Fhdf[i],hdf_gnames.part_names[k]);}
             }
-
             //get positions
             for (j=0;j<nusetypes;j++) {
                 k=usetypes[j];
@@ -329,7 +298,6 @@ void MPINumInDomainHDF(Options &opt)
     delete[] doublebuff;
     delete[] Nbuf;
     delete[] Nbaryonbuf;
-
 }
 
 //@}

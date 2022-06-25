@@ -755,6 +755,8 @@ struct Options
 
     /// minimum number of top-level cells
     int minnumcellperdim = 8;
+    /// maximum number of top-level cells per dim 
+    int maxnumcellperdim = 1024;
 
 
     /* Locations of top-level cells. */

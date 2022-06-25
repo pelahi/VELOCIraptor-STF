@@ -203,10 +203,10 @@ void MPIInitialDomainDecomposition(Options &opt)
 
 void MPIInitialDomainDecompositionWithMesh(Options &opt){
     if (ThisTask==0) {
-        //each processor takes subsection of volume where use simple 2^(ceil(log(NProcs)/log(2))) subdivision
-        opt.numcellsperdim = max((int)pow(2,(int)ceil(log((float)NProcs)/log(2.0))), opt.minnumcellperdim);
+        //each processor takes subsection of volume where use simple 2^(ceil(log(NProcs)/log(2))) subdivision up to a maximum of 1024 per dim
+        // opt.numcellsperdim = min(max(static_cast<int>(pow(2,static_cast<unsigned int>(ceil(log((float)NProcs)/log(2.0))))), opt.minnumcellperdim), 1024);
         //each processor takes subsection of volume where use simple NProcs^(1/3) subdivision
-        // opt.numcellsperdim = max((int)ceil(pow((double)NProcs,(double)(1.0/3.0)))*8, opt.minnumcellperdim);
+        opt.numcellsperdim = min(static_cast<int>(ceil(pow(static_cast<double>(NProcs),1.0/3.0)))*opt.minnumcellperdim, opt.maxnumcellperdim);
         unsigned int n3 = opt.numcells = opt.numcellsperdim*opt.numcellsperdim*opt.numcellsperdim;
         double idelta = 1.0/(double)opt.numcellsperdim;
         for (auto i=0; i<3; i++) {
@@ -225,6 +225,7 @@ void MPIInitialDomainDecompositionWithMesh(Options &opt){
         };
         vector<zcurvestruct> zcurve(n3);
         unsigned long long index;
+        /// \todo Speed up zcurve calculation
         for (auto ix=0;ix<opt.numcellsperdim;ix++) {
             for (auto iy=0;iy<opt.numcellsperdim;iy++) {
                 for (auto iz=0;iz<opt.numcellsperdim;iz++) {
@@ -270,10 +271,11 @@ void MPIInitialDomainDecompositionWithMesh(Options &opt){
         }
         LOG(info) << "Z-curve Mesh MPI decomposition:";
         LOG(info) << " Mesh has resolution of " << opt.numcellsperdim << " per spatial dim";
+        LOG(info) << " spanning box of ("<< opt.spacedimension[0] << ", " << opt.spacedimension[1] << ", " << opt.spacedimension[2] << ")";
         LOG(info) << " with each mesh spanning (" << opt.cellwidth[0] << ", " << opt.cellwidth[1] << ", " << opt.cellwidth[2] << ")";
         LOG(info) << "MPI tasks :";
         for (auto i=0; i<NProcs; i++) {
-            LOG(info) << " Task "<< i << " has " << numcellspertask[i] / double(n3) << " of the volume";
+            LOG(info) << " Task "<< i << " has " << static_cast<double>(numcellspertask[i]) / static_cast<double>(n3)*100 << " % of the volume";
         }
     }
     //broadcast data
@@ -292,46 +294,66 @@ void MPIInitialDomainDecompositionWithMesh(Options &opt){
 
 }
 
-//find min/max, average and std
-inline double MPILoadBalanceWithMesh(Options &opt) {
+//find stats of mpi load balance with mesh
+inline double MPILoadBalanceWithMesh(std::vector<unsigned long long> &mpinumparts, int verbosity) {
     //calculate imbalance based on min and max in mpi domains
-    vector<Int_t> mpinumparts(NProcs, 0);
+    auto stats = statsofdata(mpinumparts);
+    if (verbosity >=1)
+    {
+        LOG_RANK0(debug)<< "The MPI particle stats are "<<stats[1]<<" +/- "<<stats[2]<<" with number of MPI with zero "<<stats[0];
+        LOG_RANK0(debug)<< "Quantiles (min,2.5,16,50,86,97.5,max) = "
+        <<stats[3]<<" "
+        <<stats[4]<<" "
+        <<stats[5]<<" "
+        <<stats[6]<<" "
+        <<stats[7]<<" "
+        <<stats[8]<<" "
+        <<stats[9];
+    }
+    return (stats[9] - stats[3])/stats[1];
+}
+inline double MPILoadBalanceWithMesh(Options &opt) {
+    vector<unsigned long long> mpinumparts(NProcs, 0);
     for (auto i=0;i<opt.numcells;i++)
     {
         auto itask = opt.cellnodeids[i];
         mpinumparts[itask] += opt.cellnodenumparts[i];
     }
-    double minval, maxval, ave, std, sum;
-    minval = maxval = mpinumparts[0];
-    ave = std = sum = 0;
-    for (auto &x:mpinumparts) {
-        if (minval > x) minval = x;
-        if (maxval < x) maxval = x;
-        ave += x;
-        std += x*x;
-    }
-    ave /= (double)NProcs;
-    std /= (double)NProcs;
-    std = sqrt(std - ave*ave);
-    return (maxval-minval)/ave;
+    return MPILoadBalanceWithMesh(mpinumparts, opt.iverbose);
+}
+inline void MPIMeshInfo(Options &opt) {
+    
+    if (opt.iverbose <1) return; 
+    auto stats = statsofdata(opt.cellnodenumparts);
+    LOG_RANK0(debug)<< "The cell stats are "<<stats[1]<<" +/- "<<stats[2]<<" with cells with zero "<<stats[0];
+    LOG_RANK0(debug)<< "Quantiles (min,2.5,16,50,86,97.5,max) = "
+    <<stats[3]<<" "
+    <<stats[4]<<" "
+    <<stats[5]<<" "
+    <<stats[6]<<" "
+    <<stats[7]<<" "
+    <<stats[8]<<" "
+    <<stats[9];
 }
 
+
 bool MPIRepartitionDomainDecompositionWithMesh(Options &opt){
-    Int_t *buff = new Int_t[opt.numcells];
+    unsigned long long *buff = new unsigned long long[opt.numcells];
     for (auto i=0;i<opt.numcells;i++) buff[i]=0;
-    MPI_Allreduce(opt.cellnodenumparts.data(), buff, opt.numcells, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(opt.cellnodenumparts.data(), buff, opt.numcells, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
     for (auto i=0;i<opt.numcells;i++) opt.cellnodenumparts[i]=buff[i];
     delete[] buff;
-    double optimalave = 0; for (auto i=0;i<opt.numcells;i++) optimalave += opt.cellnodenumparts[i];
-    optimalave /= (double)NProcs;
+    MPIMeshInfo(opt);
+    unsigned long long optimalave = 0; for (auto i=0;i<opt.numcells;i++) optimalave += opt.cellnodenumparts[i];
+    optimalave /= static_cast<unsigned long long>(NProcs);
     auto loadimbalance = MPILoadBalanceWithMesh(opt);
-    LOG_RANK0(info) << "MPI imbalance of " << loadimbalance;
+    LOG_RANK0(info) << "MPI imbalance of " << loadimbalance << "with optimal value of particles per MPI rank of "<<optimalave; ;
     if (loadimbalance > opt.mpimeshimbalancelimit) {
         LOG_RANK0(info) << "Imbalance too large, adjusting MPI domains ...";
         int itask = 0;
-        Int_t numparts = 0 ;
-        vector<int> numcellspertask(NProcs,0);
-        vector<int> mpinumparts(NProcs,0);
+        unsigned long long numparts = 0 ;
+        vector<unsigned long long> numcellspertask(NProcs,0);
+        vector<unsigned long long> mpinumparts(NProcs,0);
         for (auto i=0;i<opt.numcells;i++)
         {
             auto index = opt.cellnodeorder[i];
@@ -346,24 +368,30 @@ bool MPIRepartitionDomainDecompositionWithMesh(Options &opt){
         }
         mpinumparts[NProcs-1] = numparts;
         if (ThisTask == 0) {
+            auto loadbalance = MPILoadBalanceWithMesh(mpinumparts, opt.iverbose);
+            LOG(info) << "Now have MPI imbalance of " << loadbalance;
+            LOG(info) << "MPI tasks:";
+            auto sum = 0 ;
+            unsigned long long ntotsum = 0;
+            for (auto i=0; i<NProcs; i++) Ntotal += mpinumparts[i];
+            for (auto i=0; i<NProcs; i++) {
+                sum += numcellspertask[i];
+                ntotsum += mpinumparts[i];
+                LOG(info) << " Task " << i << " has " << numcellspertask[i] 
+                << " corresponding to "<< numcellspertask[i]/ static_cast<double>(opt.numcells)*100.0 << "% of the volume " 
+                << " using up total of " << sum/ static_cast<double>(opt.numcells)*100.0 << "% of volume with "
+                <<mpinumparts[i]<<" particles with % total of " << ntotsum / static_cast<double>(Ntotal)*100.0;
+            }
+
             for (auto x:mpinumparts) if (x == 0) {
                 LOG(error) << "MPI Process has zero particles associated with it, likely due to too many mpi tasks requested or too coarse a mesh used.";
                 LOG(error) << "Current number of tasks: " << NProcs;
                 LOG(error) << "Current mesh resolution " << opt.numcellsperdim << "^3";
-                Int_t sum = 0;
-                for (auto x:opt.cellnodenumparts) {
-                    sum +=x;
-                }
                 LOG(error) << "Total number of particles loaded " << sum;
                 LOG(error) << "Suggested number of particles per mpi processes is > 1e7";
-                LOG(error) << "Suggested number of mpi processes using 1e7 is " << (int)ceil(sum / 1e7);
+                LOG(error) << "Suggested number of mpi processes using 1e7 is " << static_cast<unsigned long long>(ceil(ntotsum / 1e7));
                 LOG(error) << "Increase mesh resolution or reduce MPI Processes ";
                 MPI_Abort(MPI_COMM_WORLD,8);
-            }
-            LOG(info) << "Now have MPI imbalance of " << MPILoadBalanceWithMesh(opt);
-            LOG(info) << "MPI tasks:";
-            for (auto i=0; i<NProcs; i++) {
-                LOG(info) << " Task " << i << " has " << numcellspertask[i] / double(opt.numcells) << " of the volume";
             }
         }
         for (auto &x:opt.cellnodenumparts) x=0;

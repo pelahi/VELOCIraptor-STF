@@ -700,6 +700,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 #ifdef USEADIOS
     else if (opt.ibinaryout==OUTADIOS) adios_err=adios_close(adios_file_handle);
 #endif
+    LOG(info) << "Done saving catalog to " << fname;
 
     //now write pid files
     os.str(string());
@@ -733,7 +734,7 @@ void WriteGroupCatalog(Options &opt, const Int_t ngroups, Int_t *numingroup, Int
 #endif
     fname3 = os.str();
 
-    LOG(info) << "Saving particle catalog to " << fname;
+    LOG(info) << "Saving particle catalog to " << fname << " and "<< fname3;
 
     if (opt.ibinaryout==OUTBINARY) {
         Fout.open(fname,ios::out|ios::binary);
