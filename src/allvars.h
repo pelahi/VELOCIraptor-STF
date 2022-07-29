@@ -1049,6 +1049,8 @@ struct Options
     Int_t Ngeneratehalos = 0;
     float fbackground = 0;
     double mpgenerate = 0;
+    int generate_Niter = 1;
+    bool igenerate_output = true; 
     //@}
     //silly flag to store whether input has little h's in it.
     bool inputcontainslittleh = true;

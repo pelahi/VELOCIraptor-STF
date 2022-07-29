@@ -170,7 +170,7 @@ void GetArgs(int argc, char *argv[], Options &opt)
     int option;
     int NumArgs = 0;
     int configflag=0;
-    while ((option = getopt(argc, argv, ":C:I:i:s:Z:o:G:S:B:t:g:n:h:f:m:v:")) != EOF)
+    while ((option = getopt(argc, argv, ":C:I:i:s:Z:o:G:S:B:t:g:n:h:f:m:v:P:O:")) != EOF)
     {
         switch(option)
         {
@@ -213,6 +213,14 @@ void GetArgs(int argc, char *argv[], Options &opt)
                 break;
             case 't':
                 opt.ramsessnapname = optarg;
+                NumArgs += 2;
+                break;
+            case 'O':
+                opt.igenerate_output = atoi(optarg);
+                NumArgs += 2;
+                break;
+            case 'P':
+                opt.generate_Niter = atoi(optarg);
                 NumArgs += 2;
                 break;
             case 'g':

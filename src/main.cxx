@@ -217,9 +217,11 @@ int run(int argc,char **argv)
     if (opt.iBaryonSearch>0) MPI_Bcast(&nbaryons,1, MPI_Int_t,0,MPI_COMM_WORLD);
     //initial estimate need for memory allocation assuming that work balance is not greatly off
 #endif
-    LOG_RANK0(info) << "There are " << nbodies << " particles in total that require " << vr::memory_amount(nbodies * sizeof(Particle));
+    unsigned long long mbytes = static_cast<unsigned long long>(nbodies) * static_cast<unsigned long long>(sizeof(Particle));
+    LOG_RANK0(info) << "There are " << nbodies << " particles in total that require " <<vr::memory_amount(mbytes);
     if (opt.iBaryonSearch > 0) {
-        LOG_RANK0(info) << "There are " << nbaryons << " baryon particles in total that require " << vr::memory_amount(nbaryons * sizeof(Particle));
+        mbytes = nbaryons * static_cast<unsigned long long>(sizeof(Particle));
+        LOG_RANK0(info) << "There are " << nbaryons << " baryon particles in total that require " << vr::memory_amount(mbytes);
     }
 
     //note that for nonmpi particle array is a contiguous block of memory regardless of whether a separate baryon search is required
@@ -246,6 +248,11 @@ int run(int argc,char **argv)
         //if allocating reasonable amounts of memory, use MPIREDUCEMEM
         //this determines number of particles in the mpi domains
         MPINumInDomain(opt);
+
+    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Finalize();
+    exit(0);
+
         LOG(info) << "There are " << Nlocal << " particles and have allocated enough memory for "
                   << Nmemlocal << " requiring " << vr::memory_amount(Nmemlocal * sizeof(Particle));
         if (opt.iBaryonSearch > 0) {
@@ -271,6 +278,7 @@ int run(int argc,char **argv)
     }
     LOG(info) << "Will also require additional memory for FOF algorithms and substructure search. "
               << "Largest mem needed for preliminary FOF search. Rough estimate is " << vr::memory_amount(Nlocal * sizeof(Int_tree_t) * 8);
+
     if (opt.iBaryonSearch>0 && opt.partsearchtype!=PSTALL) {
         Part.resize(Nmemlocal+Nmemlocalbaryon);
         Pbaryons=&(Part.data()[Nlocal]);

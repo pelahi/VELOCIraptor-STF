@@ -206,7 +206,9 @@ void MPIInitialDomainDecompositionWithMesh(Options &opt){
         //each processor takes subsection of volume where use simple 2^(ceil(log(NProcs)/log(2))) subdivision up to a maximum of 1024 per dim
         // opt.numcellsperdim = min(max(static_cast<int>(pow(2,static_cast<unsigned int>(ceil(log((float)NProcs)/log(2.0))))), opt.minnumcellperdim), 1024);
         //each processor takes subsection of volume where use simple NProcs^(1/3) subdivision
-        opt.numcellsperdim = min(static_cast<int>(ceil(pow(static_cast<double>(NProcs),1.0/3.0)))*opt.minnumcellperdim, opt.maxnumcellperdim);
+        if (opt.numcellsperdim == 0) {
+            opt.numcellsperdim = min(static_cast<int>(ceil(pow(static_cast<double>(NProcs),1.0/3.0)))*opt.minnumcellperdim, opt.maxnumcellperdim);
+        }
         unsigned int n3 = opt.numcells = opt.numcellsperdim*opt.numcellsperdim*opt.numcellsperdim;
         double idelta = 1.0/(double)opt.numcellsperdim;
         for (auto i=0; i<3; i++) {

@@ -20,7 +20,8 @@ void GenerateInput(Options &opt, vector<Particle> &Part) {
 #endif
     if (opt.iGenerateInput == false) return;
     vr::Timer total_timer;
-    LOG(info)<<" Generating Input ... ";
+    vector<GaussianDistrib> Gaus;
+    LOG_RANK0(info)<<" Generating Input ... ";
     opt.Ngenerate = pow(opt.Ngenerate, 3.0);
     //set some cosmology
     opt.h = 1;
@@ -54,7 +55,7 @@ void GenerateInput(Options &opt, vector<Particle> &Part) {
     opt.mpgenerate = opt.rhobg * pow(opt.p, 3.0)/opt.Ngenerate;
 
     Nlocal = opt.Ngenerate/NProcs;
-    opt.Ngeneratehalos = opt.Ngeneratehalos/(float)NProcs;
+    opt.Ngeneratehalos = opt.Ngeneratehalos/static_cast<double>(NProcs);
     if (NProcs > 1) {
         if (ThisTask == NProcs - 1)
         {
@@ -62,23 +63,40 @@ void GenerateInput(Options &opt, vector<Particle> &Part) {
         }
     }
     opt.Nbackground = opt.fbackground * opt.Ngenerate;
-    LOG(info)<<" producing positions for "<<opt.Ngenerate<<" particles, echo of size "<<sizeof(Particle)<<" requiring "<<opt.Ngenerate*sizeof(Particle)/1024./1024./1024.<<" GB of memory";
+    LOG_RANK0(info)<<" producing positions for "<<opt.Ngenerate<<" particles, echo of size "<<sizeof(Particle)<<" requiring "<<opt.Ngenerate*sizeof(Particle)/1024./1024./1024.<<" GB of memory";
+    LOG_RANK0(info)<<" Number of iterations "<<opt.generate_Niter<<" and produce output "<<opt.igenerate_output;
+    for (auto iter=0;iter<opt.generate_Niter;iter++) {
+    LOG_RANK0(info)<<" Iteration "<<iter;
     Part.resize(Nlocal);
     for (auto p:Part) p.SetMass(opt.mpgenerate);
     LOG(info) << GetMemUsage(__func__+string("--line--")+to_string(__LINE__));
 
-    vector<GaussianDistrib> Gaus = ProduceGaussians(opt, Part);
+    Gaus = ProduceGaussians(opt, Part);
     Int_t npoints = 0;
     for (auto &x:Gaus) npoints += x.npoints;
     //update the background number of points
     opt.Nbackground = Nlocal - npoints;
-    LOG(info)<<" producing positions for "<<opt.Ngeneratehalos<<" locally containing "<<npoints<<" particles and a background of "<<opt.Nbackground;
-#ifdef USEMPI
-#endif
-    opt.fbackground = opt.Nbackground/(double)opt.Ngenerate;
+    LOG(info)<<" producing positions for "<<opt.Ngeneratehalos<<" halos containing total of "<<npoints<<" particles and a background of "<<opt.Nbackground;
+    opt.fbackground = opt.Nbackground/static_cast<double>(Nlocal);
     PopulateGaussians(opt, Part, Gaus);
     ProduceBackground(opt, Part, npoints);
-    WriteGeneratedInput(opt, Part, Gaus);
+    #ifdef USEMPI
+    opt.numcellsperdim=320;
+    for (auto i=0;i<3;i++) {
+        mpi_xlim[i][1] = opt.p;  
+        mpi_xlim[i][0] = 0;
+    }
+    MPIInitialDomainDecompositionWithMesh(opt);
+    PlaceGeneratedInMesh(opt, Part);
+    #endif
+    if (iter != opt.generate_Niter -1) {
+        Part.clear();
+        Part.shrink_to_fit();
+        Gaus.clear();
+        Gaus.shrink_to_fit();
+    }
+    }
+    if (opt.igenerate_output) WriteGeneratedInput(opt, Part, Gaus);
     LOG(info)<<" Generating input: Done " << total_timer;
 #ifdef USEMPI
     MPI_Finalize();
@@ -102,7 +120,11 @@ void ProduceBackground(Options &opt, vector<Particle> &Part, Int_t noffset)
 #pragma omp parallel default(shared)
 {
 #endif
-    default_random_engine generator;
+    unsigned seed = 4320;
+    #ifdef USEMPI 
+    seed *= (ThisTask+1);
+    #endif
+    default_random_engine generator(seed);
     uniform_real_distribution<double> pos(0.0,opt.p);
     uniform_real_distribution<double> vel(-opt.H,opt.H);
     Coordinate x,v;
@@ -157,25 +179,31 @@ vector<GaussianDistrib> ProduceGaussians(Options &opt, vector<Particle> &Part)
     vector<GaussianDistrib> Gaus;
     if (opt.fbackground == 1 || opt.Ngeneratehalos == 0) return Gaus;
     Gaus.resize(opt.Ngeneratehalos);
-    Int_t maxnpart = max((opt.Ngenerate-opt.Nbackground)/(100.0*opt.Ngeneratehalos),100.0);
+    auto Ninhalos = Nlocal*(1-opt.fbackground);
+    Int_t maxnpart = max(static_cast<double>(Ninhalos)/(100*static_cast<double>(opt.Ngeneratehalos)),100.0);
     Int_t npoints = 0;
-    default_random_engine generator;
+    unsigned seed=4320;
+    #ifdef USEMPI 
+    seed *= (ThisTask+1);
+    #endif
+    default_random_engine generator(seed);
     double mmin = log(20.0), mmax = log(maxnpart);
     uniform_real_distribution<double> npart(mmin, mmax);
-    for (auto i = 0; i < opt.Ngeneratehalos; i++) {
-        if (npoints + exp(mmax)/2 > Nlocal) {
+    for (auto i = 0; i < opt.Ngeneratehalos; i++) 
+    {
+        if (npoints + exp(mmax)/2 > Ninhalos) {
             opt.Ngeneratehalos = i;
             Gaus.resize(opt.Ngeneratehalos);
             break;
         }
         do {
             Gaus[i].npoints = exp(npart(generator));
-        } while (Gaus[i].npoints + npoints > Nlocal);
+        } while (Gaus[i].npoints + npoints > Ninhalos);
         npoints += Gaus[i].npoints;
     }
 
 #if defined(USEOPENMP)
-#pragma omp parallel default(shared) private(generator)
+#pragma omp parallel default(shared) firstprivate(generator)
 {
 #endif
     uniform_real_distribution<double> pos(0.0, opt.p);
@@ -246,7 +274,11 @@ void PopulateGaussians(Options &opt, vector<Particle> &Part, vector<GaussianDist
 #pragma omp parallel default(shared)
 {
 #endif
-    default_random_engine generator;
+    unsigned seed = 4320;
+    #ifdef USEMPI 
+    seed *= (ThisTask+1);
+    #endif
+    default_random_engine generator(seed);
     normal_distribution<double> g(0.0, 1.0);
 #if defined(USEOPENMP)
     #pragma omp for schedule(static)
@@ -409,6 +441,46 @@ delete[] yy;
     LOG(info)<<GetMemUsage(__func__+string("--line--")+to_string(__LINE__));
 }
 
+/// check distribution of particles in a mesh;
+void PlaceGeneratedInMesh(Options &opt, vector<Particle> &Part)
+{
+    for (auto &p:Part) {
+        MPIGetParticlesProcessor(opt, p.X(), p.Y(), p.Z());
+    }
+    unsigned long long *buff = new unsigned long long[opt.numcells];
+    for (auto i=0;i<opt.numcells;i++) buff[i]=0;
+    MPI_Allreduce(opt.cellnodenumparts.data(), buff, opt.numcells, MPI_UNSIGNED_LONG_LONG, MPI_SUM, MPI_COMM_WORLD);
+    for (auto i=0;i<opt.numcells;i++) opt.cellnodenumparts[i]=buff[i];
+    delete[] buff;
+    auto stats = statsofdata(opt.cellnodenumparts);
+    LOG_RANK0(info)<< "The cell stats are "<<stats[1]<<" +/- "<<stats[2]<<" with cells with zero "<<stats[0];
+    LOG_RANK0(info)<< "Quantiles (min,2.5,16,50,86,97.5,max) = "
+    <<stats[3]<<" "
+    <<stats[4]<<" "
+    <<stats[5]<<" "
+    <<stats[6]<<" "
+    <<stats[7]<<" "
+    <<stats[8]<<" "
+    <<stats[9];
+
+    vector<unsigned long long> mpinumparts(NProcs, 0);
+    for (auto i=0;i<opt.numcells;i++)
+    {
+        auto itask = opt.cellnodeids[i];
+        mpinumparts[itask] += opt.cellnodenumparts[i];
+    }
+    stats = statsofdata(mpinumparts);
+    LOG_RANK0(info)<< "The MPI particle stats are "<<stats[1]<<" +/- "<<stats[2]<<" with number of MPI with zero "<<stats[0];
+    LOG_RANK0(info)<< "Quantiles (min,2.5,16,50,86,97.5,max) = "
+    <<stats[3]<<" "
+    <<stats[4]<<" "
+    <<stats[5]<<" "
+    <<stats[6]<<" "
+    <<stats[7]<<" "
+    <<stats[8]<<" "
+    <<stats[9];
+}
+
 //write a file
 void WriteGeneratedInput(Options &opt, vector<Particle> &Part, vector<GaussianDistrib> &Gaus)
 {
@@ -559,18 +631,18 @@ void WriteGeneratedInput(Options &opt, vector<Particle> &Part, vector<GaussianDi
     Fhdf.write_dataset(opt, "PartType1/ParticleIDs", Nlocal, npart.data(), datatype);
     npart.clear();
     npart.shrink_to_fit();
-    datatype = H5T_NATIVE_FLOAT;
-    data= ::operator new(sizeof(float)*(3*Nlocal));
+    datatype = H5T_NATIVE_DOUBLE;
+    data= ::operator new(sizeof(double)*(3*Nlocal));
     dims.resize(2);dims[0]=Nlocal;dims[1]=3;
     for (auto i=0;i<Nlocal;i++) {
         for (auto j=0;j<3;j++) {
-            ((float*)data)[i*3+j]=Part[i].GetPosition(j);
+            ((double*)data)[i*3+j]=Part[i].GetPosition(j);
         }
     }
     Fhdf.write_dataset_nd(opt, "PartType1/Coordinates", 2, dims.data(), data, datatype);
     for (auto i=0;i<Nlocal;i++) {
         for (auto j=0;j<3;j++) {
-            ((float*)data)[i*3l+j]=Part[i].GetVelocity(j);
+            ((double*)data)[i*3l+j]=Part[i].GetVelocity(j);
         }
     }
     Fhdf.write_dataset_nd(opt, "PartType1/Velocities", 2, dims.data(), data, datatype);
@@ -578,6 +650,8 @@ void WriteGeneratedInput(Options &opt, vector<Particle> &Part, vector<GaussianDi
     // mass.clear();
     // mass.resize(Nlocal,opt.mpgenerate);
     // Fhdf.write_dataset(opt, "/PartType1/Masses", Nlocal, mass.data(), datatype);
+    /// write the halo information 
+    datatype = H5T_NATIVE_FLOAT;
     data= ::operator new(sizeof(float)*(3*opt.Ngeneratehalos));
     dims.resize(2);dims[0]=opt.Ngeneratehalos;dims[1]=3;
     for (auto i=0;i<opt.Ngeneratehalos;i++) {

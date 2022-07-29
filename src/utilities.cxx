@@ -40,7 +40,7 @@ template<class T> std::vector<double> statsofdata(std::vector<T> data)
         stdvalue += x*x;
     }
     avevalue /= static_cast<float>(N);
-    stdvalue = sqrt((stdvalue - avevalue*avevalue)/(N - 1.0));
+    stdvalue = sqrt((stdvalue - N*avevalue*avevalue)/(N - 1.0));
     // store num with zero, ave, std, and (min,2.5,16,50,86,97.5,max)
     vector<double> stats(10);
     stats[0] = numwithzero;
