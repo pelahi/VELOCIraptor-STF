@@ -248,11 +248,6 @@ int run(int argc,char **argv)
         //if allocating reasonable amounts of memory, use MPIREDUCEMEM
         //this determines number of particles in the mpi domains
         MPINumInDomain(opt);
-
-    MPI_Barrier(MPI_COMM_WORLD);
-    MPI_Finalize();
-    exit(0);
-
         LOG(info) << "There are " << Nlocal << " particles and have allocated enough memory for "
                   << Nmemlocal << " requiring " << vr::memory_amount(Nmemlocal * sizeof(Particle));
         if (opt.iBaryonSearch > 0) {
