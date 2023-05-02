@@ -2485,6 +2485,7 @@ ConfigInfo::ConfigInfo(Options &opt){
     AddEntry("Iterate_cm_flag", opt.iIterateCM);
     AddEntry("Sort_by_binding_energy", opt.iSortByBindingEnergy);
     AddEntry("Reference_frame_for_properties", opt.iPropertyReferencePosition);
+    AddEntry("Particle_type_for_reference_frames", opt.ParticleTypeForRefenceFrame);
 
     AddEntry("Calculate_aperture_quantities", opt.iaperturecalc);
     AddEntry("Number_of_apertures", opt.aperturenum);
