@@ -1,3 +1,6 @@
+#ifndef VR_EXCEPTIONS_H
+#define VR_EXCEPTIONS_H
+
 #include <exception>
 #include <string>
 
@@ -35,3 +38,5 @@ public:
 };
 
 } // namespace vr
+
+#endif // VR_EXCEPTIONS_H
