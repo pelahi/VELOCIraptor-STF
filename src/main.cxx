@@ -58,17 +58,18 @@ void show_version_info(int argc, char *argv[])
 	mpi_info << "VELOCIratptor MPI support: ";
 #ifdef USEMPI
 	mpi_info << "yes, " << NProcs << " MPI ranks";
-	char hostname[HOST_NAME_MAX + 1];
-	::gethostname(hostname, HOST_NAME_MAX);
+	constexpr std::size_t MAX_HOSTNAME_SIZE = 100;
+	char hostname[MAX_HOSTNAME_SIZE + 1];
+	::gethostname(hostname, MAX_HOSTNAME_SIZE);
 	std::vector<char> all_hostnames;
 	if (ThisTask == 0) {
-	    all_hostnames.resize((HOST_NAME_MAX + 1)* NProcs);
+	    all_hostnames.resize((MAX_HOSTNAME_SIZE + 1)* NProcs);
 	}
-	MPI_Gather(hostname, HOST_NAME_MAX + 1, MPI_CHAR, all_hostnames.data(), HOST_NAME_MAX + 1, MPI_CHAR, 0, MPI_COMM_WORLD);
+	MPI_Gather(hostname, MAX_HOSTNAME_SIZE + 1, MPI_CHAR, all_hostnames.data(), MAX_HOSTNAME_SIZE + 1, MPI_CHAR, 0, MPI_COMM_WORLD);
 	if (ThisTask == 0) {
 	    std::vector<std::string> proper_hostnames;
 	    for (int rank = 0; rank != NProcs; rank++) {
-	        proper_hostnames.emplace_back(all_hostnames.data() + (HOST_NAME_MAX + 1) * rank);
+	        proper_hostnames.emplace_back(all_hostnames.data() + (MAX_HOSTNAME_SIZE + 1) * rank);
 	    }
 	    mpi_info << " running in " << std::set<std::string>(proper_hostnames.begin(), proper_hostnames.end()).size() << " nodes: ";
 	    mpi_info << vr::printable_range(proper_hostnames);
