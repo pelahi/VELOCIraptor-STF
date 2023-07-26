@@ -36,7 +36,7 @@ private:
 	bool m_enabled = true;
 
 public:
-	LogStatement(LogLevel level, const char *file, int line);
+	LogStatement(LogLevel level, const char *file, const char *func, int line);
 	LogStatement();
 	~LogStatement() noexcept;
 
@@ -53,7 +53,7 @@ public:
 }  // namespace vr
 
 /// Macro to perform logging via output stream operator
-#define LOG(lvl) vr::LogStatement(vr::LogLevel::lvl, __FILE__, __LINE__)
+#define LOG(lvl) vr::LogStatement(vr::LogLevel::lvl, __FILE__, __func__, __LINE__)
 
 /// Macro to perform logging via output stream operator on the first MPI rank only
 #ifdef USEMPI

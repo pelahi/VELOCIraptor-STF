@@ -49,7 +49,7 @@ LogStatement::LogStatement()
 {
 }
 
-LogStatement::LogStatement(LogLevel level, const char *file, int line)
+LogStatement::LogStatement(LogLevel level, const char *file, const char *func, int line)
   : m_os(std::cout), m_level(level)
 {
 	if (!log_enabled(m_level)) {
@@ -66,7 +66,7 @@ LogStatement::LogStatement(LogLevel level, const char *file, int line)
 	   << std::setw(3) << std::setfill('0') << msecs << "] ["
 	   << std::setw(5) << std::setfill(' ') << to_string(m_level) << "] ";
 #ifdef VR_LOG_SOURCE_LOCATION
-	m_os << basename(file) << ':' << line << ' ';
+	m_os << basename(file) << ':' << func << ":L" << line << ' ';
 #endif // VR_LOG_SOURCE_LOCATION
 }
 
