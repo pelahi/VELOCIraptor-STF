@@ -31,13 +31,6 @@ void finish_vr(Options &opt)
     //get memory useage
     LOG(info) << "Finished running VR";
     MEMORY_USAGE_REPORT(info);
-
-#ifdef USEMPI
-#ifdef USEADIOS
-    adios_finalize(ThisTask);
-#endif
-    MPI_Finalize();
-#endif
 }
 
 void show_version_info(int argc, char *argv[])
@@ -637,5 +630,12 @@ int main(int argc, char *argv[])
     } catch (...) {
         do_abort("Unexpected exception while running VR, aborting now");
     }
+
+#ifdef USEMPI
+#ifdef USEADIOS
+    adios_finalize(ThisTask);
+#endif
+    MPI_Finalize();
+#endif
 
 }
