@@ -53,12 +53,13 @@ exchange_indices_and_props(
     const std::vector<Int_t> &indices, const std::vector<float> &props,
     std::size_t props_per_index, int rank, int tag, MPI_Comm &mpi_comm)
 {
-    auto num_indices = indices.size();
+    Int_t num_indices = indices.size();
+    Int_t num_props = num_indices * props_per_index;
     assert(num_indices <= std::numeric_limits<std::int32_t>::max());
-    assert(props.size() == num_indices * props_per_index);
+    assert(props.size() == num_props);
 
     // Send/recv number of indices to allocate reception buffers
-    int num_indices_recv;
+    Int_t num_indices_recv;
     MPI_Status status;
     MPI_Sendrecv(
         &num_indices, 1, MPI_Int_t, rank, tag * 2,
@@ -67,16 +68,16 @@ exchange_indices_and_props(
 
     // Send/recv actual indices and properties
     std::vector<Int_t> indices_recv(num_indices_recv);
-    std::vector<float> props_recv(num_indices_recv * props_per_index);
+    Int_t num_props_recv = num_indices_recv * props_per_index;
+    std::vector<float> props_recv(num_props_recv);
     MPI_Sendrecv(
-        indices.data(), indices.size(), MPI_Int_t, rank, tag * 3,
-        indices_recv.data(), indices_recv.size(), MPI_Int_t, rank, tag * 3,
+        indices.data(), num_indices, MPI_Int_t, rank, tag * 3,
+        indices_recv.data(), num_indices_recv, MPI_Int_t, rank, tag * 3,
         mpi_comm, &status);
     MPI_Sendrecv(
-        props.data(), props.size(), MPI_FLOAT, rank, tag * 4,
-        props_recv.data(), props_recv.size(), MPI_FLOAT, rank, tag * 4,
+        props.data(), num_props, MPI_FLOAT, rank, tag * 4,
+        props_recv.data(), num_props_recv, MPI_FLOAT, rank, tag * 4,
         mpi_comm, &status);
-
     return {std::move(indices_recv), std::move(props_recv)};
 }
 
@@ -377,6 +378,7 @@ bool MPIRepartitionDomainDecompositionWithMesh(Options &opt){
 
 void MPINumInDomain(Options &opt)
 {
+    
     //when reading number in domain, use all available threads to read all available files
     //first set number of read threads to either total number of mpi process or files, which ever is smaller
     //store old number of read threads
@@ -2192,7 +2194,6 @@ void MPIReceiveParticlesFromReadThreads(Options &opt, Particle *&Pbuf, Particle 
 void MPISendReceiveHydroInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Particle *Pbuf, Int_t nlocal, Particle *Part, int recvTask, int tag, MPI_Comm &mpi_comm)
 {
 #ifdef GASON
-
     auto numextrafields = opt.gas_internalprop_unique_input_names.size()  + opt.gas_chem_unique_input_names.size() + opt.gas_chemproduction_unique_input_names.size();
     if (numextrafields == 0) return;
 
@@ -2230,7 +2231,6 @@ void MPISendReceiveHydroInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Parti
             }
         }
     }
-
     std::tie(indicesrecv, proprecvbuff) =
         exchange_indices_and_props(indicessend, propsendbuff, numextrafields,
             recvTask, tag, mpi_comm);
@@ -2821,6 +2821,7 @@ void MPISendParticlesBetweenReadThreads(Options &opt, Particle *&Pbuf, Particle 
 {
     MPI_Comm mpi_comm_read = MPI_COMM_WORLD;
     if (ireadtask[ThisTask]>=0) {
+        LOG(debug)<< "preparing to send to other reading tasks";
         //split the communication into small buffers
         int icycle=0,ibuf;
         //maximum send size
@@ -2914,7 +2915,9 @@ void MPISendParticlesBetweenReadThreads(Options &opt, Particle *&Pbuf, Particle 
     }
 }
 
-void MPISendParticlesBetweenReadThreads(Options &opt, vector<Particle> *&Preadbuf, Particle *Part, int *&ireadtask, int *&readtaskID, Particle *&Pbaryons, MPI_Comm &mpi_comm_read, Int_t *&mpi_nsend_readthread, Int_t *&mpi_nsend_readthread_baryon)
+void MPISendParticlesBetweenReadThreads(Options &opt, 
+    vector<Particle> *&Preadbuf, Particle *Part, int *&ireadtask, int *&readtaskID, Particle *&Pbaryons, 
+    MPI_Comm &mpi_comm_read, Int_t *&mpi_nsend_readthread, Int_t *&mpi_nsend_readthread_baryon)
 {
     if (ireadtask[ThisTask]>=0) {
         //split the communication into small buffers
@@ -2951,6 +2954,7 @@ void MPISendParticlesBetweenReadThreads(Options &opt, vector<Particle> *&Preadbu
                 sendoffset=0;
                 recvoffset=0;
                 isendrecv=1;
+                LOG(trace) <<"sending/receving to/from "<<recvTask<<" [nsend,nrecv] = "<<nsend<<", "<<nrecv<<" in "<<numsendrecv<<" loops";
                 do
                 {
                     //determine amount to be sent
@@ -4706,6 +4710,7 @@ Int_t MPIGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
     nlocal=nbodies-nexport+nimport;
     NImport=nimport;
     if (nexport >0) FoFGroupDataExport=new fofid_in[nexport];
+    LOG(trace) <<" preparing to exchange [import,export] = " << nimport << ", " << nexport;
 
     Int_t *storeval=new Int_t[nbodies];
     Noldlocal=nbodies-nexport;
@@ -4814,6 +4819,8 @@ Int_t MPIGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
                 sendoffset=recvoffset=0;
                 for (auto ichunk=0;ichunk<numsendrecv;ichunk++)
                 {
+                    // sending hydro, star and bh info
+                    
                     MPIFillFOFBuffWithHydroInfo(opt, cursendchunksize, &FoFGroupDataExport[noffset_export[recvTask]+sendoffset], Part, indices_gas_send, propbuff_gas_send);
                     MPIFillFOFBuffWithStarInfo(opt, cursendchunksize, &FoFGroupDataExport[noffset_export[recvTask]+sendoffset], Part, indices_star_send, propbuff_star_send);
                     MPIFillFOFBuffWithBHInfo(opt, cursendchunksize, &FoFGroupDataExport[noffset_export[recvTask]+sendoffset], Part, indices_bh_send, propbuff_bh_send);
