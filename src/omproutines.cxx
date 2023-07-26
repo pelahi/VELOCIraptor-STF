@@ -206,17 +206,20 @@ void OpenMPLinkAcross(Options &opt,
     Int_t i;
     Int_t omp_links_across_total, numloops;
     Int_t nt, orgIndex, curIndex, *nn=new Int_t[nbodies], pfofcomp;
-    Int_t maxgroupnum;
+    Int_t maxgroupnum, newgroupoffset;
     vector<Int_t> localnewgroup(numompregions,0);
     int curTask;
     Coordinate x;
-    Particle *Pval;
+    // Particle *Pval;
+    Particle Pval;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
 
     if (NProcs > 1) {
-        maxgroupnum = ompdomain[numompregions-1].numgroups + ompdomain[numompregions-1].noffset;
+        // maxgroupnum = ompdomain[numompregions-1].numgroups + ompdomain[numompregions-1].noffset;
+        // maxgroupnum = nbodies + ompdomain[numompregions-1].noffset;
+        newgroupoffset = nbodies;
     }
 
     LOG(info) << "Linking across OpenMP domains";
@@ -224,33 +227,39 @@ void OpenMPLinkAcross(Options &opt,
     numloops = 0;
     do {
         omp_links_across_total = 0;
-        #pragma omp parallel default(shared) \
-        private(i, orgIndex, curIndex, x, nt, Pval, pfofcomp)
+        #pragma omp parallel default(none) \
+        private(i, orgIndex, curIndex, x, nt, Pval, pfofcomp) \
+        shared(NProcs, \
+        omp_links_across_total, numompregions, ompimport, omp_nrecv_offset, omp_nrecv_total, ompdomain, \
+        opt, Part, param, nn, tree3dfofomp, fofcheck, pfof, storeorgIndex, Head, Next, localnewgroup, newgroupoffset) 
         {
         #pragma omp for nowait reduction(+:omp_links_across_total)
         for (i=0;i<numompregions;i++) {
             for (auto j=0;j<omp_nrecv_total[i];j++) {
-                Pval=&Part[ompimport[omp_nrecv_offset[i]+j].index];
+                Pval = Part[ompimport[omp_nrecv_offset[i]+j].index];
                 pfofcomp = ompimport[omp_nrecv_offset[i]+j].pfof;
                 /// before ignored pfofcomp but since cannot guarantee openmp
                 /// will be complete if MPI is used.
                 if (pfofcomp == 0 && NProcs == 1) continue;
                 //for each imported particle, find all particles within search window
-                for (auto k=0;k<3;k++) x[k]=Pval->GetPosition(k);
+                // for (auto k=0;k<3;k++) x[k]=Pval->GetPosition(k);
+                for (auto k=0;k<3;k++) x[k]=Pval.GetPosition(k);
                 nt=tree3dfofomp[i]->SearchBallPosTagged(x, param[1], &nn[ompdomain[i].noffset]);
                 for (auto k=0;k<nt;k++) {
                     curIndex=nn[k+ompdomain[i].noffset]+ompdomain[i].noffset;
                     //check that at least on of the particles meets the type criterion if necessary
+
                     if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1)
-                        if (fofcheck(Part[curIndex],param)!=0 && fofcheck(*Pval,param)!=0) continue;
+                        if (fofcheck(Part[curIndex],param)!=0 && fofcheck(Pval,param)!=0) continue;
 
                     orgIndex = storeorgIndex[Part[curIndex].GetID()+ompdomain[i].noffset];
                     //otherwise, change these particles to local group id if local group id smaller
                     //if local particle in a group
-                    if (pfof[orgIndex]>0 && pfofcomp > 0)  {
+                    if (pfof[orgIndex] > 0 && pfofcomp > 0)  {
                         //only change if both particles are appropriate type and group ids indicate local needs to be exported
                         if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1)
-                            if (!(fofcheck(Part[curIndex],param)==0 && fofcheck(*Pval,param)==0)) continue;
+                            if (!(fofcheck(Part[curIndex],param)==0 && fofcheck(Pval,param)==0)) continue;
+
                         //if local group id is larger, change locally
                         if (pfof[orgIndex] > pfofcomp) {
                             Int_t ss = Head[nn[k+ompdomain[i].noffset]+ompdomain[i].noffset];
@@ -264,20 +273,21 @@ void OpenMPLinkAcross(Options &opt,
                     //if local particle not in a group and export is appropriate type, link
                     else {
                         if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1)
-                            if (fofcheck(*Pval,param)!=0) continue;
+                            if (fofcheck(Pval,param)!=0) continue;
                         //if local particle not in group and associated particle in group
                         //set the local particle to the appropriate id
-                        if (pfofcomp > 0) {
+                        if (pfofcomp > 0 && pfof[orgIndex] == 0) {
                             pfof[orgIndex] = pfofcomp;
+                            omp_links_across_total++;
                         }
-                        ///otherwise, if at this point, omp domains are incomplete
-                        ///as volume also split in mpi, so increase number of local
-                        ///groups and assign particle to this new group 
-                        else {
+                        //otherwise, if at this point, omp domains are incomplete
+                        //as volume also split in mpi, so increase number of local
+                        //groups and assign particle to this new group if not previously tagged.
+                        else if (pfof[orgIndex] == 0 && pfofcomp == 0) {
                             localnewgroup[i]++;
-                            pfof[orgIndex] = maxgroupnum + ompdomain[i].noffset + localnewgroup[i];
+                            pfof[orgIndex] = newgroupoffset + ompdomain[i].noffset + localnewgroup[i];
+                            omp_links_across_total++;
                         }
-                        omp_links_across_total++;
                     }
                 }
             }
@@ -298,7 +308,7 @@ void OpenMPLinkAcross(Options &opt,
         }
         }
         numloops++;
-        LOG(debug) << "Linking across at loop " << numloops << " having found "
+        LOG(trace) << "Linking across at loop " << numloops << " having found "
                    << omp_links_across_total << " links";
     }while(omp_links_across_total>0);
     delete[] nn;
