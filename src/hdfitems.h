@@ -114,6 +114,31 @@ static inline hid_t hdf5_type(unsigned long dummy)      {return H5T_NATIVE_ULONG
 static inline hid_t hdf5_type(unsigned long long dummy) {return H5T_NATIVE_ULLONG;}
 static inline hid_t hdf5_type(std::string dummy)        {return H5T_C_S1;}
 
+static inline int whatisopen(hid_t fid) {
+    ssize_t cnt;
+    int howmany;
+    int i;
+    H5I_type_t ot;
+    hid_t anobj;
+    hid_t *objs;
+    char name[1024];
+    herr_t status;
+    cnt = safe_hdf5(H5Fget_obj_count, fid, H5F_OBJ_ALL);
+    LOG(info) << cnt << " object(s) open";
+    if (cnt <= 0) return cnt;
+    objs = new hid_t[cnt];
+    howmany = H5Fget_obj_ids(fid, H5F_OBJ_ALL, cnt, objs);
+    LOG(info) << "open objects:";
+    for (i = 0; i < howmany; i++ ) {
+            anobj = objs[i];
+            ot = H5Iget_type(anobj);
+            status = H5Iget_name(anobj, name, 1024);
+            LOG(info) << i <<" type "<<ot<<" name "<<name;
+    }
+    delete[] objs;
+    return howmany;
+}
+
 //template <typename AttributeHolder>
 //static inline H5::Attribute get_attribute(const AttributeHolder &l, const std::string attr_name)
 static inline void get_attribute(vector<hid_t> &ids, const std::string attr_name)
@@ -129,7 +154,6 @@ static inline void get_attribute(vector<hid_t> &ids, const std::string attr_name
     auto attr = H5Aopen(ids.back(), attr_name.c_str(), H5P_DEFAULT);
     ids.push_back(attr);
 }
-
 
 static inline void get_attribute(vector<hid_t> &ids, const std::vector<std::string> &parts)
 {
@@ -194,11 +218,15 @@ static inline void close_hdf_ids(vector<hid_t> &ids)
 #else
         H5Oget_info(id, &object_info);
 #endif
-        if (object_info.type == H5O_TYPE_GROUP) {
-            H5Gclose(id);
+        auto ot = H5Iget_type(id);
+        if (ot == H5I_GROUP) {
+            safe_hdf5(H5Gclose, id);
         }
-        else if (object_info.type == H5O_TYPE_GROUP) {
-            H5Dclose(id);
+        else if (ot == H5I_DATASET) {
+            safe_hdf5(H5Dclose, id);
+        }
+        else if (ot == H5I_DATASPACE) {
+            safe_hdf5(H5Sclose, id);
         }
     }
 }
@@ -303,7 +331,6 @@ static inline hid_t HDF5OpenFile(string name, unsigned int flags){
     LOG_RANK0(info) << "Opening " << name;
     return H5Fopen(name.c_str(),flags, H5P_DEFAULT);
 }
-
 static inline hid_t HDF5OpenGroup(const hid_t &file, string name){
     LOG_RANK0(debug) << "Opening Group " << name << '/' << name;
     hid_t idval = safe_hdf5(H5Gopen, file, name.c_str(), H5P_DEFAULT);
@@ -318,40 +345,6 @@ static inline hid_t HDF5OpenDataSpace(const hid_t &id){
     hid_t idval=H5Dget_space(id);
     return idval;
 }
-
-
-static inline int whatisopen(hid_t fid) {
-        ssize_t cnt;
-        int howmany;
-        int i;
-        H5I_type_t ot;
-        hid_t anobj;
-        hid_t *objs;
-        char name[1024];
-        herr_t status;
-
-        cnt = H5Fget_obj_count(fid, H5F_OBJ_ALL);
-
-        if (cnt <= 0) return cnt;
-
-        printf("%zd object(s) open\n", cnt);
-
-        objs = new hid_t[cnt];
-
-        howmany = H5Fget_obj_ids(fid, H5F_OBJ_ALL, cnt, objs);
-
-        printf("open objects:\n");
-
-        for (i = 0; i < howmany; i++ ) {
-             anobj = objs[i];
-             ot = H5Iget_type(anobj);
-             status = H5Iget_name(anobj, name, 1024);
-             printf(" %d: type %d, name %s\n",i,ot,name);
-        }
-	delete[] objs;
-        return howmany;
-}
-
 
 static inline void HDF5CloseFile(hid_t &id){
     if (id>=0) H5Fclose(id);
@@ -368,6 +361,16 @@ static inline void HDF5CloseDataSet(hid_t &id){
 static inline void HDF5CloseDataSpace(hid_t &id){
     if (id>=0) H5Sclose(id);
     id = -1;
+}
+static inline void HDF5CloseAll(hid_t &fid){
+    ssize_t cnt;
+    std::vector<hid_t> objs;
+    cnt = safe_hdf5(H5Fget_obj_count, fid, H5F_OBJ_ALL);
+    LOG(info) <<"values are "<<cnt;
+    if (cnt <= 0) return;
+    objs.resize(cnt);
+    safe_hdf5(H5Fget_obj_ids, fid, H5F_OBJ_ALL, cnt, objs.data());
+    close_hdf_ids(objs);
 }
 
 static inline void HDF5ReadHyperSlabReal(double *buffer,
@@ -1176,171 +1179,86 @@ inline Int_t HDF_get_nbodies(char *fname, int ptype, Options &opt)
     int nusetypes,usetypes[NHDFTYPE],nbusetypes;
     HDFSetUsedParticleTypes(opt,nusetypes,nbusetypes,usetypes);
 
-    //Try block to detect exceptions raised by any of the calls inside it
-    //try
-    {
-        //turn off the auto-printing when failure occurs so that we can
-        //handle the errors appropriately
-        //Exception::dontPrint();
+    Fhdf = H5Fopen(buf.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+    LOG(info) << "Loading HDF header info in header group: " << hdf_gnames.Header_name;
 
-        //Open the specified file and the specified dataset in the file.
-        //Fhdf.openFile(buf, H5F_ACC_RDONLY);
-        Fhdf = H5Fopen(buf.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
-        LOG(info) << "Loading HDF header info in header group: " << hdf_gnames.Header_name;
+    if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES) {
 
-        if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES) {
+        // Check if it is a SWIFT snapshot.
+        dataname = string("Header/Code");
+        stringbuff = read_attribute<string>(Fhdf, dataname);
 
-            // Check if it is a SWIFT snapshot.
-            dataname = string("Header/Code");
-            stringbuff = read_attribute<string>(Fhdf, dataname);
-
-            // Read SWIFT parameters
-            if(!swift_str.compare(stringbuff)) {
-                hdf_header_info.iscosmological=read_attribute<int>(Fhdf, hdf_header_info.names[hdf_header_info.IIsCosmological]);
-                if (!hdf_header_info.iscosmological && opt.icosmologicalin) {
-                    cout<<"Error: cosmology is turned on in the config file but the snaphot provided is a non-cosmological run."<<endl;
-#ifdef USEMPI
-                    MPI_Abort(MPI_COMM_WORLD, 8);
-#else
-                    exit(0);
-#endif
-                }
-                else if (hdf_header_info.iscosmological && !opt.icosmologicalin) {
-                    cout<<"Error: cosmology is turned off in the config file but the snaphot provided is a cosmological run."<<endl;
-#ifdef USEMPI
-                    MPI_Abort(MPI_COMM_WORLD, 8);
-#else
-                    exit(0);
-#endif
-                }
-                //swift does not have little h's in input so don't convert
-                opt.inputcontainslittleh = false;
-
-            }
-            // If the code is not SWIFT
-            else {
-                cout<<"SWIFT EAGLE HDF5 naming convention chosen in config file but the snapshot was not produced by SWIFT. The string read was: "<<stringbuff<<endl;
+        // Read SWIFT parameters
+        if(!swift_str.compare(stringbuff)) {
+            hdf_header_info.iscosmological=read_attribute<int>(Fhdf, hdf_header_info.names[hdf_header_info.IIsCosmological]);
+            if (!hdf_header_info.iscosmological && opt.icosmologicalin) {
+                LOG(error)<<"Error: cosmology is turned on in the config file but the snaphot provided is a non-cosmological run.";
 #ifdef USEMPI
                 MPI_Abort(MPI_COMM_WORLD, 8);
 #else
                 exit(0);
 #endif
             }
+            else if (hdf_header_info.iscosmological && !opt.icosmologicalin) {
+                LOG(error)<<"Error: cosmology is turned off in the config file but the snaphot provided is a cosmological run.";
+#ifdef USEMPI
+                MPI_Abort(MPI_COMM_WORLD, 8);
+#else
+                exit(0);
+#endif
+            }
+            //swift does not have little h's in input so don't convert
+            opt.inputcontainslittleh = false;
+
         }
+        // If the code is not SWIFT
+        else {
+            LOG(error)<<"SWIFT EAGLE HDF5 naming convention chosen in config file but the snapshot was not produced by SWIFT. The string read was: "<<stringbuff;
+#ifdef USEMPI
+            MPI_Abort(MPI_COMM_WORLD, 8);
+#else
+            exit(0);
+#endif
+        }
+    }
 
-        vuintbuff=read_attribute_v<unsigned int>(Fhdf, hdf_header_info.names[hdf_header_info.INumTot]);
-        for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotal[j]=vuintbuff[j];
-        vuintbuff=read_attribute_v<unsigned int>(Fhdf, hdf_header_info.names[hdf_header_info.INumTotHW]);
-        for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotalHW[j]=vuintbuff[j];
+    vuintbuff=read_attribute_v<unsigned int>(Fhdf, hdf_header_info.names[hdf_header_info.INumTot]);
+    for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotal[j]=vuintbuff[j];
+    vuintbuff=read_attribute_v<unsigned int>(Fhdf, hdf_header_info.names[hdf_header_info.INumTotHW]);
+    for (j=0;j<NHDFTYPE;j++) hdf_header_info.npartTotalHW[j]=vuintbuff[j];
 
-        if (opt.partsearchtype==PSTALL) {
-            if (opt.iusestarparticles && hdf_header_info.npartTotalHW[HDFSTARTYPE] == 0 && hdf_header_info.npartTotal[HDFSTARTYPE] == 0)
-            {
-                cerr<<"Warning: Configured to load star particles but none present"<<endl;
-                opt.iusestarparticles=0;
-            }
-            if (opt.iusesinkparticles && hdf_header_info.npartTotalHW[HDFBHTYPE] == 0 && hdf_header_info.npartTotal[HDFBHTYPE] == 0)
-            {
-                cerr<<"Warning: Configured to load black hole particles but none present"<<endl;
-                opt.iusesinkparticles=0;
-            }
-            if (opt.iusewindparticles && hdf_header_info.npartTotalHW[HDFWINDTYPE] == 0 && hdf_header_info.npartTotal[HDFWINDTYPE] == 0)
-            {
-                cerr<<"Warning: Configured to load wind particles but none present"<<endl;
-                opt.iusewindparticles=0;
-            }
-            if (opt.iusetracerparticles && hdf_header_info.npartTotalHW[HDFTRACERTYPE] == 0 && hdf_header_info.npartTotal[HDFTRACERTYPE] == 0)
-            {
-                cerr<<"Warning: Configured to load tracer particles but none present"<<endl;
-                opt.iusetracerparticles=0;
-            }
+    if (opt.partsearchtype==PSTALL) {
+        if (opt.iusestarparticles && hdf_header_info.npartTotalHW[HDFSTARTYPE] == 0 && hdf_header_info.npartTotal[HDFSTARTYPE] == 0)
+        {
+            LOG(warning)<<"Configured to load star particles but none present";
+            opt.iusestarparticles=0;
+        }
+        if (opt.iusesinkparticles && hdf_header_info.npartTotalHW[HDFBHTYPE] == 0 && hdf_header_info.npartTotal[HDFBHTYPE] == 0)
+        {
+            LOG(warning)<<"Configured to load black hole particles but none present";
+            opt.iusesinkparticles=0;
+        }
+        if (opt.iusewindparticles && hdf_header_info.npartTotalHW[HDFWINDTYPE] == 0 && hdf_header_info.npartTotal[HDFWINDTYPE] == 0)
+        {
+            LOG(warning)<<"Configured to load wind particles but none present";
+            opt.iusewindparticles=0;
+        }
+        if (opt.iusetracerparticles && hdf_header_info.npartTotalHW[HDFTRACERTYPE] == 0 && hdf_header_info.npartTotal[HDFTRACERTYPE] == 0)
+        {
+            LOG(warning)<<"Configured to load tracer particles but none present";
+            opt.iusetracerparticles=0;
+        }
 #ifdef HIGHRES
-            if (opt.iuseextradarkparticles && hdf_header_info.npartTotalHW[HDFDM1TYPE] == 0 && hdf_header_info.npartTotal[HDFDM1TYPE] == 0
-                && hdf_header_info.npartTotalHW[HDFDM2TYPE] == 0 && hdf_header_info.npartTotal[HDFDM2TYPE] == 0)
-            {
-                cerr<<"Warning: Configured to load extra low res dark matter particles but none present"<<endl;
-                opt.iuseextradarkparticles=0;
-            }
-#endif
+        if (opt.iuseextradarkparticles && hdf_header_info.npartTotalHW[HDFDM1TYPE] == 0 
+            && hdf_header_info.npartTotal[HDFDM1TYPE] == 0
+            && hdf_header_info.npartTotalHW[HDFDM2TYPE] == 0 
+            && hdf_header_info.npartTotal[HDFDM2TYPE] == 0)
+        {
+            LOG(warning)<<"Configured to load extra low res dark matter particles but none present";
+            opt.iuseextradarkparticles=0;
         }
-    }
-    /*
-    catch(GroupIException &error)
-    {
-        HDF5PrintError(error);
-        cerr<<"Error in group might suggest config file has the incorrect HDF naming convention. ";
-        cerr<<"Check HDF_name_convetion or add new naming convention updating hdfitems.h in the source code. "<<endl;
-        Fhdf.close();
-#ifdef USEMPI
-        MPI_Abort(MPI_COMM_WORLD,8);
-#else
-        exit(8);
 #endif
     }
-    // catch failure caused by the H5File operations
-    catch( FileIException &error )
-    {
-      HDF5PrintError(error);
-      cerr<<"Error reading file. Exiting "<<endl;
-      Fhdf.close();
-#ifdef USEMPI
-      MPI_Abort(MPI_COMM_WORLD,8);
-#else
-      exit(8);
-#endif
-    }
-    // catch failure caused by the DataSet operations
-    catch( DataSetIException &error )
-    {
-      HDF5PrintError(error);
-      cerr<<"Error in data set might suggest config file has the incorrect HDF naming convention. ";
-      cerr<<"Check HDF_name_convetion or update hdfio.cxx in the source code to read correct format"<<endl;
-      Fhdf.close();
-#ifdef USEMPI
-      MPI_Abort(MPI_COMM_WORLD,8);
-#else
-      exit(8);
-#endif
-    }
-    // catch failure caused by the DataSpace operations
-    catch( DataSpaceIException &error )
-    {
-      HDF5PrintError(error);
-      cerr<<"Error in data space might suggest config file has the incorrect HDF naming convention. ";
-      cerr<<"Check HDF_name_convetion or update hdfio.cxx in the source code to read correct format"<<endl;
-      Fhdf.close();
-#ifdef USEMPI
-      MPI_Abort(MPI_COMM_WORLD,8);
-#else
-      exit(8);
-#endif
-    }
-    // catch failure caused by the DataSpace operations
-    catch( DataTypeIException &error )
-    {
-      HDF5PrintError(error);
-      cerr<<"Error in data type might suggest need to update hdfio.cxx in the source code to read correct format"<<endl;
-      Fhdf.close();
-#ifdef USEMPI
-      MPI_Abort(MPI_COMM_WORLD,8);
-#else
-      exit(8);
-#endif
-    }
-    // catch failure caused by missing attribute
-    catch( invalid_argument error )
-    {
-      if(opt.ihdfnameconvention == HDFSWIFTEAGLENAMES) {
-        cerr<<"Reading SWIFT EAGLE HDF5 file: "<<error.what()<<endl;
-#ifdef USEMPI
-        MPI_Abort(MPI_COMM_WORLD, 8);
-#else
-        exit(8);
-#endif
-      }
-    }
-    Fhdf.close();
-    */
     HDF5CloseFile(Fhdf);
 
     for(j=0, nbodies=0; j<nusetypes; j++) {
@@ -1370,49 +1288,12 @@ inline Int_t HDF_get_nfiles(char *fname, int ptype)
     Int_t nfiles = 0;
     //IntType inttype;
 
-    //Try block to detect exceptions raised by any of the calls inside it
-    //try
-    {
-        //turn off the auto-printing when failure occurs so that we can
-        //handle the errors appropriately
-        //Exception::dontPrint();
 
-        //Open the specified file and the specified dataset in the file.
-        //Fhdf.openFile(buf, H5F_ACC_RDONLY);
-        Fhdf = H5Fopen(buf.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
-        //get header group
-        hdf_header_info.num_files = read_attribute<int>(Fhdf, hdf_header_info.names[hdf_header_info.INumFiles]);
-    }
-    /*
-    catch(GroupIException &error)
-    {
-        HDF5PrintError(error);
-    }
-    // catch failure caused by the H5File operations
-    catch( FileIException &error )
-    {
-        HDF5PrintError(error);
-    }
-    // catch failure caused by the DataSet operations
-    catch( DataSetIException &error )
-    {
-        HDF5PrintError(error);
-        ireaderror=1;
-    }
-    // catch failure caused by the DataSpace operations
-    catch( DataSpaceIException &error )
-    {
-        HDF5PrintError(error);
-        ireaderror=1;
-    }
-    // catch failure caused by the DataSpace operations
-    catch( DataTypeIException &error )
-    {
-        HDF5PrintError(error);
-        ireaderror=1;
-    }
-    Fhdf.close();
-    */
+    //Open the specified file and the specified dataset in the file.
+    //Fhdf.openFile(buf, H5F_ACC_RDONLY);
+    Fhdf = H5Fopen(buf.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
+    //get header group
+    hdf_header_info.num_files = read_attribute<int>(Fhdf, hdf_header_info.names[hdf_header_info.INumFiles]);
     HDF5CloseFile(Fhdf);
 
     return nfiles = hdf_header_info.num_files;
