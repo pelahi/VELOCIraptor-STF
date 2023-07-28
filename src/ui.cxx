@@ -818,7 +818,6 @@ void GetParamFile(Options &opt)
                     pbuff=strtok(buff," ");
                     if (pbuff==NULL) continue;
                     strcpy(vbuff, pbuff);
-                    //cfgfile<<tbuff<<"="<<vbuff<<endl;
                     //store/read local density distribution funciton values
                     if (strcmp(tbuff, "Output_den")==0){
                         opt.smname=new char[1024];
@@ -1223,25 +1222,24 @@ void GetParamFile(Options &opt)
                          opt.temp_input_output_unit_conversion_factor = atof(vbuff);
 		    }
 		    else if (strcmp(tbuff, "Gas_hot_overdensity_normalisation")==0) {
-                         opt.hot_gas_overdensity_normalisation = atof(vbuff);
-			 // if this is define, then make sure the SO calculations are check to contain this value, otherwise modify it to contain them.
- 		         auto iter = std::find(opt.SOthresholds_values_crit.begin(), opt.SOthresholds_values_crit.end(), opt.hot_gas_overdensity_normalisation);
-			 if(iter == opt.SOthresholds_values_crit.end()){
-				opt.SOthresholds_values_crit.push_back(opt.hot_gas_overdensity_normalisation);
-				opt.SOnum = opt.SOnum + 1;
-			 }
-                    else if (strcmp(tbuff, "Overdensity_values_in_critical_density")==0) {
-                        pos=0;
-                        dataline=string(vbuff);
-                        while ((pos = dataline.find(delimiter)) != string::npos) {
-                            token = dataline.substr(0, pos);
-                            opt.SOthresholds_names_crit.push_back(token);
-                            opt.SOthresholds_values_crit.push_back(stof(token));
-                            dataline.erase(0, pos + delimiter.length());
-                        }
+                opt.hot_gas_overdensity_normalisation = atof(vbuff);
+                // if this is define, then make sure the SO calculations are check to contain this value, otherwise modify it to contain them.
+                auto iter = std::find(opt.SOthresholds_values_crit.begin(), opt.SOthresholds_values_crit.end(), opt.hot_gas_overdensity_normalisation);
+                if(iter == opt.SOthresholds_values_crit.end()){
+                    opt.SOthresholds_values_crit.push_back(opt.hot_gas_overdensity_normalisation);
+                    opt.SOnum = opt.SOnum + 1;
+                }
+                else if (strcmp(tbuff, "Overdensity_values_in_critical_density")==0) {
+                    pos=0;
+                    dataline=string(vbuff);
+                    while ((pos = dataline.find(delimiter)) != string::npos) {
+                        token = dataline.substr(0, pos);
+                        opt.SOthresholds_names_crit.push_back(token);
+                        opt.SOthresholds_values_crit.push_back(stof(token));
+                        dataline.erase(0, pos + delimiter.length());
                     }
-
-		    }
+                }
+            }
                     else if (strcmp(tbuff, "Aperture_values_normalised_to_overdensity")==0) {
                         pos=0;
                         dataline=string(vbuff);

@@ -104,11 +104,11 @@ void MPINumInDomainGadget(Options &opt)
 {
     #define SKIP2 Fgad[i].read((char*)&dummy, sizeof(dummy));
     InitEndian();
-    if (NProcs == 1) return 
+    if (NProcs == 1) return;
     if (opt.cellnodeids.size() == 0) {
         MPIDomainExtentHDF(opt);
         MPIInitialDomainDecomposition(opt);
-        MPIDomainDecompositionGagdet(opt);
+        MPIDomainDecompositionGadget(opt);
     }
     Int_t i,k,n;
     int dummy;
