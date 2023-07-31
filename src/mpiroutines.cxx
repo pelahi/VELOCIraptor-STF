@@ -204,14 +204,17 @@ void MPIInitialDomainDecomposition(Options &opt)
 
 void MPIInitialDomainDecompositionWithMesh(Options &opt){
     if (ThisTask==0) {
-        //each processor takes subsection of volume where use simple 2^(ceil(log(NProcs)/log(2))) subdivision
-        opt.numcellsperdim = max((int)pow(2,(int)ceil(log((float)NProcs)/log(2.0))), opt.minnumcellperdim);
-        //each processor takes subsection of volume where use simple NProcs^(1/3) subdivision
-        // opt.numcellsperdim = max((int)ceil(pow((double)NProcs,(double)(1.0/3.0)))*8, opt.minnumcellperdim);
+        // each processor takes subsection of volume, where the grow in number of cells per proc 
+        // is set such that the cells per dim grows as (log(N)/log(2))^(y). Currently y=1
+        // unless the numcellsperdim has been set, in which case that is used. 
+        if (opt.numcellsperdim == 0) {
+            unsigned int NProcfac = std::ceil(log(static_cast<double>(NProcs))/log(2.0));
+            opt.numcellsperdim = opt.minnumcellperdim*std::max(NProcfac, 1u);
+        }
         unsigned int n3 = opt.numcells = opt.numcellsperdim*opt.numcellsperdim*opt.numcellsperdim;
         double idelta = 1.0/(double)opt.numcellsperdim;
         for (auto i=0; i<3; i++) {
-            opt.spacedimension[i] = (mpi_xlim[i][1]  - mpi_xlim[i][0]);
+            opt.spacedimension[i] = (mpi_xlim[i][1] - mpi_xlim[i][0]);
             opt.cellwidth[i] = (opt.spacedimension[i] * idelta);
             opt.icellwidth[i] = 1.0/opt.cellwidth[i];
         }
@@ -290,7 +293,6 @@ void MPIInitialDomainDecompositionWithMesh(Options &opt){
     opt.cellnodenumparts.resize(opt.numcells,0);
     MPI_Bcast(opt.cellnodeids.data(), opt.numcells, MPI_INTEGER, 0, MPI_COMM_WORLD);
     MPI_Bcast(opt.cellnodeorder.data(), opt.numcells, MPI_INTEGER, 0, MPI_COMM_WORLD);
-
 }
 
 //find min/max, average and std
@@ -4710,7 +4712,7 @@ Int_t MPIGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
     nlocal=nbodies-nexport+nimport;
     NImport=nimport;
     if (nexport >0) FoFGroupDataExport=new fofid_in[nexport];
-    LOG(trace) <<" preparing to exchange [import,export] = " << nimport << ", " << nexport;
+    LOG(trace) <<" Exchanging ... nimport = "<<nimport<<", nexport="<<nexport<<" old nlocal="<<nbodies<<" new nlocal="<<nlocal;
 
     Int_t *storeval=new Int_t[nbodies];
     Noldlocal=nbodies-nexport;
@@ -4759,6 +4761,7 @@ Int_t MPIGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
 
     // if using mesh, mpi tasks of cells need to be updated
     if (opt.impiusemesh) {
+        LOG(trace)<<" Updating mpi mesh ...";
         vector<int> newcellid(opt.numcells,-1);
         for (i=0;i<nexport;i++) {
             Coordinate x(FoFGroupDataExport[i].p.GetPosition());
@@ -4769,8 +4772,9 @@ Int_t MPIGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
             newcellid[index] = FoFGroupDataExport[i].Task;
         }
         //now collect all the cells
-        vector<int> mpi_newcellid(opt.numcells*NProcs);
-        MPI_Allgather(newcellid.data(), opt.numcells, MPI_INT, mpi_newcellid.data(), opt.numcells, MPI_INT, MPI_COMM_WORLD);
+        unsigned long long ndata = static_cast<unsigned long long>(opt.numcells)*static_cast<unsigned long long>(NProcs);
+        vector<int> mpi_newcellid(ndata);
+        MPI_Allgather(newcellid.data(), opt.numcells, MPI_INTEGER, mpi_newcellid.data(), opt.numcells, MPI_INTEGER, MPI_COMM_WORLD);
         opt.newcellnodeids.resize(opt.numcells);
         for (i=0; i<opt.numcells; i++)
         {
@@ -4780,6 +4784,7 @@ Int_t MPIGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
                 opt.newcellnodeids[i].push_back(itask);
             }
         }
+        LOG(trace) <<" Finished updating mpi mesh.";
     }
 
     //now if there is extra information, strip off all the data from the FoFGroupDataExport
@@ -4794,6 +4799,7 @@ Int_t MPIGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
     vector<float> propbuff_extra_dm_send;
 
     //now send the data.
+    LOG(trace)<<" Sending FOF data";
     for(j=0;j<NProcs;j++)
     {
         if (j!=ThisTask)
@@ -4815,7 +4821,7 @@ Int_t MPIGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
                     nrecvchunks=1;
                     currecvchunksize=mpi_nsend[ThisTask+recvTask*NProcs];
                 }
-                numsendrecv=max(nsendchunks,nrecvchunks);
+                numsendrecv=std::max(nsendchunks,nrecvchunks);
                 sendoffset=recvoffset=0;
                 for (auto ichunk=0;ichunk<numsendrecv;ichunk++)
                 {
@@ -4844,6 +4850,7 @@ Int_t MPIGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
             }
         }
     }
+    LOG(trace)<<"Finished sending FOF information";
     Nlocal=nlocal;
     return nlocal;
 }

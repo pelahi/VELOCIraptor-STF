@@ -329,6 +329,10 @@ typedef double (*ExtraPropFunc)(double, double, double&);
 #define Grav_in_kpc_kms_solarmasses 4.3022682e-6
 //@}
 
+///\defgroup Z-curve Mesh constants 
+//@{
+#define MESH_MINCELLSPERDIM 4 
+//@}
 
 /// Structure stores unbinding information
 struct UnbindInfo
@@ -508,6 +512,7 @@ struct Options
     //@}
     ///period (comove)
     Double_t p = 0;
+    std::vector<Double_t> asymm_period();
     ///\name scale factor, Hubunit, h, cosmology, virial density. These are used if linking lengths are scaled or trying to define virlevel using the cosmology
     //@{
     Double_t a = 1;
@@ -754,7 +759,7 @@ struct Options
     int numcellsperdim = 0;
 
     /// minimum number of top-level cells
-    int minnumcellperdim = 8;
+    int minnumcellperdim = MESH_MINCELLSPERDIM;
 
 
     /* Locations of top-level cells. */

@@ -1144,6 +1144,8 @@ void GetParamFile(Options &opt)
                         opt.impiusemesh = (atoi(vbuff)>0);
                     else if (strcmp(tbuff, "MPI_zcurve_mesh_decomposition_min_num_cells_per_dim")==0)
                         opt.minnumcellperdim = atoi(vbuff);
+                    else if (strcmp(tbuff, "MPI_zcurve_mesh_decomposition_num_cells_per_dim")==0)
+                        opt.numcellsperdim = atoi(vbuff);
                     ///OpenMP related
                     else if (strcmp(tbuff, "OMP_run_fof")==0)
                         opt.iopenmpfof = atoi(vbuff);
@@ -2012,9 +2014,13 @@ void ConfigCheck(Options &opt)
         }
     }
 #ifdef USEMPI
-    if (opt.minnumcellperdim<8){
-        LOG_RANK0(warning) << "MPI mesh too coarse, minimum number of cells per dimension from which to produce z-curve decomposition is 8. Resetting to 8";
-        opt.minnumcellperdim = 8;
+    if (opt.minnumcellperdim<MESH_MINCELLSPERDIM){
+        LOG_RANK0(warning) << "MPI mesh too coarse, minimum number of cells per dimension from which to produce z-curve decomposition is "<<MESH_MINCELLSPERDIM<<". Resetting";
+        opt.minnumcellperdim = MESH_MINCELLSPERDIM;
+    }
+    if (opt.numcellsperdim<MESH_MINCELLSPERDIM && opt.numcellsperdim > 0){
+        LOG_RANK0(warning) << "MPI cells per dim set for mesh but too coarse, minimum number of cells per dimension from which to produce z-curve decomposition is "<<MESH_MINCELLSPERDIM<<". Resetting";
+        opt.numcellsperdim = MESH_MINCELLSPERDIM;
     }
     if (opt.mpiparticletotbufsize<(long int)(sizeof(Particle)*NProcs) && opt.mpiparticletotbufsize!=-1){
         LOG_RANK0(error) << "Invalid input particle buffer send size, minimum input buffer size given particle byte size "

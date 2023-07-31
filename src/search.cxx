@@ -364,6 +364,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     //once groups are local, can free up memory. Might need to increase size
     //of vector
     if (Nmemlocal<Nlocal) {
+        LOG(trace)<<" Resizing if necessary "<<Nmemlocal<<" "<<Nlocal;
         Part.resize(Nlocal);
         Nmemlocal=Nlocal;
     }
