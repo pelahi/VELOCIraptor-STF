@@ -53,7 +53,6 @@ bool FileExists(const char *fname)
   struct stat stFileInfo;
   return stat(fname, &stFileInfo) == 0;
 }
-
 ///\name Read particle data files
 //@{
 

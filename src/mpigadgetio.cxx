@@ -58,10 +58,10 @@ void MPIDomainExtentGadget(Options &opt){
         else sprintf(buf,"%s",opt.fname);
         Fgad[i].open(buf,ios::in);
         if(!Fgad[i]) {
-            cout<<"can't open file "<<buf<<endl;
+            LOG(info)<<"can't open file "<<buf;
             exit(0);
         }
-        else cout<<"reading "<<buf<<endl;
+        else LOG(info)<<"reading "<<buf;
 #ifdef GADGET2FORMAT
         SKIP2;
         Fgad[i].read((char*)&DATA[0],sizeof(char)*4);DATA[4] = '\0';
@@ -167,6 +167,10 @@ void MPINumInDomainGadget(Options &opt)
                 for(n=0;n<header[i].npart[k];n++)
                 {
                     Fgad[i].read((char*)&ctemp[0], sizeof(FLOAT)*3);
+#ifdef PERIODWRAPINPUT
+                    PeriodWrapInput<FLOAT>(opt.p, ctemp);
+#endif
+
                     ibuf=MPIGetParticlesProcessor(opt, ctemp[0],ctemp[1],ctemp[2]);
                     if (opt.partsearchtype==PSTALL) {
                         Nbuf[ibuf]++;

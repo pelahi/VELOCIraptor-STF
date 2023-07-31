@@ -3,6 +3,7 @@
 
 //for endian independance
 #include "endianutils.h"
+#include "io.h"
 
 ///for gadget coords
 #ifdef GADGETDOUBLEPRECISION

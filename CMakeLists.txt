@@ -84,6 +84,9 @@ vr_option(GADGET_SPH_INFO   "Support for extra SPH information in Gadget" OFF)
 vr_option(GADGET_STAR_INFO  "Support for extra star information in Gadget" OFF)
 vr_option(GADGET_BH_INFO    "Support for extra black hole information in Gadget" OFF)
 
+# Input data perodic wrapping
+vr_option(PARTICLES_OUTSIDE_PERIOD_LIMIT  "If particles are outside the periodic limit, wrap the positions before determining mpi domain" OFF)
+
 # Particle data options
 vr_option(USE_STAR      "Use star particles" OFF)
 vr_option(USE_GAS       "Use gas particles" OFF)
@@ -182,6 +185,8 @@ vr_option_defines(GADGET_HEAD2              GADGET2FORMAT)
 vr_option_defines(GADGET_SPH_INFO           EXTRASPHINFO)
 vr_option_defines(GADGET_STAR_INFO          EXTRASTARINFO)
 vr_option_defines(GADGET_BH_INFO            EXTRABHINFO)
+
+vr_option_defines(PARTICLES_OUTSIDE_PERIOD_LIMIT            PERIODWRAPINPUT)
 
 vr_option_defines(USE_GAS                   GASON)
 vr_option_defines(USE_STAR                  STARON)
