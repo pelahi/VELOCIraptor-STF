@@ -74,6 +74,7 @@ Int_t ReadHeader(Options &opt){
         else if (opt.partsearchtype==PSTSTAR) return tipsyheader.nstar;
     }
     else if (opt.inputtype==IOGADGET) {
+        LOG(info) << "Reading gadget format from "<< opt.fname;
         if (opt.partsearchtype==PSTALL) return get_nbodies(opt.fname);
         else if (opt.partsearchtype==PSTDARK) return get_nbodies(opt.fname,-2);
         else if (opt.partsearchtype==PSTGAS) return get_nbodies(opt.fname,GGASTYPE);

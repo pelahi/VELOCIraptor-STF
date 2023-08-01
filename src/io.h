@@ -22,8 +22,8 @@ template<class T> void PeriodWrapInput(Double_t p, T &x, T &y, T &z){
     z -=  pfac*p;
 };
 /// @brief Wrap input for peroid
-/// @param p 
-/// @param pos 
+/// @param p period 
+/// @param pos position 
 template<class T> void PeriodWrapInput(Double_t p, T *pos) {
     Double_t pfac;
     for (auto i=0;i<3;i++) {

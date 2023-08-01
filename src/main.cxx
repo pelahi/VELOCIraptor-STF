@@ -227,6 +227,7 @@ int run(int argc,char **argv)
     if (NProcs==1) {Nlocal=Nmemlocal=nbodies;NExport=NImport=1;}
     else {
 #ifdef MPIREDUCEMEM
+		LOG_RANK0(trace) << "Running MPI with reduced mem";
         //if allocating reasonable amounts of memory, use MPIREDUCEMEM
         //this determines number of particles in the mpi domains
         MPINumInDomain(opt);
@@ -238,6 +239,7 @@ int run(int argc,char **argv)
         }
 #else
         //otherwise just base on total number of particles * some factor and initialise the domains
+		LOG_RANK0(trace) << "Running MPI with some extra memory as buffer";
         MPIDomainExtent(opt);
         MPIDomainDecomposition(opt);
         Nlocal=nbodies/NProcs*MPIProcFac;

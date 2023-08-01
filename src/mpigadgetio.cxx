@@ -106,7 +106,7 @@ void MPINumInDomainGadget(Options &opt)
     InitEndian();
     if (NProcs == 1) return;
     if (opt.cellnodeids.size() == 0) {
-        MPIDomainExtentHDF(opt);
+        MPIDomainExtentGadget(opt);
         MPIInitialDomainDecomposition(opt);
         MPIDomainDecompositionGadget(opt);
     }
@@ -142,12 +142,13 @@ void MPINumInDomainGadget(Options &opt)
             if(opt.num_files>1) sprintf(buf,"%s.%lld",opt.fname,i);
             else sprintf(buf,"%s",opt.fname);
             Fgad[i].open(buf,ios::in);
+		    LOG(info) <<"Reading file "<<buf;
         #ifdef GADGET2FORMAT
             SKIP2;
             Fgad[i].read((char*)&DATA[0],sizeof(char)*4);DATA[4] = '\0';
             SKIP2;
             SKIP2;
-            fprintf(stderr,"reading... %s\n",DATA);
+            LOG(trace) "Reading... %s\n",DATA);
         #endif
             Fgad[i].read((char*)&dummy, sizeof(dummy));
             Fgad[i].read((char*)&header[i], sizeof(gadget_header));
@@ -164,13 +165,13 @@ void MPINumInDomainGadget(Options &opt)
             Fgad[i].read((char*)&dummy, sizeof(dummy));
             for(k=0;k<NGTYPE;k++)
             {
+            	LOG(trace)<<k<<" "<<header[i].npart[k];
                 for(n=0;n<header[i].npart[k];n++)
                 {
                     Fgad[i].read((char*)&ctemp[0], sizeof(FLOAT)*3);
 #ifdef PERIODWRAPINPUT
-                    PeriodWrapInput<FLOAT>(opt.p, ctemp);
+                    PeriodWrapInput<FLOAT>(header[i].BoxSize, ctemp);
 #endif
-
                     ibuf=MPIGetParticlesProcessor(opt, ctemp[0],ctemp[1],ctemp[2]);
                     if (opt.partsearchtype==PSTALL) {
                         Nbuf[ibuf]++;
