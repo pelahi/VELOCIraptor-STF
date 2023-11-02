@@ -86,7 +86,10 @@ std::string GetMemUsage(const std::string &function)
     return memory_report.str();
 }
 
-/* Borrowed from util-linux-2.13-pre7/schedutils/taskset.c */
+/*
+Code to facilitate core binding reporting
+borrowed from util-linux-2.13-pre7/schedutils/taskset.c
+*/
 #ifdef __APPLE__
 
 static inline void
@@ -100,92 +103,144 @@ CPU_ISSET(int num, cpu_set_t *cs) { return (cs->count & (1 << num)); }
 
 int sched_getaffinity(pid_t pid, size_t cpu_size, cpu_set_t *cpu_set)
 {
-  int32_t core_count = 0;
-  size_t  len = sizeof(core_count);
-  int ret = sysctlbyname(SYSCTL_CORE_COUNT, &core_count, &len, 0, 0);
-  if (ret) {
-    printf("error while get core count %d\n", ret);
-    return -1;
-  }
-  cpu_set->count = 0;
-  for (int i = 0; i < core_count; i++) {
-    cpu_set->count |= (1 << i);
-  }
-
-  return 0;
+    int32_t core_count = 0;
+    size_t  len = sizeof(core_count);
+    int ret = sysctlbyname(SYSCTL_CORE_COUNT, &core_count, &len, 0, 0);
+    if (ret) {
+        printf("error while get core count %d\n", ret);
+        return -1;
+    }
+    cpu_set->count = 0;
+    for (int i = 0; i < core_count; i++) cpu_set->count |= (1 << i);
+    return 0;
 }
 #endif
 
 void cpuset_to_cstr(cpu_set_t *mask, char *str)
 {
-  char *ptr = str;
-  int i, j, entry_made = 0;
-  for (i = 0; i < CPU_SETSIZE; i++) {
-    if (CPU_ISSET(i, mask)) {
-      int run = 0;
-      entry_made = 1;
-      for (j = i + 1; j < CPU_SETSIZE; j++) {
-        if (CPU_ISSET(j, mask)) run++;
-        else break;
-      }
-      if (!run)
-        sprintf(ptr, "%d ", i);
-      else if (run == 1) {
-        sprintf(ptr, "%d,%d ", i, i + 1);
-        i++;
-      } else {
-        sprintf(ptr, "%d-%d ", i, i + run);
-        i += run;
-      }
-      while (*ptr != 0) ptr++;
+    char *ptr = str;
+    int i, j, entry_made = 0;
+    for (i = 0; i < CPU_SETSIZE; i++) {
+        if (CPU_ISSET(i, mask)) {
+            int run = 0;
+            entry_made = 1;
+            for (j = i + 1; j < CPU_SETSIZE; j++) {
+                if (CPU_ISSET(j, mask)) run++;
+                else break;
+            }
+            if (!run) {
+                sprintf(ptr, "%d ", i);
+            }
+            else if (run == 1) {
+                sprintf(ptr, "%d,%d ", i, i + 1);
+                i++;
+            } else {
+                sprintf(ptr, "%d-%d ", i, i + run);
+                i += run;
+            }
+            while (*ptr != 0) ptr++;
+        }
     }
-  }
-  ptr -= entry_made;
-  ptr = nullptr;
+    ptr -= entry_made;
+    ptr = nullptr;
 }
+
 
 void report_binding()
 {
-    // if there is no MPI do not report any binding
-#if !defined(USEMPI) && !defined(USEOPENMP)
-    return; 
-#endif
+    std::string binding_report;
+    int rank=0, commsize=1;
 #ifdef USEMPI
-    MPI_Barrier(MPI_COMM_WORLD);
-#else
-    int ThisTask=0, NProcs=1;
+    MPI_Comm_size(MPI_COMM_WORLD, &commsize);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif
-    string binding_report = "Core binding \n ";
+    if (rank == 0) binding_report = "Core Binding \n ======== \n";
     cpu_set_t coremask;
     char clbuf[7 * CPU_SETSIZE], hnbuf[64];
     memset(clbuf, 0, sizeof(clbuf));
     memset(hnbuf, 0, sizeof(hnbuf));
     (void)gethostname(hnbuf, sizeof(hnbuf));
+    std::string result;
+#ifdef USEMPI
+    result = "\t On node " + std::string(hnbuf) + " : ";
+    result += "MPI Rank " + std::to_string(rank) + " : ";
+#else 
+    result = "\t Single process on node " + std::string(hnbuf) + " : ";
+#endif
 #ifdef USEOPENMP
-    #pragma omp parallel shared (binding_report) private(coremask, clbuf) 
+    #pragma omp parallel \
+    default(none) shared(binding_report, hnbuf, ThisTask) \
+    private(coremask, clbuf) \
+    firstprivate(result)
 #endif
     {
-        string result;
         (void)sched_getaffinity(0, sizeof(coremask), &coremask);
         cpuset_to_cstr(&coremask, clbuf);
-        result = "\t On node " + string(hnbuf) + " : ";
-#ifdef USEMPI 
-        result += "MPI Rank " + to_string(ThisTask) + " : ";
-#endif
 #ifdef USEOPENMP
         auto thread = omp_get_thread_num();
-        result +=" OMP Thread " + to_string(thread) + " : ";
+        auto level = omp_get_level();
+        result +=" OMP Thread " + std::to_string(thread) + " : ";
+        result +=" at nested level " + std::to_string(level) + " : ";
 #endif
-        result += " Core affinity = " + string(clbuf) + " \n ";
-#ifdef USEOPENMP 
-        #pragma omp critical 
-#endif 
+        result += " Core affinity = " + std::string(clbuf) + " \n ";
+#ifdef USEOPENMP
+        #pragma omp critical
+#endif
         {
-            binding_report +=result;
-
+            binding_report += result;
         }
     }
-    LOG(info)<<binding_report;
+/*
+#ifdef _GPU
+    int nDevices = 0;
+    pu_gpuErrorCheck(pu_gpuGetDeviceCount(&nDevices));
+    if (nDevices > 0) {
+        char busid[64];
+        for (auto i=0;i<nDevices;i++)
+        {
+            pu_gpuDeviceProp_t prop;
+            std::string s;
+            // pu_gpuErrorCheck(pu_gpuSetDevice(i));
+            pu_gpuErrorCheck(pu_gpuGetDeviceProperties(&prop, i));
+            // Get the PCIBusId for each GPU and use it to query for UUID
+            pu_gpuErrorCheck(pu_gpuDeviceGetPCIBusId(busid, 64, i));
+            s = "\t On node " + std::string(hnbuf) + " : ";
+#ifdef _MPI
+            s += "MPI Rank " + std::to_string(ThisTask) + " : ";
+#endif
+            s += "GPU device " + std::to_string(i);
+            s += " Device_Name=" + std::string(prop.name);
+            s += " Bus_ID=" + std::string(busid);
+            s += " Compute_Units=" + std::to_string(prop.multiProcessorCount);
+            s += " Max_Work_Group_Size=" + std::to_string(prop.warpSize);
+            s += " Local_Mem_Size=" + std::to_string(prop.sharedMemPerBlock);
+            s += " Global_Mem_Size=" + std::to_string(prop.totalGlobalMem);
+            s += "\n";
+            binding_report +=s;
+        }
+    }
+#endif
+*/
+#ifdef USEMPI
+    // gather all strings to for outputing info 
+    std::vector<int> recvcounts(NProcs);
+    std::vector<int> offsets(NProcs);
+    int size = binding_report.length();
+    auto p1 = recvcounts.data(); 
+    MPI_Allgather(&size, 1, MPI_INTEGER, p1, 1, MPI_INTEGER, MPI_COMM_WORLD);
+    size = recvcounts[0];
+    offsets[0] = 0;
+    for (auto i=1;i<NProcs;i++) {size += recvcounts[i]; offsets[i] = offsets[i-1] + recvcounts[i-1];}
+    char newbindingreport[size];
+    auto p2 = binding_report.c_str();
+    MPI_Allgatherv(p2, binding_report.length(), MPI_CHAR,
+            newbindingreport, recvcounts.data(), offsets.data(), MPI_CHAR,
+            MPI_COMM_WORLD);
+    newbindingreport[size-1] = '\0';
+    binding_report = std::string(newbindingreport);
+#endif
+
+    LOG_RANK0(info)<<binding_report;
 #ifdef USEMPI
     MPI_Barrier(MPI_COMM_WORLD);
 #endif

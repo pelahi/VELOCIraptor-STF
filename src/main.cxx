@@ -45,32 +45,33 @@ void show_version_info(int argc, char *argv[])
 	std::copy(argv, argv + argc, std::ostream_iterator<char *>(os, " "));
 	LOG_RANK0(info) << "VELOCIraptor started with command line: " << os.str();
 
-	// MPI/OpenMP information
-	std::ostringstream mpi_info;
-	mpi_info << "VELOCIratptor MPI support: ";
-#ifdef USEMPI
-	mpi_info << "yes, " << NProcs << " MPI ranks";
-	char hostname[NAME_MAX + 1];
-	::gethostname(hostname, NAME_MAX);
-	std::vector<char> all_hostnames;
-	if (ThisTask == 0) {
-	    all_hostnames.resize((NAME_MAX + 1)* NProcs);
-	}
-	MPI_Gather(hostname, NAME_MAX + 1, MPI_CHAR, all_hostnames.data(), NAME_MAX + 1, MPI_CHAR, 0, MPI_COMM_WORLD);
-	if (ThisTask == 0) {
-	    std::vector<std::string> proper_hostnames;
-	    for (int rank = 0; rank != NProcs; rank++) {
-	        proper_hostnames.emplace_back(all_hostnames.data() + (NAME_MAX + 1) * rank);
-	    }
+    // MPI/OpenMP information
+    std::ostringstream mpi_info;
+    mpi_info << "VELOCIratptor MPI support: ";
+    #ifdef USEMPI
+    mpi_info << "yes. ";
+    mpi_info << "\n" << "MPI comm world contains "<<NProcs << " MPI ranks";
+    char hostname[NAME_MAX + 1];
+    ::gethostname(hostname, NAME_MAX);
+    std::vector<char> all_hostnames;
+    if (ThisTask == 0) {
+        all_hostnames.resize((NAME_MAX + 1)* NProcs);
+    }
+    MPI_Gather(hostname, NAME_MAX + 1, MPI_CHAR, all_hostnames.data(), NAME_MAX + 1, MPI_CHAR, 0, MPI_COMM_WORLD);
+    if (ThisTask == 0) {
+        std::vector<std::string> proper_hostnames;
+        for (int rank = 0; rank != NProcs; rank++) {
+            proper_hostnames.emplace_back(all_hostnames.data() + (NAME_MAX + 1) * rank);
+        }
         std::set<std::string> s(proper_hostnames.begin(), proper_hostnames.end());
         std::vector<std::string> unique_hostnames(s.size());
         std::copy(s.begin(), s.end(), unique_hostnames.begin());
-	    mpi_info << " running in " << unique_hostnames.size() << " nodes: ";
-	    mpi_info << vr::printable_range(unique_hostnames);
-	}
-#else
-	mpi_info << "no";
-#endif
+        mpi_info << " running in " << unique_hostnames.size() << " nodes: ";
+        mpi_info << vr::printable_range(unique_hostnames);
+    }
+    #else
+    mpi_info << "no.";
+    #endif
 	LOG_RANK0(info) << "VELOCIratptor MPI support: " << mpi_info.str();
 
 	LOG_RANK0(info) << "VELOCIratptor OpenMP support: "
@@ -205,6 +206,7 @@ int run(int argc,char **argv)
     if (opt.iBaryonSearch > 0) {
         LOG_RANK0(info) << "There are " << nbaryons << " baryon particles in total that require " << vr::memory_amount(nbaryons * sizeof(Particle));
     }
+
 
     //note that for nonmpi particle array is a contiguous block of memory regardless of whether a separate baryon search is required
 #ifndef USEMPI

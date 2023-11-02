@@ -29,17 +29,16 @@
 #include <limits>
 #include <map>
 #include <set>
+#include <sched.h>
 #include <string>
 #include <sys/stat.h>
+#include <sys/sysinfo.h>
 #include <sys/timeb.h>
 #include <sys/time.h>
 #include <unordered_map>
 #include <unordered_set>
 #include <unistd.h>
 #include <vector>
-#include <sys/types.h>
-#include <sys/sysctl.h>
-#include <sched.h>
 
 #include <gsl/gsl_heapsort.h>
 #include <gsl/gsl_errno.h>
