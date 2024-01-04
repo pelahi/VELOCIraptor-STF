@@ -94,6 +94,10 @@ These can be passed to ``cmake``
             | ``VR_ADIOS``: boolean on whether to include ADIOS support
             | ``ADIOS_DIR``: specify a local directory containing ADIOS library.
 
+    * Enable variation in input
+        * to allow particles in input to be outside the periodic bounds
+            | ``VR_PARTICLES_OUTSIDE_PERIOD_LIMIT``: boolean to allow particles to be outside periodic limit and be wrapped into periodic volume. Enable this only if you are certain that particles can be outside volume. Otherwise, error report by VR might indicate incorrect reading of the input. 
+
     * To set directories of required libraries
         * Set the directories of the following libraries
             | ``GSL_DIR =``

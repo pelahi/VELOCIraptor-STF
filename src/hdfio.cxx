@@ -2997,6 +2997,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
                     }
                 LOG(debug) << "Now getting where the data should be sent";
                 for (unsigned long long nn=0;nn<nchunk;nn++) {
+#ifdef PERIODWRAPINPUT
+                    PeriodWrapInput<double>(hdf_header_info[i].BoxSize, doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
+#endif
                     ibuf=MPIGetParticlesProcessor(opt, doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
                     ibufindex=ibuf*BufSize+Nbuf[ibuf];
                     //reset hydro quantities of buffer
@@ -3401,6 +3404,9 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
 #endif
 #endif
                     for (int nn=0;nn<nchunk;nn++) {
+#ifdef PERIODWRAPINPUT
+                    PeriodWrapInput<double>(hdf_header_info[i].BoxSize, doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
+#endif
                     ibuf=MPIGetParticlesProcessor(opt, doublebuff[nn*3],doublebuff[nn*3+1],doublebuff[nn*3+2]);
                     ibufindex=ibuf*BufSize+Nbuf[ibuf];
                     //reset hydro quantities of buffer
