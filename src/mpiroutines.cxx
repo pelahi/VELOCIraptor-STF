@@ -7,6 +7,9 @@
 
 #ifdef USEMPI
 
+#include <cassert>
+#include <tuple>
+
 //-- For MPI
 
 #include "stf.h"
@@ -43,6 +46,41 @@ using namespace Swift;
     then I could get initial splitting just using mid point between boundaries along each dimension.
     once have that initial splitting just load data then start shifting data around.
 */
+
+/// function that sends information between threads 
+static std::tuple<std::vector<Int_t>, std::vector<float>>
+exchange_indices_and_props(
+    const std::vector<Int_t> &indices, const std::vector<float> &props,
+    std::size_t props_per_index, int rank, int tag, MPI_Comm &mpi_comm)
+{
+    Int_t num_indices = indices.size();
+    Int_t num_props = num_indices * props_per_index;
+    assert(num_indices <= std::numeric_limits<std::int32_t>::max());
+    assert(props.size() == num_props);
+
+    // Send/recv number of indices to allocate reception buffers
+    Int_t num_indices_recv;
+    MPI_Status status;
+    MPI_Sendrecv(
+        &num_indices, 1, MPI_Int_t, rank, tag * 2,
+        &num_indices_recv, 1, MPI_Int_t, rank, tag * 2,
+        mpi_comm, &status);
+
+    // Send/recv actual indices and properties
+    std::vector<Int_t> indices_recv(num_indices_recv);
+    Int_t num_props_recv = num_indices_recv * props_per_index;
+    std::vector<float> props_recv(num_props_recv);
+    MPI_Sendrecv(
+        indices.data(), num_indices, MPI_Int_t, rank, tag * 3,
+        indices_recv.data(), num_indices_recv, MPI_Int_t, rank, tag * 3,
+        mpi_comm, &status);
+    MPI_Sendrecv(
+        props.data(), num_props, MPI_FLOAT, rank, tag * 4,
+        props_recv.data(), num_props_recv, MPI_FLOAT, rank, tag * 4,
+        mpi_comm, &status);
+    return {std::move(indices_recv), std::move(props_recv)};
+}
+
 
 ///determine the initial domains, ie: bisection distance mpi_dxsplit, which is used to determien what processor a particle is assigned to
 ///here the domains are constructured in data units
@@ -151,10 +189,13 @@ void MPIInitialDomainDecomposition(Options &opt)
                 }
             }
         }
-        cout<<"Initial MPI Domains are: "<<endl;
+        LOG(info) << "Initial MPI Domains are:";
         for (int j=0;j<NProcs;j++) {
-            cout<<"ThisTask= "<<j<<" :: ";
-            cout.precision(10);for (int k=0;k<3;k++) cout<<k<<" "<<mpi_domain[j].bnd[k][0]<<" "<<mpi_domain[j].bnd[k][1]<<" | ";cout<<endl;
+            std::ostringstream os;
+            os << " ThisTask= " << j << " :: ";
+            for (int k=0;k<3;k++)
+                os << k << " " << mpi_domain[j].bnd[k][0] << " " << mpi_domain[j].bnd[k][1] << " | ";
+            LOG(info) << os.str();
         }
     }
     //broadcast data
@@ -163,14 +204,17 @@ void MPIInitialDomainDecomposition(Options &opt)
 
 void MPIInitialDomainDecompositionWithMesh(Options &opt){
     if (ThisTask==0) {
-        //each processor takes subsection of volume where use simple 2^(ceil(log(NProcs)/log(2))) subdivision
-        opt.numcellsperdim = max((int)pow(2,(int)ceil(log((float)NProcs)/log(2.0))), opt.minnumcellperdim);
-        //each processor takes subsection of volume where use simple NProcs^(1/3) subdivision
-        // opt.numcellsperdim = max((int)ceil(pow((double)NProcs,(double)(1.0/3.0)))*8, opt.minnumcellperdim);
+        // each processor takes subsection of volume, where the grow in number of cells per proc 
+        // is set such that the cells per dim grows as (log(N)/log(2))^(y). Currently y=1
+        // unless the numcellsperdim has been set, in which case that is used. 
+        if (opt.numcellsperdim == 0) {
+            unsigned int NProcfac = std::ceil(log(static_cast<double>(NProcs))/log(2.0));
+            opt.numcellsperdim = opt.minnumcellperdim*std::max(NProcfac, 1u);
+        }
         unsigned int n3 = opt.numcells = opt.numcellsperdim*opt.numcellsperdim*opt.numcellsperdim;
         double idelta = 1.0/(double)opt.numcellsperdim;
         for (auto i=0; i<3; i++) {
-            opt.spacedimension[i] = (mpi_xlim[i][1]  - mpi_xlim[i][0]);
+            opt.spacedimension[i] = (mpi_xlim[i][1] - mpi_xlim[i][0]);
             opt.cellwidth[i] = (opt.spacedimension[i] * idelta);
             opt.icellwidth[i] = 1.0/opt.cellwidth[i];
         }
@@ -206,11 +250,11 @@ void MPIInitialDomainDecompositionWithMesh(Options &opt){
             }
         }
         //then sort index array based on the zcurvearray value
-        sort(zcurve.begin(), zcurve.end(), [](zcurvestruct &a, zcurvestruct &b){
+        sort(zcurve.begin(), zcurve.end(), [](const zcurvestruct &a, const zcurvestruct &b){
             return a.zcurvevalue.to_ullong() < b.zcurvevalue.to_ullong();
         });
         //finally assign cells to tasks
-        opt.cellnodeids = new int[n3];
+        opt.cellnodeids.resize(n3);
         opt.cellnodeorder.resize(n3);
         opt.cellloc = new cell_loc[n3];
         int nsub = max((int)floor(n3/(double)NProcs), 1);
@@ -228,12 +272,12 @@ void MPIInitialDomainDecompositionWithMesh(Options &opt){
             numcellspertask[itask]++;
             count++;
         }
-        if (ThisTask == 0) {
-            cout<<"Z-curve Mesh MPI decomposition: "<<endl;
-            cout<<"Mesh has resolution of "<<opt.numcellsperdim<<" per spatial dim "<<endl;
-            cout<<"with each mesh spanning ("<<opt.cellwidth[0]<<", "<<opt.cellwidth[1]<<", "<<opt.cellwidth[2]<<")"<<endl;
-            cout<<"MPI tasks :"<<endl;
-            for (auto i=0; i<NProcs; i++) cout<<"Task "<<i<<" has "<<numcellspertask[i]/double(n3)<<" of the volume"<<endl;
+        LOG(info) << "Z-curve Mesh MPI decomposition:";
+        LOG(info) << " Mesh has resolution of " << opt.numcellsperdim << " per spatial dim";
+        LOG(info) << " with each mesh spanning (" << opt.cellwidth[0] << ", " << opt.cellwidth[1] << ", " << opt.cellwidth[2] << ")";
+        LOG(info) << "MPI tasks :";
+        for (auto i=0; i<NProcs; i++) {
+            LOG(info) << " Task "<< i << " has " << numcellspertask[i] / double(n3) << " of the volume";
         }
     }
     //broadcast data
@@ -243,13 +287,12 @@ void MPIInitialDomainDecompositionWithMesh(Options &opt){
     MPI_Bcast(opt.cellwidth, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     MPI_Bcast(opt.icellwidth, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     if (ThisTask != 0) {
-        opt.cellnodeids = new int[opt.numcells];
+        opt.cellnodeids.resize(opt.numcells);
         opt.cellnodeorder.resize(opt.numcells);
     }
     opt.cellnodenumparts.resize(opt.numcells,0);
-    MPI_Bcast(opt.cellnodeids, opt.numcells, MPI_INTEGER, 0, MPI_COMM_WORLD);
+    MPI_Bcast(opt.cellnodeids.data(), opt.numcells, MPI_INTEGER, 0, MPI_COMM_WORLD);
     MPI_Bcast(opt.cellnodeorder.data(), opt.numcells, MPI_INTEGER, 0, MPI_COMM_WORLD);
-
 }
 
 //find min/max, average and std
@@ -285,9 +328,9 @@ bool MPIRepartitionDomainDecompositionWithMesh(Options &opt){
     double optimalave = 0; for (auto i=0;i<opt.numcells;i++) optimalave += opt.cellnodenumparts[i];
     optimalave /= (double)NProcs;
     auto loadimbalance = MPILoadBalanceWithMesh(opt);
-    if (ThisTask == 0) cout<<"MPI imbalance of "<<loadimbalance<<endl;
+    LOG_RANK0(info) << "MPI imbalance of " << loadimbalance;
     if (loadimbalance > opt.mpimeshimbalancelimit) {
-        if (ThisTask == 0) cout<<"Imbalance too large, adjusting MPI domains ... "<<endl;
+        LOG_RANK0(info) << "Imbalance too large, adjusting MPI domains ...";
         int itask = 0;
         Int_t numparts = 0 ;
         vector<int> numcellspertask(NProcs,0);
@@ -307,19 +350,24 @@ bool MPIRepartitionDomainDecompositionWithMesh(Options &opt){
         mpinumparts[NProcs-1] = numparts;
         if (ThisTask == 0) {
             for (auto x:mpinumparts) if (x == 0) {
-                cerr<<"ERROR: MPI Process has zero particles associated with it, likely due to too many mpi tasks requested or too coarse a mesh used."<<endl;
-                cerr<<"Current number of tasks: "<<NProcs<<endl;
-                cerr<<"Current mesh resolution "<<opt.numcellsperdim<<"^3"<<endl;
-                Int_t sum = 0; for(auto x:opt.cellnodenumparts) sum +=x;
-                cerr<<"Total number of particles loaded "<<sum<<endl;
-                cerr<<"Suggested number of particles per mpi processes is > 1e7"<<endl;
-                cerr<<"Suggested number of mpi processes using 1e7 is "<<(int)ceil(sum/1e7)<<endl;
-                cerr<<"Increase mesh resolution or reduce MPI Processes "<<endl;
+                LOG(error) << "MPI Process has zero particles associated with it, likely due to too many mpi tasks requested or too coarse a mesh used.";
+                LOG(error) << "Current number of tasks: " << NProcs;
+                LOG(error) << "Current mesh resolution " << opt.numcellsperdim << "^3";
+                Int_t sum = 0;
+                for (auto x:opt.cellnodenumparts) {
+                    sum +=x;
+                }
+                LOG(error) << "Total number of particles loaded " << sum;
+                LOG(error) << "Suggested number of particles per mpi processes is > 1e7";
+                LOG(error) << "Suggested number of mpi processes using 1e7 is " << (int)ceil(sum / 1e7);
+                LOG(error) << "Increase mesh resolution or reduce MPI Processes ";
                 MPI_Abort(MPI_COMM_WORLD,8);
             }
-            cout<<"Now have MPI imbalance of "<<MPILoadBalanceWithMesh(opt)<<endl;
-            cout<<"MPI tasks :"<<endl;
-            for (auto i=0; i<NProcs; i++) cout<<" Task "<<i<<" has "<<numcellspertask[i]/double(opt.numcells)<<" of the volume"<<endl;
+            LOG(info) << "Now have MPI imbalance of " << MPILoadBalanceWithMesh(opt);
+            LOG(info) << "MPI tasks:";
+            for (auto i=0; i<NProcs; i++) {
+                LOG(info) << " Task " << i << " has " << numcellspertask[i] / double(opt.numcells) << " of the volume";
+            }
         }
         for (auto &x:opt.cellnodenumparts) x=0;
         Nlocal = mpinumparts[ThisTask];
@@ -332,6 +380,7 @@ bool MPIRepartitionDomainDecompositionWithMesh(Options &opt){
 
 void MPINumInDomain(Options &opt)
 {
+    
     //when reading number in domain, use all available threads to read all available files
     //first set number of read threads to either total number of mpi process or files, which ever is smaller
     //store old number of read threads
@@ -350,9 +399,9 @@ void MPINumInDomain(Options &opt)
 #endif
     if (ThisTask == 0) {
         if (Ntotal/1e7 < NProcs) {
-            cout<<"WARNING: Suggested number of particles per mpi processes is roughly > 1e7"<<endl;
-            cout<<"Number of MPI tasks greater than this suggested number"<<endl;
-            cerr<<"May result in poor performance"<<endl;
+            LOG(warning) << "Suggested number of particles per mpi processes is roughly > 1e7";
+            LOG(warning) << "Number of MPI tasks greater than this suggested number";
+            LOG(warning) << "May result in poor performance";
         }
     }
     //if using mesh, check load imbalance and also repartition
@@ -446,7 +495,7 @@ int MPIGetParticlesProcessor(Options &opt, Double_t x, Double_t y, Double_t z){
                 return j;
         }
     }
-    cerr<<ThisTask<<" has particle outside the mpi domains of every process ("<<x<<","<<y<<","<<z<<")"<<endl;
+    LOG(error) << "Particle outside the mpi domains of every process (" << x << "," << y << "," << z << ")";
     MPI_Abort(MPI_COMM_WORLD,9);
     return -1;
 }
@@ -1644,9 +1693,8 @@ void MPIDistributeReadTasks(Options&opt, int *&ireadtask, int*&readtaskID){
     for (int i=0;i<opt.nsnapread;i++) {ireadtask[i*spacing]=i;readtaskID[i]=i*spacing;}
 }
 
-int MPISetFilesRead(Options&opt, int *&ireadfile, int *&ireadtask){
+int MPISetFilesRead(Options&opt, std::vector<int> &ireadfile, int *&ireadtask){
     //to determine which files the thread should read
-    ireadfile=new int[opt.num_files];
     int nread, niread, nfread;
     for (int i=0;i<opt.num_files;i++) ireadfile[i]=0;
 #ifndef USEPARALLELHDF
@@ -2148,15 +2196,14 @@ void MPIReceiveParticlesFromReadThreads(Options &opt, Particle *&Pbuf, Particle 
 void MPISendReceiveHydroInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Particle *Pbuf, Int_t nlocal, Particle *Part, int recvTask, int tag, MPI_Comm &mpi_comm)
 {
 #ifdef GASON
-    MPI_Status status;
+    auto numextrafields = opt.gas_internalprop_unique_input_names.size()  + opt.gas_chem_unique_input_names.size() + opt.gas_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+
     vector<Int_t> indicessend, indicesrecv;
-    Int_t numsend, numrecv, numextrafields = 0, index, offset = 0;
+    Int_t numsend, numrecv, index, offset = 0;
     vector<float> propsendbuff, proprecvbuff;
     string field;
     HydroProperties x;
-
-    numextrafields = opt.gas_internalprop_unique_input_names.size()  + opt.gas_chem_unique_input_names.size() + opt.gas_chemproduction_unique_input_names.size();
-    if (numextrafields == 0) return;
 
     //first determine what needs to be sent.
     for (auto i=0;i<nlocalbuff;i++) if (Pbuf[i].HasHydroProperties()) indicessend.push_back(i);
@@ -2186,21 +2233,10 @@ void MPISendReceiveHydroInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Parti
             }
         }
     }
-
-    //send/recv the numbers that are sent.
-    MPI_Sendrecv(&numsend,1, MPI_Int_t, recvTask, tag,
-        &numrecv,1, MPI_Int_t, recvTask, tag, mpi_comm, &status);
-    if (numrecv>0) {
-        indicesrecv.resize(numrecv);
-        proprecvbuff.resize(numrecv*numextrafields);
-    }
-    //send the information. If size is zero, resize vector so .data() points to valid address
-    if (numsend == 0) {indicessend.resize(1);propsendbuff.resize(1);}
-    if (numrecv == 0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
-    MPI_Sendrecv(indicessend.data(),numsend, MPI_Int_t, recvTask,
-        tag*2, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*2, mpi_comm, &status);
-    MPI_Sendrecv(propsendbuff.data(),numsend, MPI_FLOAT, recvTask,
-        tag*3, proprecvbuff.data(),numrecv, MPI_FLOAT, recvTask, tag*3, mpi_comm, &status);
+    std::tie(indicesrecv, proprecvbuff) =
+        exchange_indices_and_props(indicessend, propsendbuff, numextrafields,
+            recvTask, tag, mpi_comm);
+    numrecv = indicesrecv.size();
 
     if (numrecv == 0) return;
     //and then update the local information
@@ -2237,15 +2273,15 @@ void MPISendReceiveHydroInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Parti
 void MPISendReceiveStarInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Particle *Pbuf, Int_t nlocal, Particle *Part, int recvTask, int tag, MPI_Comm &mpi_comm)
 {
 #ifdef STARON
-    MPI_Status status;
+
+    auto numextrafields = opt.star_internalprop_unique_input_names.size() + opt.star_chem_unique_input_names.size() + opt.star_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+
     vector<Int_t> indicessend, indicesrecv;
-    Int_t numsend, numrecv, numextrafields = 0, index, offset = 0;
+    Int_t numsend, numrecv, index, offset = 0;
     vector<float> propsendbuff, proprecvbuff;
     string field;
     StarProperties x;
-
-    numextrafields = opt.star_internalprop_unique_input_names.size() + opt.star_chem_unique_input_names.size() + opt.star_chemproduction_unique_input_names.size();
-    if (numextrafields == 0) return;
 
     //first determine what needs to be sent.
     for (auto i=0;i<nlocalbuff;i++) if (Pbuf[i].HasStarProperties()) indicessend.push_back(i);
@@ -2276,22 +2312,12 @@ void MPISendReceiveStarInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Partic
         }
     }
 
-    //send/recv the numbers that are sent.
-    MPI_Sendrecv(&numsend,1, MPI_Int_t, recvTask, tag,
-        &numrecv,1, MPI_Int_t, recvTask, tag, mpi_comm, &status);
-    if (numrecv>0) {
-        indicesrecv.resize(numrecv);
-        proprecvbuff.resize(numrecv*numextrafields);
-    }
-    //send the information. If size is zero, resize vector so .data() points to valid address
-    if (numsend == 0) {indicessend.resize(1);propsendbuff.resize(1);}
-    if (numrecv == 0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
-    MPI_Sendrecv(indicessend.data(),numsend, MPI_Int_t, recvTask,
-        tag*2, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*2, mpi_comm, &status);
-    MPI_Sendrecv(propsendbuff.data(),numsend, MPI_FLOAT, recvTask,
-        tag*3, proprecvbuff.data(),numrecv, MPI_FLOAT, recvTask, tag*3, mpi_comm, &status);
-
+    std::tie(indicesrecv, proprecvbuff) =
+        exchange_indices_and_props(indicessend, propsendbuff, numextrafields,
+            recvTask, tag, mpi_comm);
+    numrecv = indicesrecv.size();
     if (numrecv == 0) return;
+
     //and then update the local information
     //explicitly NULLing copied information which was done with a BYTE copy
     //The unique pointers will have meaningless info so NULL them (by relasing ownership)
@@ -2326,15 +2352,15 @@ void MPISendReceiveStarInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Partic
 void MPISendReceiveBHInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Particle *Pbuf, Int_t nlocal, Particle *Part, int recvTask, int tag, MPI_Comm &mpi_comm)
 {
 #ifdef BHON
-    MPI_Status status;
+
+    auto numextrafields = opt.bh_internalprop_unique_input_names.size() + opt.bh_chem_unique_input_names.size() + opt.bh_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+
     vector<Int_t> indicessend, indicesrecv;
-    Int_t numsend, numrecv, numextrafields = 0, index, offset = 0;
+    Int_t numsend, numrecv, index, offset = 0;
     vector<float> propsendbuff, proprecvbuff;
     string field;
     BHProperties x;
-
-    numextrafields = opt.bh_internalprop_unique_input_names.size() + opt.bh_chem_unique_input_names.size() + opt.bh_chemproduction_unique_input_names.size();
-    if (numextrafields == 0) return;
 
     //first determine what needs to be sent.
     for (auto i=0;i<nlocalbuff;i++) if (Pbuf[i].HasBHProperties()) indicessend.push_back(i);
@@ -2365,21 +2391,10 @@ void MPISendReceiveBHInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Particle
         }
     }
 
-    //send/recv the numbers that are sent.
-    MPI_Sendrecv(&numsend,1, MPI_Int_t, recvTask, tag,
-        &numrecv,1, MPI_Int_t, recvTask, tag, mpi_comm, &status);
-    if (numrecv>0) {
-        indicesrecv.resize(numrecv);
-        proprecvbuff.resize(numrecv*numextrafields);
-    }
-    //send the information. If size is zero, resize vector so .data() points to valid address
-    if (numsend == 0) {indicessend.resize(1);propsendbuff.resize(1);}
-    if (numrecv == 0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
-    MPI_Sendrecv(indicessend.data(),numsend, MPI_Int_t, recvTask,
-        tag*2, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*2, mpi_comm, &status);
-    MPI_Sendrecv(propsendbuff.data(),numsend, MPI_FLOAT, recvTask,
-        tag*3, proprecvbuff.data(),numrecv, MPI_FLOAT, recvTask, tag*3, mpi_comm, &status);
-
+    std::tie(indicesrecv, proprecvbuff) =
+        exchange_indices_and_props(indicessend, propsendbuff, numextrafields,
+            recvTask, tag, mpi_comm);
+    numrecv = indicesrecv.size();
     if (numrecv == 0) return;
     //and then update the local information
     //explicitly NULLing copied information which was done with a BYTE copy
@@ -2416,15 +2431,15 @@ void MPISendReceiveBHInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Particle
 void MPISendReceiveExtraDMInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Particle *Pbuf, Int_t nlocal, Particle *Part, int recvTask, int tag, MPI_Comm &mpi_comm)
 {
 #ifdef EXTRADMON
-    MPI_Status status;
+
+    auto numextrafields = opt.extra_dm_internalprop_unique_input_names.size();
+    if (numextrafields == 0) return;
+
     vector<Int_t> indicessend, indicesrecv;
-    Int_t numsend, numrecv, numextrafields = 0, index, offset = 0;
+    Int_t numsend, numrecv, index, offset = 0;
     vector<float> propsendbuff, proprecvbuff;
     string field;
     ExtraDMProperties x;
-
-    numextrafields = opt.extra_dm_internalprop_unique_input_names.size();
-    if (numextrafields == 0) return;
 
     //first determine what needs to be sent.
     for (auto i=0;i<nlocalbuff;i++) if (Pbuf[i].HasExtraDMProperties()) indicessend.push_back(i);
@@ -2443,21 +2458,10 @@ void MPISendReceiveExtraDMInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Par
         }
     }
 
-    //send/recv the numbers that are sent.
-    MPI_Sendrecv(&numsend,1, MPI_Int_t, recvTask, tag,
-        &numrecv,1, MPI_Int_t, recvTask, tag, mpi_comm, &status);
-    if (numrecv>0) {
-        indicesrecv.resize(numrecv);
-        proprecvbuff.resize(numrecv*numextrafields);
-    }
-    //send the information. If size is zero, resize vector so .data() points to valid address
-    if (numsend == 0) {indicessend.resize(1);propsendbuff.resize(1);}
-    if (numrecv == 0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
-    MPI_Sendrecv(indicessend.data(),numsend, MPI_Int_t, recvTask,
-        tag*2, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*2, mpi_comm, &status);
-    MPI_Sendrecv(propsendbuff.data(),numsend, MPI_FLOAT, recvTask,
-        tag*3, proprecvbuff.data(),numrecv, MPI_FLOAT, recvTask, tag*3, mpi_comm, &status);
-
+    std::tie(indicesrecv, proprecvbuff) =
+        exchange_indices_and_props(indicessend, propsendbuff, numextrafields,
+            recvTask, tag, mpi_comm);
+    numrecv = indicesrecv.size();
     if (numrecv == 0) return;
     //and then update the local information
     //explicitly NULLing copied information which was done with a BYTE copy
@@ -2481,27 +2485,20 @@ void MPISendReceiveExtraDMInfoBetweenThreads(Options &opt, Int_t nlocalbuff, Par
 void MPISendReceiveBuffWithHydroInfoBetweenThreads(Options &opt, Particle *PartLocal, vector<Int_t> &indicessend,  vector<float> &propsendbuff, int recvTask, int tag, MPI_Comm &mpi_comm)
 {
 #ifdef GASON
-    MPI_Status status;
+
+    auto numextrafields = opt.gas_internalprop_unique_input_names.size() + opt.gas_chem_unique_input_names.size() + opt.gas_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+
     vector<Int_t> indicesrecv;
-    Int_t numsend, numrecv, numextrafields = 0, index, offset = 0;
-    vector<float> proprecvbuff(0);
+    vector<float> proprecvbuff;
+    Int_t index, offset;
     string field;
     HydroProperties x;
 
-    numextrafields = opt.gas_internalprop_unique_input_names.size() + opt.gas_chem_unique_input_names.size() + opt.gas_chemproduction_unique_input_names.size();
-    if (numextrafields == 0) return;
-    numsend = indicessend.size();
-    MPI_Sendrecv(&numsend, 1, MPI_Int_t, recvTask,
-        tag*2, &numrecv, 1, MPI_Int_t, recvTask, tag*2, mpi_comm, &status);
-    //send the information. If vectors are of zero size, must increase size so .data() points to a valid address
-    if (numsend==0) {indicessend.resize(1);propsendbuff.resize(1);}
-    if (numrecv==0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
-    else {indicesrecv.resize(numrecv);proprecvbuff.resize(numrecv);}
-    MPI_Sendrecv(indicessend.data(),numsend, MPI_Int_t, recvTask,
-        tag*3, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*3, mpi_comm, &status);
-    MPI_Sendrecv(propsendbuff.data(),numsend*numextrafields, MPI_FLOAT, recvTask,
-        tag*4, proprecvbuff.data(),numrecv*numextrafields, MPI_FLOAT, recvTask, tag*4, mpi_comm, &status);
-    if (numrecv == 0) return;
+    std::tie(indicesrecv, proprecvbuff) =
+        exchange_indices_and_props(indicessend, propsendbuff, numextrafields,
+            recvTask, tag, mpi_comm);
+    auto numrecv = indicesrecv.size();
     for (auto i=0;i<numrecv;i++)
     {
         index=indicesrecv[i];
@@ -2533,27 +2530,19 @@ void MPISendReceiveBuffWithHydroInfoBetweenThreads(Options &opt, Particle *PartL
 void MPISendReceiveBuffWithStarInfoBetweenThreads(Options &opt, Particle *PartLocal, vector<Int_t> &indicessend,  vector<float> &propsendbuff, int recvTask, int tag, MPI_Comm &mpi_comm)
 {
 #ifdef STARON
-    MPI_Status status;
+    auto numextrafields = opt.star_internalprop_unique_input_names.size() + opt.star_chem_unique_input_names.size() + opt.star_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+
     vector<Int_t> indicesrecv;
-    Int_t numsend, numrecv, numextrafields = 0, index, offset = 0;
-    vector<float> proprecvbuff(0);
+    vector<float> proprecvbuff;
+    Int_t index, offset;
     string field;
     StarProperties x;
 
-    numextrafields = opt.star_internalprop_unique_input_names.size() + opt.star_chem_unique_input_names.size() + opt.star_chemproduction_unique_input_names.size();
-    if (numextrafields == 0) return;
-    numsend = indicessend.size();
-    MPI_Sendrecv(&numsend, 1, MPI_Int_t, recvTask,
-        tag*2, &numrecv, 1, MPI_Int_t, recvTask, tag*2, mpi_comm, &status);
-    //send the information. If vectors are of zero size, must increase size so .data() points to a valid address
-    if (numsend==0) {indicessend.resize(1);propsendbuff.resize(1);}
-    if (numrecv==0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
-    else {indicesrecv.resize(numrecv);proprecvbuff.resize(numrecv);}
-    MPI_Sendrecv(indicessend.data(),numsend, MPI_Int_t, recvTask,
-        tag*3, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*3, mpi_comm, &status);
-    MPI_Sendrecv(propsendbuff.data(),numsend*numextrafields, MPI_FLOAT, recvTask,
-        tag*4, proprecvbuff.data(),numrecv*numextrafields, MPI_FLOAT, recvTask, tag*4, mpi_comm, &status);
-    if (numrecv == 0) return;
+    std::tie(indicesrecv, proprecvbuff) =
+        exchange_indices_and_props(indicessend, propsendbuff, numextrafields,
+            recvTask, tag, mpi_comm);
+    auto numrecv = indicesrecv.size();
     for (auto i=0;i<numrecv;i++)
     {
         index=indicesrecv[i];
@@ -2585,27 +2574,19 @@ void MPISendReceiveBuffWithStarInfoBetweenThreads(Options &opt, Particle *PartLo
 void MPISendReceiveBuffWithBHInfoBetweenThreads(Options &opt, Particle *PartLocal, vector<Int_t> &indicessend,  vector<float> &propsendbuff, int recvTask, int tag, MPI_Comm &mpi_comm)
 {
 #ifdef BHON
-    MPI_Status status;
+    auto numextrafields = opt.bh_internalprop_unique_input_names.size() + opt.bh_chem_unique_input_names.size() + opt.bh_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+
     vector<Int_t> indicesrecv;
-    Int_t numsend, numrecv, numextrafields = 0, index, offset = 0;
-    vector<float> proprecvbuff(0);
+    vector<float> proprecvbuff;
+    Int_t index, offset;
     string field;
     BHProperties x;
 
-    numextrafields = opt.bh_internalprop_unique_input_names.size() + opt.bh_chem_unique_input_names.size() + opt.bh_chemproduction_unique_input_names.size();
-    if (numextrafields == 0) return;
-    numsend = indicessend.size();
-    MPI_Sendrecv(&numsend, 1, MPI_Int_t, recvTask,
-        tag*2, &numrecv, 1, MPI_Int_t, recvTask, tag*2, mpi_comm, &status);
-    //send the information. If vectors are of zero size, must increase size so .data() points to a valid address
-    if (numsend==0) {indicessend.resize(1);propsendbuff.resize(1);}
-    if (numrecv==0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
-    else {indicesrecv.resize(numrecv);proprecvbuff.resize(numrecv);}
-    MPI_Sendrecv(indicessend.data(),numsend, MPI_Int_t, recvTask,
-        tag*3, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*3, mpi_comm, &status);
-    MPI_Sendrecv(propsendbuff.data(),numsend*numextrafields, MPI_FLOAT, recvTask,
-        tag*4, proprecvbuff.data(),numrecv*numextrafields, MPI_FLOAT, recvTask, tag*4, mpi_comm, &status);
-    if (numrecv == 0) return;
+    std::tie(indicesrecv, proprecvbuff) =
+        exchange_indices_and_props(indicessend, propsendbuff, numextrafields,
+            recvTask, tag, mpi_comm);
+    auto numrecv = indicesrecv.size();
     for (auto i=0;i<numrecv;i++)
     {
         index=indicesrecv[i];
@@ -2637,27 +2618,20 @@ void MPISendReceiveBuffWithBHInfoBetweenThreads(Options &opt, Particle *PartLoca
 void MPISendReceiveBuffWithExtraDMInfoBetweenThreads(Options &opt, Particle *PartLocal, vector<Int_t> &indicessend,  vector<float> &propsendbuff, int recvTask, int tag, MPI_Comm &mpi_comm)
 {
 #ifdef EXTRADMON
-    MPI_Status status;
+
+    auto numextrafields = opt.extra_dm_internalprop_unique_input_names.size();
+    if (numextrafields == 0) return;
+
     vector<Int_t> indicesrecv;
-    Int_t numsend, numrecv, numextrafields = 0, index, offset = 0;
-    vector<float> proprecvbuff(0);
+    vector<float> proprecvbuff;
+    Int_t index, offset;
     string field;
     ExtraDMProperties x;
 
-    numextrafields = opt.extra_dm_internalprop_unique_input_names.size();
-    if (numextrafields == 0) return;
-    numsend = indicessend.size();
-    MPI_Sendrecv(&numsend, 1, MPI_Int_t, recvTask,
-        tag*2, &numrecv, 1, MPI_Int_t, recvTask, tag*2, mpi_comm, &status);
-    //send the information. If vectors are of zero size, must increase size so .data() points to a valid address
-    if (numsend==0) {indicessend.resize(1);propsendbuff.resize(1);}
-    if (numrecv==0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
-    else {indicesrecv.resize(numrecv);proprecvbuff.resize(numrecv);}
-    MPI_Sendrecv(indicessend.data(),numsend, MPI_Int_t, recvTask,
-        tag*3, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*3, mpi_comm, &status);
-    MPI_Sendrecv(propsendbuff.data(),numsend*numextrafields, MPI_FLOAT, recvTask,
-        tag*4, proprecvbuff.data(),numrecv*numextrafields, MPI_FLOAT, recvTask, tag*4, mpi_comm, &status);
-    if (numrecv == 0) return;
+    std::tie(indicesrecv, proprecvbuff) =
+        exchange_indices_and_props(indicessend, propsendbuff, numextrafields,
+            recvTask, tag, mpi_comm);
+    auto numrecv = indicesrecv.size();
     for (auto i=0;i<numrecv;i++)
     {
         index=indicesrecv[i];
@@ -2678,27 +2652,19 @@ void MPISendReceiveBuffWithExtraDMInfoBetweenThreads(Options &opt, Particle *Par
 void MPISendReceiveFOFHydroInfoBetweenThreads(Options &opt, fofid_in *FoFGroupDataLocal, vector<Int_t> &indicessend,  vector<float> &propsendbuff, int recvTask, int tag, MPI_Comm &mpi_comm)
 {
 #ifdef GASON
-    MPI_Status status;
+
+    auto numextrafields = opt.gas_internalprop_unique_input_names.size() + opt.gas_chem_unique_input_names.size() + opt.gas_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+
     vector<Int_t> indicesrecv;
-    Int_t numsend, numrecv, numextrafields = 0, index, offset = 0;
-    vector<float> proprecvbuff(0);
+    vector<float> proprecvbuff;
+    Int_t index, offset;
     string field;
     HydroProperties x;
-
-    numextrafields = opt.gas_internalprop_unique_input_names.size() + opt.gas_chem_unique_input_names.size() + opt.gas_chemproduction_unique_input_names.size();
-    if (numextrafields == 0) return;
-    numsend = indicessend.size();
-    MPI_Sendrecv(&numsend, 1, MPI_Int_t, recvTask,
-        tag*2, &numrecv, 1, MPI_Int_t, recvTask, tag*2, mpi_comm, &status);
-    //send the information. If vectors are of zero size, must increase size so .data() points to a valid address
-    if (numsend==0) {indicessend.resize(1);propsendbuff.resize(1);}
-    if (numrecv==0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
-    else {indicesrecv.resize(numrecv);proprecvbuff.resize(numrecv);}
-    MPI_Sendrecv(indicessend.data(),numsend, MPI_Int_t, recvTask,
-        tag*3, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*3, mpi_comm, &status);
-    MPI_Sendrecv(propsendbuff.data(),numsend*numextrafields, MPI_FLOAT, recvTask,
-        tag*4, proprecvbuff.data(),numrecv*numextrafields, MPI_FLOAT, recvTask, tag*4, mpi_comm, &status);
-    if (numrecv == 0) return;
+    std::tie(indicesrecv, proprecvbuff) =
+        exchange_indices_and_props(indicessend, propsendbuff, numextrafields,
+            recvTask, tag, mpi_comm);
+    auto numrecv = indicesrecv.size();
     for (auto i=0;i<numrecv;i++)
     {
         index=indicesrecv[i];
@@ -2730,27 +2696,20 @@ void MPISendReceiveFOFHydroInfoBetweenThreads(Options &opt, fofid_in *FoFGroupDa
 void MPISendReceiveFOFStarInfoBetweenThreads(Options &opt, fofid_in *FoFGroupDataLocal, vector<Int_t> &indicessend,  vector<float> &propsendbuff, int recvTask, int tag, MPI_Comm &mpi_comm)
 {
 #ifdef STARON
-    MPI_Status status;
+
+    auto numextrafields = opt.star_internalprop_unique_input_names.size() + opt.star_chem_unique_input_names.size() + opt.star_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+
     vector<Int_t> indicesrecv;
-    Int_t numsend, numrecv, numextrafields = 0, index, offset = 0;
-    vector<float> proprecvbuff(0);
+    vector<float> proprecvbuff;
+    Int_t index, offset;
     string field;
     StarProperties x;
 
-    numextrafields = opt.star_internalprop_unique_input_names.size() + opt.star_chem_unique_input_names.size() + opt.star_chemproduction_unique_input_names.size();
-    if (numextrafields == 0) return;
-    numsend = indicessend.size();
-    MPI_Sendrecv(&numsend, 1, MPI_Int_t, recvTask,
-        tag*2, &numrecv, 1, MPI_Int_t, recvTask, tag*2, mpi_comm, &status);
-    //send the information. If vectors are of zero size, must increase size so .data() points to a valid address
-    if (numsend==0) {indicessend.resize(1);propsendbuff.resize(1);}
-    if (numrecv==0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
-    else {indicesrecv.resize(numrecv);proprecvbuff.resize(numrecv);}
-    MPI_Sendrecv(indicessend.data(),numsend, MPI_Int_t, recvTask,
-        tag*3, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*3, mpi_comm, &status);
-    MPI_Sendrecv(propsendbuff.data(),numsend*numextrafields, MPI_FLOAT, recvTask,
-        tag*4, proprecvbuff.data(),numrecv*numextrafields, MPI_FLOAT, recvTask, tag*4, mpi_comm, &status);
-    if (numrecv == 0) return;
+    std::tie(indicesrecv, proprecvbuff) =
+        exchange_indices_and_props(indicessend, propsendbuff, numextrafields,
+            recvTask, tag, mpi_comm);
+    auto numrecv = indicesrecv.size();
     for (auto i=0;i<numrecv;i++)
     {
         index=indicesrecv[i];
@@ -2782,27 +2741,20 @@ void MPISendReceiveFOFStarInfoBetweenThreads(Options &opt, fofid_in *FoFGroupDat
 void MPISendReceiveFOFBHInfoBetweenThreads(Options &opt, fofid_in *FoFGroupDataLocal, vector<Int_t> &indicessend,  vector<float> &propsendbuff, int recvTask, int tag, MPI_Comm &mpi_comm)
 {
 #ifdef BHON
-    MPI_Status status;
+
+    auto numextrafields = opt.bh_internalprop_unique_input_names.size() + opt.bh_chem_unique_input_names.size() + opt.bh_chemproduction_unique_input_names.size();
+    if (numextrafields == 0) return;
+
     vector<Int_t> indicesrecv;
-    Int_t numsend, numrecv, numextrafields = 0, index, offset = 0;
-    vector<float> proprecvbuff(0);
+    vector<float> proprecvbuff;
+    Int_t index, offset;
     string field;
     BHProperties x;
 
-    numextrafields = opt.bh_internalprop_unique_input_names.size() + opt.bh_chem_unique_input_names.size() + opt.bh_chemproduction_unique_input_names.size();
-    if (numextrafields == 0) return;
-    numsend = indicessend.size();
-    MPI_Sendrecv(&numsend, 1, MPI_Int_t, recvTask,
-        tag*2, &numrecv, 1, MPI_Int_t, recvTask, tag*2, mpi_comm, &status);
-    //send the information. If vectors are of zero size, must increase size so .data() points to a valid address
-    if (numsend==0) {indicessend.resize(1);propsendbuff.resize(1);}
-    if (numrecv==0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
-    else {indicesrecv.resize(numrecv);proprecvbuff.resize(numrecv);}
-    MPI_Sendrecv(indicessend.data(),numsend, MPI_Int_t, recvTask,
-        tag*3, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*3, mpi_comm, &status);
-    MPI_Sendrecv(propsendbuff.data(),numsend*numextrafields, MPI_FLOAT, recvTask,
-        tag*4, proprecvbuff.data(),numrecv*numextrafields, MPI_FLOAT, recvTask, tag*4, mpi_comm, &status);
-    if (numrecv == 0) return;
+    std::tie(indicesrecv, proprecvbuff) =
+        exchange_indices_and_props(indicessend, propsendbuff, numextrafields,
+            recvTask, tag, mpi_comm);
+    auto numrecv = indicesrecv.size();
     for (auto i=0;i<numrecv;i++)
     {
         index=indicesrecv[i];
@@ -2834,27 +2786,20 @@ void MPISendReceiveFOFBHInfoBetweenThreads(Options &opt, fofid_in *FoFGroupDataL
 void MPISendReceiveFOFExtraDMInfoBetweenThreads(Options &opt, fofid_in *FoFGroupDataLocal, vector<Int_t> &indicessend,  vector<float> &propsendbuff, int recvTask, int tag, MPI_Comm &mpi_comm)
 {
 #ifdef EXTRADMON
-    MPI_Status status;
+
+    auto numextrafields = opt.extra_dm_internalprop_unique_input_names.size();
+    if (numextrafields == 0) return;
+
     vector<Int_t> indicesrecv;
-    Int_t numsend, numrecv, numextrafields = 0, index, offset = 0;
-    vector<float> proprecvbuff(0);
+    vector<float> proprecvbuff;
+    Int_t index, offset;
     string field;
     ExtraDMProperties x;
 
-    numextrafields = opt.extra_dm_internalprop_unique_input_names.size();
-    if (numextrafields == 0) return;
-    numsend = indicessend.size();
-    MPI_Sendrecv(&numsend, 1, MPI_Int_t, recvTask,
-        tag*2, &numrecv, 1, MPI_Int_t, recvTask, tag*2, mpi_comm, &status);
-    //send the information. If vectors are of zero size, must increase size so .data() points to a valid address
-    if (numsend==0) {indicessend.resize(1);propsendbuff.resize(1);}
-    if (numrecv==0) {indicesrecv.resize(1);proprecvbuff.resize(1);}
-    else {indicesrecv.resize(numrecv);proprecvbuff.resize(numrecv);}
-    MPI_Sendrecv(indicessend.data(),numsend, MPI_Int_t, recvTask,
-        tag*3, indicesrecv.data(),numrecv, MPI_Int_t, recvTask, tag*3, mpi_comm, &status);
-    MPI_Sendrecv(propsendbuff.data(),numsend*numextrafields, MPI_FLOAT, recvTask,
-        tag*4, proprecvbuff.data(),numrecv*numextrafields, MPI_FLOAT, recvTask, tag*4, mpi_comm, &status);
-    if (numrecv == 0) return;
+    std::tie(indicesrecv, proprecvbuff) =
+        exchange_indices_and_props(indicessend, propsendbuff, numextrafields,
+            recvTask, tag, mpi_comm);
+    auto numrecv = indicesrecv.size();
     for (auto i=0;i<numrecv;i++)
     {
         index=indicesrecv[i];
@@ -2878,6 +2823,7 @@ void MPISendParticlesBetweenReadThreads(Options &opt, Particle *&Pbuf, Particle 
 {
     MPI_Comm mpi_comm_read = MPI_COMM_WORLD;
     if (ireadtask[ThisTask]>=0) {
+        LOG(debug)<< "preparing to send to other reading tasks";
         //split the communication into small buffers
         int icycle=0,ibuf;
         //maximum send size
@@ -2971,7 +2917,9 @@ void MPISendParticlesBetweenReadThreads(Options &opt, Particle *&Pbuf, Particle 
     }
 }
 
-void MPISendParticlesBetweenReadThreads(Options &opt, vector<Particle> *&Preadbuf, Particle *Part, int *&ireadtask, int *&readtaskID, Particle *&Pbaryons, MPI_Comm &mpi_comm_read, Int_t *&mpi_nsend_readthread, Int_t *&mpi_nsend_readthread_baryon)
+void MPISendParticlesBetweenReadThreads(Options &opt, 
+    vector<Particle> *&Preadbuf, Particle *Part, int *&ireadtask, int *&readtaskID, Particle *&Pbaryons, 
+    MPI_Comm &mpi_comm_read, Int_t *&mpi_nsend_readthread, Int_t *&mpi_nsend_readthread_baryon)
 {
     if (ireadtask[ThisTask]>=0) {
         //split the communication into small buffers
@@ -3008,6 +2956,7 @@ void MPISendParticlesBetweenReadThreads(Options &opt, vector<Particle> *&Preadbu
                 sendoffset=0;
                 recvoffset=0;
                 isendrecv=1;
+                LOG(trace) <<"sending/receving to/from "<<recvTask<<" [nsend,nrecv] = "<<nsend<<", "<<nrecv<<" in "<<numsendrecv<<" loops";
                 do
                 {
                     //determine amount to be sent
@@ -3108,7 +3057,7 @@ void MPIGetExportNumUsingMesh(Options &opt, const Int_t nbodies, Particle *Part,
     ///which must be exported. Then its a much quicker follow up loop (no if statement) that stores the data
     for (j=0;j<NProcs;j++) nsend_local[j]=0;
 
-    cout<<"Finding number of particles to export to other MPI domains..."<<endl;
+    LOG(info) << "Finding number of particles to export to other MPI domains...";
 
     vector<int>sent_mpi_domain(NProcs);
 
@@ -3284,7 +3233,7 @@ void MPIBuildParticleExportListUsingMesh(Options &opt, const Int_t nbodies, Part
     ///which must be exported. Then its a much quicker follow up loop (no if statement) that stores the data
     for (j=0;j<NProcs;j++) nsend_local[j]=0;
 
-    cout<<ThisTask<<" now building exported particle list for FOF search "<<endl;
+    LOG(info) << "Now building exported particle list for FOF search ";
     for (i=0;i<nbodies;i++) {
         for(int k=0; k<NProcs; k++) sent_mpi_domain[k] = 0;
         for(int k=0;k<3;k++) {xsearch[k][0]=Part[i].GetPosition(k)-rdist;xsearch[k][1]=Part[i].GetPosition(k)+rdist;}
@@ -4763,6 +4712,7 @@ Int_t MPIGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
     nlocal=nbodies-nexport+nimport;
     NImport=nimport;
     if (nexport >0) FoFGroupDataExport=new fofid_in[nexport];
+    LOG(trace) <<" Exchanging ... nimport = "<<nimport<<", nexport="<<nexport<<" old nlocal="<<nbodies<<" new nlocal="<<nlocal;
 
     Int_t *storeval=new Int_t[nbodies];
     Noldlocal=nbodies-nexport;
@@ -4811,6 +4761,7 @@ Int_t MPIGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
 
     // if using mesh, mpi tasks of cells need to be updated
     if (opt.impiusemesh) {
+        LOG(trace)<<" Updating mpi mesh ...";
         vector<int> newcellid(opt.numcells,-1);
         for (i=0;i<nexport;i++) {
             Coordinate x(FoFGroupDataExport[i].p.GetPosition());
@@ -4821,8 +4772,9 @@ Int_t MPIGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
             newcellid[index] = FoFGroupDataExport[i].Task;
         }
         //now collect all the cells
-        vector<int> mpi_newcellid(opt.numcells*NProcs);
-        MPI_Allgather(newcellid.data(), opt.numcells, MPI_INT, mpi_newcellid.data(), opt.numcells, MPI_INT, MPI_COMM_WORLD);
+        unsigned long long ndata = static_cast<unsigned long long>(opt.numcells)*static_cast<unsigned long long>(NProcs);
+        vector<int> mpi_newcellid(ndata);
+        MPI_Allgather(newcellid.data(), opt.numcells, MPI_INTEGER, mpi_newcellid.data(), opt.numcells, MPI_INTEGER, MPI_COMM_WORLD);
         opt.newcellnodeids.resize(opt.numcells);
         for (i=0; i<opt.numcells; i++)
         {
@@ -4832,6 +4784,7 @@ Int_t MPIGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
                 opt.newcellnodeids[i].push_back(itask);
             }
         }
+        LOG(trace) <<" Finished updating mpi mesh.";
     }
 
     //now if there is extra information, strip off all the data from the FoFGroupDataExport
@@ -4846,6 +4799,7 @@ Int_t MPIGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
     vector<float> propbuff_extra_dm_send;
 
     //now send the data.
+    LOG(trace)<<" Sending FOF data";
     for(j=0;j<NProcs;j++)
     {
         if (j!=ThisTask)
@@ -4867,10 +4821,12 @@ Int_t MPIGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
                     nrecvchunks=1;
                     currecvchunksize=mpi_nsend[ThisTask+recvTask*NProcs];
                 }
-                numsendrecv=max(nsendchunks,nrecvchunks);
+                numsendrecv=std::max(nsendchunks,nrecvchunks);
                 sendoffset=recvoffset=0;
                 for (auto ichunk=0;ichunk<numsendrecv;ichunk++)
                 {
+                    // sending hydro, star and bh info
+                    
                     MPIFillFOFBuffWithHydroInfo(opt, cursendchunksize, &FoFGroupDataExport[noffset_export[recvTask]+sendoffset], Part, indices_gas_send, propbuff_gas_send);
                     MPIFillFOFBuffWithStarInfo(opt, cursendchunksize, &FoFGroupDataExport[noffset_export[recvTask]+sendoffset], Part, indices_star_send, propbuff_star_send);
                     MPIFillFOFBuffWithBHInfo(opt, cursendchunksize, &FoFGroupDataExport[noffset_export[recvTask]+sendoffset], Part, indices_bh_send, propbuff_bh_send);
@@ -4894,6 +4850,7 @@ Int_t MPIGroupExchange(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
             }
         }
     }
+    LOG(trace)<<"Finished sending FOF information";
     Nlocal=nlocal;
     return nlocal;
 }
@@ -5075,7 +5032,6 @@ Int_t MPICompileGroups(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
         //now update the mpi_domains again
         MPI_Allgather(&localdomain, sizeof(MPI_Domain), MPI_BYTE, mpi_domain, sizeof(MPI_Domain), MPI_BYTE, MPI_COMM_WORLD);
     }
-
     for (i=Noldlocal;i<nbodies;i++) {
         Part[i]=FoFGroupDataLocal[i-Noldlocal].p;
         //note that before used type to sort particles

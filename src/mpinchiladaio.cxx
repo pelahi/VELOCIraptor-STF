@@ -62,10 +62,12 @@ void MPIDomainDecompositionNchilada(Options &opt){
 ///reads HDF file to determine number of particles in each MPIDomain
 void MPINumInDomainNchilada(Options &opt)
 {
-    if (NProcs>1) {
-    MPIDomainExtentNchilada(opt);
-    MPIInitialDomainDecomposition(opt);
-    MPIDomainDecompositionNchilada(opt);
+    if (NProcs == 1) return 
+    if (opt.cellnodeids.size() == 0) {
+        MPIDomainExtentNchilada(opt);
+        MPIInitialDomainDecomposition(opt);
+        MPIDomainDecompositionNchilada(opt);
+    }
 
     Int_t i,j,k,n,nchunk;
     char buf[2000];
@@ -92,7 +94,6 @@ void MPINumInDomainNchilada(Options &opt)
     if (opt.iBaryonSearch) {
         MPI_Allreduce(Nbaryonbuf,mpi_nlocal,NProcs,MPI_Int_t,MPI_SUM,MPI_COMM_WORLD);
         Nlocalbaryon[0]=mpi_nlocal[ThisTask];
-    }
     }
 }
 

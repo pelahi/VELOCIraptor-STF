@@ -10,6 +10,7 @@
 # This file is part of VELOCIraptor.
 
 cmake_minimum_required(VERSION 3.13)
+set(CMAKE_CXX_STANDARD 14)
 
 # We have the version here
 file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/VERSION VR_VERSION)
@@ -36,6 +37,14 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/cmake)
 include (VRCMakeUtils)
 # complation summary
 include(VRCompilationMessages)
+
+include(CTest)
+enable_testing()
+
+# Let the *_ROOT variables indicate where to find packages (cmake >= 3.12)
+if (POLICY CMP0074)
+	cmake_policy(SET CMP0074 NEW)
+endif()
 
 #
 # Options users can give on the command line via -D
@@ -75,6 +84,9 @@ vr_option(GADGET_SPH_INFO   "Support for extra SPH information in Gadget" OFF)
 vr_option(GADGET_STAR_INFO  "Support for extra star information in Gadget" OFF)
 vr_option(GADGET_BH_INFO    "Support for extra black hole information in Gadget" OFF)
 
+# Input data perodic wrapping
+vr_option(PARTICLES_OUTSIDE_PERIOD_LIMIT  "If particles are outside the periodic limit, wrap the positions before determining mpi domain" OFF)
+
 # Particle data options
 vr_option(USE_STAR      "Use star particles" OFF)
 vr_option(USE_GAS       "Use gas particles" OFF)
@@ -91,6 +103,7 @@ vr_option(STRUCTURE_DEN "Calculate local density dist. only for particles in fie
 vr_option(HALO_DEN      "Like STRUCTURE_DEN, but se particles inside field objects" OFF)
 vr_option(ZOOM_SIM      "Used to run against simulations with a high resolution region" OFF)
 vr_option(USE_SWIFT_INTERFACE "Used to compile the code with hooks for being called from the SWIFT Hydro nbody code" OFF)
+vr_option(LOG_SOURCE_LOCATION "Append source code location to all logging statements" ON)
 
 
 # Let's true to our word
@@ -173,6 +186,8 @@ vr_option_defines(GADGET_SPH_INFO           EXTRASPHINFO)
 vr_option_defines(GADGET_STAR_INFO          EXTRASTARINFO)
 vr_option_defines(GADGET_BH_INFO            EXTRABHINFO)
 
+vr_option_defines(PARTICLES_OUTSIDE_PERIOD_LIMIT            PERIODWRAPINPUT)
+
 vr_option_defines(USE_GAS                   GASON)
 vr_option_defines(USE_STAR                  STARON)
 vr_option_defines(USE_BH                    BHON)
@@ -187,6 +202,7 @@ vr_option_defines(ZOOM_SIM                  HIGHRES)
 vr_option_defines(USE_LARGE_KDTREE          LARGETREE)
 
 vr_option_defines(USE_SWIFT_INTERFACE       SWIFTINTERFACE)
+vr_option_defines(LOG_SOURCE_LOCATION       VR_LOG_SOURCE_LOCATION)
 
 if (VR_USE_SWIFT_INTERFACE)
         list(APPEND VR_INCLUDE_DIRS ${SWIFT_INCLUDE_DIR})
@@ -217,6 +233,14 @@ vr_nbodylib()
 
 # compilation state
 vr_compilation_summary()
+
+#
+# Store compilation flags for future reference
+#
+set(compilation_info_cxx "${CMAKE_CURRENT_BINARY_DIR}/compilation_info.cxx")
+configure_file("src/compilation_info.cxx.in" ${compilation_info_cxx} @ONLY)
+
+
 
 # Are we part of an outside build (i.e., of a treefrog build)?
 # If so, we want to let the caller know what to include

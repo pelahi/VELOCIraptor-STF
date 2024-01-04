@@ -11,49 +11,87 @@
     \todo alter unbinding/sortbybindingenergy calls since seems a waste of cpu cycles
 */
 
+#include <iterator>
+#include <sstream>
+#include <unistd.h>
+
+#include "compilation_info.h"
+#include "ioutils.h"
+#include "logging.h"
 #include "stf.h"
+#include "timer.h"
 
 using namespace std;
 using namespace Math;
 using namespace NBody;
 using namespace velociraptor;
 
-int main(int argc,char **argv)
+void finish_vr(Options &opt)
 {
-#ifdef SWIFTINTERFACE
-    cout<<"Built with SWIFT interface enabled when running standalone VELOCIraptor. Should only be enabled when running VELOCIraptor as a library from SWIFT. Exiting..."<<endl;
-    exit(0);
-#endif
-#ifdef USEMPI
-    //start MPI
-#ifdef USEOPENMP
-    //if using hybrid then need to check that threads are available and use the correct initialization
-    //Each thread will call MPI routines, but these calls will be coordinated to occur only one at a time within a process.
-    int required=MPI_THREAD_FUNNELED;  // Required level of MPI threading support
-    int provided; // Provided level of MPI threading support
-    MPI_Init_thread(&argc, &argv, required, &provided);
-#else
-    MPI_Init(&argc,&argv);
-#endif
+    //get memory useage
+    LOG(info) << "Finished running VR";
+    MEMORY_USAGE_REPORT(info);
+}
 
+void show_version_info(int argc, char *argv[])
+{
+	LOG_RANK0(info) << "VELOCIraptor git version: " << git_sha1();
+	LOG_RANK0(info) << "VELOCIraptor compiled with: " << vr::get_cxx_flags() << " " << vr::get_macros();
+	LOG_RANK0(info) << "VELOCIraptor was built on: " << vr::get_compilation_date();
+
+	char cwd[PATH_MAX];
+	std::ostringstream os;
+	LOG_RANK0(info) << "VELOCIraptor running at: " << getcwd(cwd, PATH_MAX);
+	std::copy(argv, argv + argc, std::ostream_iterator<char *>(os, " "));
+	LOG_RANK0(info) << "VELOCIraptor started with command line: " << os.str();
+
+    // MPI/OpenMP information
+    std::ostringstream mpi_info;
+    mpi_info << "VELOCIratptor MPI support: ";
+    #ifdef USEMPI
+    mpi_info << "yes. ";
+    mpi_info << "\n" << "MPI comm world contains "<<NProcs << " MPI ranks";
+    char hostname[NAME_MAX + 1];
+    ::gethostname(hostname, NAME_MAX);
+    std::vector<char> all_hostnames;
+    if (ThisTask == 0) {
+        all_hostnames.resize((NAME_MAX + 1)* NProcs);
+    }
+    MPI_Gather(hostname, NAME_MAX + 1, MPI_CHAR, all_hostnames.data(), NAME_MAX + 1, MPI_CHAR, 0, MPI_COMM_WORLD);
+    if (ThisTask == 0) {
+        std::vector<std::string> proper_hostnames;
+        for (int rank = 0; rank != NProcs; rank++) {
+            proper_hostnames.emplace_back(all_hostnames.data() + (NAME_MAX + 1) * rank);
+        }
+        std::set<std::string> s(proper_hostnames.begin(), proper_hostnames.end());
+        std::vector<std::string> unique_hostnames(s.size());
+        std::copy(s.begin(), s.end(), unique_hostnames.begin());
+        mpi_info << " running in " << unique_hostnames.size() << " nodes: ";
+        mpi_info << vr::printable_range(unique_hostnames);
+    }
+    #else
+    mpi_info << "no.";
+    #endif
+	LOG_RANK0(info) << "VELOCIratptor MPI support: " << mpi_info.str();
+
+	LOG_RANK0(info) << "VELOCIratptor OpenMP support: "
+#ifdef USEOPENMP
+	<< "yes, " << omp_get_max_threads() << " OpenMP threads, OpenMP version " << _OPENMP;
+#else
+	<< "no";
+#endif
+    // report binding
+    report_binding();
+}
+
+int run(int argc,char **argv)
+{
+
+#ifdef USEMPI
     //find out how big the SPMD world is
     MPI_Comm_size(MPI_COMM_WORLD,&NProcs);
     //and this processes' rank is
     MPI_Comm_rank(MPI_COMM_WORLD,&ThisTask);
-
-    if (ThisTask == 0) cout<<"Running VELOCIraptor "<<git_sha1()<<endl;
-#ifdef USEOPENMP
-    // Check the threading support level
-    if (provided < required)
-    {
-        // Insufficient support, degrade to 1 thread and warn the user
-        if (ThisTask == 0) cout << "Warning: This MPI implementation provides insufficient threading support. Required was " <<required<<" but provided was "<<provided<<endl;
-        omp_set_num_threads(1);
-        MPI_Finalize();
-        exit(9);
-    }
-#endif
-
 #else
     int ThisTask=0,NProcs=1;
     Int_t Nlocal,Ntotal;
@@ -66,12 +104,11 @@ int main(int argc,char **argv)
     nthreads=1;
 #endif
 
-#ifdef USEMPI
-    if (ThisTask==0) cout<<"VELOCIraptor/STF running with MPI. Number of mpi threads: "<<NProcs<<endl;
-#endif
-#ifdef USEOPENMP
-    if (ThisTask==0) cout<<"VELOCIraptor/STF running with OpenMP. Number of openmp threads: "<<nthreads<<endl;
-    if (ThisTask==0) cout<<"VELOCIraptor/STF running with OpenMP version "<< _OPENMP << endl;
+    show_version_info(argc, argv);
+
+#ifdef SWIFTINTERFACE
+    cout<<"Built with SWIFT interface enabled when running standalone VELOCIraptor. Should only be enabled when running VELOCIraptor as a library from SWIFT. Exiting..."<<endl;
+    exit(0);
 #endif
 
     gsl_set_error_handler_off();
@@ -90,8 +127,6 @@ int main(int argc,char **argv)
     adios_set_max_buffer_size(opt.mpiparticletotbufsize/1024/1024);
 #endif
 #endif
-
-    InitMemUsageLog(opt);
 
     //variables
     //number of particles, (also number of baryons if use dm+baryon search)
@@ -115,7 +150,7 @@ int main(int argc,char **argv)
     PropData *pdata=NULL,*pdatahalos=NULL;
 
     //to store time and output time taken
-    auto tottime=MyGetTime();
+    vr::Timer total_timer;
 
     Coordinate cm,cmvel;
     Double_t Mtot;
@@ -136,10 +171,10 @@ int main(int argc,char **argv)
 #endif
 
     //read particle information and allocate memory
-    auto time1=MyGetTime();
+    vr::Timer loading_timer;
     //for MPI determine total number of particles AND the number of particles assigned to each processor
     if (ThisTask==0) {
-        cout<<"Read header ... "<<endl;
+        LOG(info) << "Reading header";
         nbodies=ReadHeader(opt);
         if (opt.iBaryonSearch>0) {
             for (int i=0;i<NBARYONTYPES;i++) Ntotalbaryon[i]=Nlocalbaryon[i]=0;
@@ -167,10 +202,11 @@ int main(int argc,char **argv)
     if (opt.iBaryonSearch>0) MPI_Bcast(&nbaryons,1, MPI_Int_t,0,MPI_COMM_WORLD);
     //initial estimate need for memory allocation assuming that work balance is not greatly off
 #endif
-    if (ThisTask==0) {
-        cout<<"There are "<<nbodies<<" particles in total that require "<<nbodies*sizeof(Particle)/1024./1024./1024.<<"GB of memory, each particle requiring "<<sizeof(Particle)<<" bytes at the minimum"<<endl;
-        if (opt.iBaryonSearch>0) cout<<"There are "<<nbaryons<<" baryon particles in total that require "<<nbaryons*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
+    LOG_RANK0(info) << "There are " << nbodies << " particles in total that require " << vr::memory_amount(nbodies * sizeof(Particle));
+    if (opt.iBaryonSearch > 0) {
+        LOG_RANK0(info) << "There are " << nbaryons << " baryon particles in total that require " << vr::memory_amount(nbaryons * sizeof(Particle));
     }
+
 
     //note that for nonmpi particle array is a contiguous block of memory regardless of whether a separate baryon search is required
 #ifndef USEMPI
@@ -193,13 +229,19 @@ int main(int argc,char **argv)
     if (NProcs==1) {Nlocal=Nmemlocal=nbodies;NExport=NImport=1;}
     else {
 #ifdef MPIREDUCEMEM
+		LOG_RANK0(trace) << "Running MPI with reduced mem";
         //if allocating reasonable amounts of memory, use MPIREDUCEMEM
         //this determines number of particles in the mpi domains
         MPINumInDomain(opt);
-        cout<<ThisTask<<" There are "<<Nlocal<<" particles and have allocated enough memory for "<<Nmemlocal<<" requiring "<<Nmemlocal*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
-        if (opt.iBaryonSearch>0) cout<<ThisTask<<"There are "<<Nlocalbaryon[0]<<" baryon particles and have allocated enough memory for "<<Nmemlocalbaryon<<" requiring "<<Nmemlocalbaryon*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
+        LOG(info) << "There are " << Nlocal << " particles and have allocated enough memory for "
+                  << Nmemlocal << " requiring " << vr::memory_amount(Nmemlocal * sizeof(Particle));
+        if (opt.iBaryonSearch > 0) {
+            LOG(info) << "There are " << Nlocalbaryon[0] << " baryon particles and have allocated enough memory for "
+                      << Nmemlocalbaryon << " requiring " << vr::memory_amount(Nmemlocalbaryon * sizeof(Particle));
+        }
 #else
         //otherwise just base on total number of particles * some factor and initialise the domains
+		LOG_RANK0(trace) << "Running MPI with some extra memory as buffer";
         MPIDomainExtent(opt);
         MPIDomainDecomposition(opt);
         Nlocal=nbodies/NProcs*MPIProcFac;
@@ -207,11 +249,16 @@ int main(int argc,char **argv)
         Nlocalbaryon[0]=nbaryons/NProcs*MPIProcFac;
         Nmemlocalbaryon=Nlocalbaryon[0];
         NExport=NImport=Nlocal*MPIExportFac;
-        cout<<ThisTask<<" Have allocated enough memory for "<<Nmemlocal<<" requiring "<<Nmemlocal*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
-        if (opt.iBaryonSearch>0) cout<<" Have allocated enough memory for "<<Nmemlocalbaryon<<" baryons particles requiring "<<Nmemlocalbaryon*sizeof(Particle)/1024./1024./1024.<<"GB of memory "<<endl;
+        LOG(info) << "Have allocated enough memory for " << Nmemlocal << " requiring "
+                  << vr::memory_amount(Nmemlocal * sizeof(Particle));
+        if (opt.iBaryonSearch > 0) {
+            LOG(info) << "Have allocated enough memory for " << Nmemlocalbaryon << " baryons particles requiring "
+                      << vr::memory_amount(Nmemlocalbaryon * sizeof(Particle));
+        }
 #endif
     }
-    cout<<ThisTask<<" will also require additional memory for FOF algorithms and substructure search. Largest mem needed for preliminary FOF search. Rough estimate is "<<Nlocal*(sizeof(Int_tree_t)*8)/1024./1024./1024.<<"GB of memory"<<endl;
+    LOG(info) << "Will also require additional memory for FOF algorithms and substructure search. "
+              << "Largest mem needed for preliminary FOF search. Rough estimate is " << vr::memory_amount(Nlocal * sizeof(Int_tree_t) * 8);
     if (opt.iBaryonSearch>0 && opt.partsearchtype!=PSTALL) {
         Part.resize(Nmemlocal+Nmemlocalbaryon);
         Pbaryons=&(Part.data()[Nlocal]);
@@ -225,7 +272,6 @@ int main(int argc,char **argv)
 #endif
 
     //now read particle data
-    if (ThisTask==0) cout<<"Loading ... "<<endl;
     ReadData(opt, Part, nbodies, Pbaryons, nbaryons);
 #ifdef USEMPI
     //if mpi and want separate baryon search then once particles are loaded into contigous block of memory and sorted according to type order,
@@ -246,9 +292,9 @@ int main(int argc,char **argv)
     mpi_period=opt.p;
     MPI_Allgather(&nbodies, 1, MPI_Int_t, mpi_nlocal, 1, MPI_Int_t, MPI_COMM_WORLD);
     MPI_Allreduce(&nbodies, &Ntotal, 1, MPI_Int_t, MPI_SUM, MPI_COMM_WORLD);
-    cout<<"TIME::"<<ThisTask<<" took "<<MyElapsedTime(time1)<<" to load "<<Nlocal<<" of "<<Ntotal<<endl;
+    LOG(info) << Nlocal << '/' << Ntotal << " particles loaded in " << loading_timer;
 #else
-    cout<<"TIME::"<<ThisTask<<" took "<<MyElapsedTime(time1)<<" to load "<<nbodies<<endl;
+    LOG(info) << nbodies << " particles loaded in " << loading_timer;
 #endif
 
     //write out the configuration used by velociraptor having read in the data (as input data can contain cosmological information)
@@ -269,14 +315,14 @@ int main(int argc,char **argv)
 #if defined (STRUCDEN) || defined (HALOONLYDEN)
 #else
     if (opt.iSubSearch==1) {
-        time1=MyGetTime();
+        vr::Timer timer;
         if(FileExists(fname4)) ReadLocalVelocityDensity(opt, nbodies,Part);
         else  {
             GetVelocityDensity(opt, nbodies, Part.data());
             WriteLocalVelocityDensity(opt, nbodies,Part);
         }
-        time1=MyGetTime()-time1;
-        cout<<"TIME::"<<ThisTask<<" took "<<time1<<" to analyze/read local velocity density for "<<Nlocal<<" with "<<nthreads<<endl;
+        LOG(info) << "Local velocity density read/analised for " << Nlocal << " particles with "
+                  << nthreads << " threads in " << timer;
     }
 #endif
 
@@ -285,11 +331,10 @@ int main(int argc,char **argv)
 
     //From here can either search entire particle array for "Halos" or if a single halo is loaded, then can just search for substructure
     if (!opt.iSingleHalo) {
+        vr::Timer timer;
 #ifndef USEMPI
-        time1=MyGetTime();
         pfof=SearchFullSet(opt,nbodies,Part,ngroup);
         nhalos=ngroup;
-        cout<<"TIME:: took "<<MyElapsedTime(time1)<<" to search "<<nbodies<<" with "<<nthreads<<endl;
 #else
         //nbodies=Ntotal;
         ///\todo Communication Buffer size determination and allocation. For example, eventually need something like FoFDataIn = (struct fofdata_in *) CommBuffer;
@@ -298,13 +343,11 @@ int main(int argc,char **argv)
         //Now when MPI invoked this returns pfof after local linking and linking across and also reorders groups
         //according to size and localizes the particles belong to the same group to the same mpi thread.
         //after this is called Nlocal is adjusted to the local subset where groups are localized to a given mpi thread.
-        time1=MyGetTime();
-
         pfof=SearchFullSet(opt,Nlocal,Part,ngroup);
-        cout<<"TIME::"<<ThisTask<<" took "<<MyElapsedTime(time1)<<" to search "<<Nlocal<<" with "<<nthreads<<endl;
         nbodies=Nlocal;
         nhalos=ngroup;
 #endif
+        LOG(info) << "Search over " << nbodies << " with " << nthreads << " took " << timer;
         //if compiled to determine inclusive halo masses, then for simplicity, I assume halo id order NOT rearranged!
         //this is not necessarily true if baryons are searched for separately.
         if (opt.iInclusiveHalo > 0 && opt.iInclusiveHalo < 3) {
@@ -335,7 +378,9 @@ int main(int argc,char **argv)
         //build grid using leaf nodes of tree (which is guaranteed to be adaptive and have maximum number of particles in cell of tree bucket size)
         tree=InitializeTreeGrid(opt,nbodies,Part.data());
         ngrid=tree->GetNumLeafNodes();
-        cout<<"Given "<<nbodies<<" particles, and max cell size of "<<opt.Ncell<<" there are "<<ngrid<<" leaf nodes or grid cells, with each node containing ~"<<nbodies/ngrid<<" particles"<<endl;
+        LOG(info) << "Given " << nbodies << " particles, and max cell size of " << opt.Ncell
+                  << " there are " << ngrid << " leaf nodes or grid cells, with each node containing ~"
+                  << nbodies / ngrid << " particles";
         grid=new GridCell[ngrid];
         //note that after this system is back in original order as tree has been deleted.
         FillTreeGrid(opt, nbodies, ngrid, tree, Part.data(), grid);
@@ -354,11 +399,13 @@ int main(int argc,char **argv)
         //nsubset=WriteOutlierValues(opt, nbodies,Part);
         //Now check if any particles are above the threshold
         if (nsubset==0) {
-            cout<<"no particles found above threshold of "<<opt.ellthreshold<<endl;
-            cout<<"Exiting"<<endl;
+            LOG(info) << "No particles found above threshold of " << opt.ellthreshold;
+            LOG(info) << "Exiting";
             return 0;
         }
-        else cout<<nsubset<< " above threshold of "<<opt.ellthreshold<<" to be searched"<<endl;
+        else {
+            LOG(info) << nsubset << " particles above threshold of " << opt.ellthreshold << " to be searched";
+        }
 #ifndef USEMPI
         pfof=SearchSubset(opt,nbodies,nbodies,Part.data(),ngroup);
 #else
@@ -376,11 +423,12 @@ int main(int argc,char **argv)
 #endif
     }
     if (opt.iSubSearch) {
-        cout<<"Searching subset"<<endl;
-        time1=MyGetTime();
+        LOG(info) << "Searching subset";
+        vr::Timer timer;
         //if groups have been found (and localized to single MPI thread) then proceed to search for subsubstructures
         SearchSubSub(opt, nbodies, Part, pfof,ngroup,nhalos, pdatahalos);
-        cout<<"TIME::"<<ThisTask<<" took "<<MyElapsedTime(time1)<<" to search for substructures "<<Nlocal<<" with "<<nthreads<<endl;
+        LOG(info) << "Search for substructures " << Nlocal << " with " << nthreads
+                  << " threads finished in " << timer;
     }
     pdata=new PropData[ngroup+1];
     //if inclusive halo mass required
@@ -391,7 +439,7 @@ int main(int argc,char **argv)
 
     //if only searching initially for dark matter groups, once found, search for associated baryonic structures if requried
     if (opt.iBaryonSearch>0) {
-        time1=MyGetTime();
+        vr::Timer timer;
         if (opt.partsearchtype==PSTDARK) {
             pfofall=SearchBaryons(opt, nbaryons, Pbaryons, nbodies, Part, pfof, ngroup,nhalos,opt.iseparatefiles,opt.iInclusiveHalo,pdata);
             pfofbaryons=&pfofall[nbodies];
@@ -408,7 +456,7 @@ int main(int argc,char **argv)
             Pbaryons=NULL;
             SearchBaryons(opt, nbaryons, Pbaryons, ndark, Part, pfof, ngroup,nhalos,opt.iseparatefiles,opt.iInclusiveHalo,pdata);
         }
-        cout<<"TIME::"<<ThisTask<<" took "<<MyElapsedTime(time1)<<" to search baryons  with "<<nthreads<<endl;
+        LOG(info) << "Baryon search with " << nthreads << " threads finished in " << timer;
     }
 
     //get mpi local hierarchy
@@ -440,17 +488,7 @@ int main(int argc,char **argv)
         delete[] numingroup;
         delete[] pdata;
 
-        //get memory useage
-        cout<<ThisTask<<" : finished running VR "<<endl;
-        GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=0));
-
-#ifdef USEMPI
-#ifdef USEADIOS
-        adios_finalize(ThisTask);
-#endif
-        MPI_Finalize();
-#endif
-        return 0;
+        finish_vr(opt);
     }
 
     //if want a simple tipsy still array listing particles group ids in input order
@@ -551,11 +589,51 @@ int main(int argc,char **argv)
     delete[] uparentgid;
     delete[] stype;
 
-    cout<<"TIME::"<<ThisTask<<" took "<<MyElapsedTime(tottime)<<" in all"<<endl;
+    LOG(info) << "VELOCIraptor finished in " << total_timer;
 
-    //get memory useage
-    cout<<ThisTask<<" : finished running VR "<<endl;
-    GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__), (opt.iverbose>=0));
+    finish_vr(opt);
+    return 0;
+}
+
+
+int main(int argc, char *argv[])
+{
+#ifdef USEMPI
+#ifndef USEOPENMP
+    MPI_Init(&argc, &argv);
+#else
+    // if using hybrid then need to check that threads are available and use the correct initialization
+    // Each thread will call MPI routines, but these calls will be coordinated to occur only one at a time within a process.
+    int required = MPI_THREAD_FUNNELED;
+    int provided;
+    MPI_Init_thread(&argc, &argv, required, &provided);
+    if (provided < required) {
+        LOG_RANK0(error) << "This MPI implementation provides insufficient threading support. "
+                         << "Required was " << required << " but provided was " << provided;
+        MPI_Finalize();
+        exit(9);
+    }
+#endif // USEOPENMP
+#endif // USEMPI
+
+    auto do_abort = [](const char *error_message) {
+        LOG(error) << error_message;
+#ifdef USEMPI
+        MPI_Abort(MPI_COMM_WORLD, 1);
+#else
+        exit(1);
+#endif
+    };
+
+    try {
+        run(argc, argv);
+    } catch (const std::exception &e) {
+        std::ostringstream os;
+        os << "Exception while running VR, aborting now: " << e.what();
+        do_abort(os.str().c_str());
+    } catch (...) {
+        do_abort("Unexpected exception while running VR, aborting now");
+    }
 
 #ifdef USEMPI
 #ifdef USEADIOS
@@ -564,5 +642,4 @@ int main(int argc,char **argv)
     MPI_Finalize();
 #endif
 
-    return 0;
 }

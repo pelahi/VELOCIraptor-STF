@@ -6,6 +6,7 @@
 
 //-- For MPI
 
+#include "logging.h"
 #include "stf.h"
 #include "hdfitems.h"
 
@@ -29,65 +30,28 @@ void MPIDomainExtentHDF(Options &opt){
     HDF_Group_Names hdf_gnames;
     HDF_Header hdf_header_info;
     hid_t Fhdf;
-
+    LOG(debug) <<" running domain extent";
     if (ThisTask==0) {
         if(opt.num_files>1) sprintf(buf,"%s.0.hdf5",opt.fname);
         else sprintf(buf,"%s.hdf5",opt.fname);
 
-        //Try block to detect exceptions raised by any of the calls inside it
-        //try
-        {
-            //turn off the auto-printing when failure occurs so that we can
-            //handle the errors appropriately
-            //Exception::dontPrint();
+        //Open the specified file and the specified dataset in the file.
+        Fhdf = safe_hdf5(H5Fopen, buf, H5F_ACC_RDONLY, H5P_DEFAULT);
+        LOG(info) << "Loading HDF header info in header group: " << hdf_gnames.Header_name;
 
-            //Open the specified file and the specified dataset in the file.
-            Fhdf = H5Fopen(buf, H5F_ACC_RDONLY, H5P_DEFAULT);
-            cout<<"Loading HDF header info in header group: "<<hdf_gnames.Header_name<<endl;
-
-            if (opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES)
-            {
-                /* SWIFT can have non-cubic boxes; but for cosmological runs they will always be cubes.
-                * This makes the BoxSize a vector attribute, with it containing three values, but they
-                * will always be the same. */
-                hdf_header_info.BoxSize = read_attribute_v<double>(Fhdf, hdf_header_info.names[hdf_header_info.IBoxSize])[0];
-            }
-            else
-            {
-                hdf_header_info.BoxSize = read_attribute<double>(Fhdf, hdf_header_info.names[hdf_header_info.IBoxSize]);
-            }
-        }
-        /*
-        catch(GroupIException error)
+        if (opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES ||
+    opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES)
         {
-            HDF5PrintError(error);
+            /* SWIFT can have non-cubic boxes; but for cosmological runs they will always be cubes.
+            * This makes the BoxSize a vector attribute, with it containing three values, but they
+            * will always be the same. */
+            hdf_header_info.BoxSize = read_attribute_v<double>(Fhdf, hdf_header_info.names[hdf_header_info.IBoxSize])[0];
         }
-        // catch failure caused by the H5File operations
-        catch( FileIException error )
+        else
         {
-            HDF5PrintError(error);
+            hdf_header_info.BoxSize = read_attribute<double>(Fhdf, hdf_header_info.names[hdf_header_info.IBoxSize]);
         }
-        // catch failure caused by the DataSet operations
-        catch( DataSetIException error )
-        {
-            HDF5PrintError(error);
-            ireaderror=1;
-        }
-        // catch failure caused by the DataSpace operations
-        catch( DataSpaceIException error )
-        {
-            HDF5PrintError(error);
-            ireaderror=1;
-        }
-        // catch failure caused by the DataSpace operations
-        catch( DataTypeIException error )
-        {
-            HDF5PrintError(error);
-            ireaderror=1;
-        }
-        Fhdf.close();
-        */
-        H5Fclose(Fhdf);
+        safe_hdf5(H5Fclose,Fhdf);
         for (int i=0;i<3;i++) {mpi_xlim[i][0]=0;mpi_xlim[i][1]=hdf_header_info.BoxSize;}
     }
     //There may be issues with particles exactly on the edge of a domain so before expanded limits by a small amount
@@ -118,9 +82,14 @@ void MPIDomainDecompositionHDF(Options &opt){
 void MPINumInDomainHDF(Options &opt)
 {
     if (NProcs==1) return;
-    MPIDomainExtentHDF(opt);
-    MPIInitialDomainDecomposition(opt);
-    MPIDomainDecompositionHDF(opt);
+    LOG(debug) << "Determining number of particles in MPI domain";
+    //Here's the silly error, only do this once !
+    // need to fix all the branches, generate a PR!
+    if (opt.cellnodeids.size() == 0) {
+        MPIDomainExtentHDF(opt);
+        MPIInitialDomainDecomposition(opt);
+        MPIDomainDecompositionHDF(opt);
+    }
 
     Int_t i,j,k;
     unsigned long long n,nchunk;
@@ -163,11 +132,11 @@ void MPINumInDomainHDF(Options &opt)
     vector<int> vintbuff;
     vector<long long> vlongbuff;
     Int_t ibuf=0,*Nbuf, *Nbaryonbuf;
-    int *ireadfile,*ireadtask,*readtaskID;
+    int *ireadtask,*readtaskID;
     hid_t plist_id = H5P_DEFAULT;
     ireadtask=new int[NProcs];
     readtaskID=new int[opt.nsnapread];
-    ireadfile=new int[opt.num_files];
+    std::vector<int> ireadfile(opt.num_files);
     MPIDistributeReadTasks(opt,ireadtask,readtaskID);
 #ifdef USEPARALLELHDF
     MPI_Comm mpi_comm_read;
@@ -211,13 +180,17 @@ void MPINumInDomainHDF(Options &opt)
     	    if(ireadfile[i] == 0 ) continue;
             if(opt.num_files>1) sprintf(buf,"%s.%lld.hdf5",opt.fname,i);
             else sprintf(buf,"%s.hdf5",opt.fname);
+            LOG(debug) <<"Reading file "<<buf;
             //Open the specified file and the specified dataset in the file.
-            Fhdf[i]=H5Fopen(buf, H5F_ACC_RDONLY, plist_id);
+            Fhdf[i]=safe_hdf5(H5Fopen, buf, H5F_ACC_RDONLY, plist_id);
 #ifdef USEPARALLELHDF
-            H5Pclose(plist_id);
+            safe_hdf5(H5Pclose, plist_id);
 #endif
             //get number in file
-            if (opt.ihdfnameconvention==HDFSWIFTEAGLENAMES || opt.ihdfnameconvention==HDFOLDSWIFTEAGLENAMES) {
+            if (opt.ihdfnameconvention==HDFSWIFTEAGLENAMES 
+                || opt.ihdfnameconvention==HDFOLDSWIFTEAGLENAMES 
+                || opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES) {
+	      
                 vlongbuff = read_attribute_v<long long>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INuminFile]);
                 for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npart[k]=vlongbuff[k];
             }
@@ -297,13 +270,13 @@ void MPINumInDomainHDF(Options &opt)
                 }
             }
 #ifdef USEPARALLELHDF
-            H5Pclose(plist_id);
+            safe_hdf5(H5Pclose, plist_id);
 #endif
             //close data spaces
             for (auto &hidval:partsdataspace) HDF5CloseDataSpace(hidval);
             for (auto &hidval:partsdataset) HDF5CloseDataSet(hidval);
             for (auto &hidval:partsgroup) HDF5CloseGroup(hidval);
-            H5Fclose(Fhdf[i]);
+            safe_hdf5(H5Fclose, Fhdf[i]); 
 	   }
     }
     //now having read number of particles, run all gather
@@ -322,7 +295,6 @@ void MPINumInDomainHDF(Options &opt)
 #endif
     delete[] ireadtask;
     delete[] readtaskID;
-    delete[] ireadfile;
     delete[] doublebuff;
     delete[] Nbuf;
     delete[] Nbaryonbuf;

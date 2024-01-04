@@ -4,6 +4,9 @@
     \todo This is still not MPI compatible as it loops over local mpi thread data
  */
 
+#include <sstream>
+
+#include "logging.h"
 #include "stf.h"
 
 /*! The FoF linking terms are adjusted by determining the physical extent of the halo and Rvir, Vcirc(Rvir), Mvir, Renc where Menclosed is [20%, 50%, 80%] of mass \n
@@ -12,7 +15,7 @@
 */
 void ScaleLinkingLengths(Options &opt,const Int_t nbodies, Particle *Part,Coordinate &cm,Coordinate &cmvel,Double_t Mtot) {
     Double_t rhoc,MaxVcirc,rlim[3], Menc[3],Renc[3], Rvir,Mvir;
-    cout<<"Determining bulk halo properties to determine physical and velocity scalings"<<endl;
+    LOG(info) << "Determining bulk halo properties to determine physical and velocity scalings";
     AdjusttoCM(nbodies, Part, cm, cmvel, Mtot, rlim, MaxVcirc);
     Menc[0]=0.2;Menc[1]=0.5;Menc[2]=0.8;
     rhoc=1.19e-7;
@@ -26,7 +29,7 @@ void ScaleLinkingLengths(Options &opt,const Int_t nbodies, Particle *Part,Coordi
     }
     opt.ellxscale=sqrt((rlim[1]-rlim[0])*(rlim[1]-rlim[0]))/pow((Double_t)nbodies,1./3.);
     opt.ellvscale=MaxVcirc;
-    cout<<"new scalings for length and velocity are "<<opt.ellxscale<<" "<<opt.ellvscale<<endl;
+    LOG(info) << "New scalings for length and velocity are " << opt.ellxscale << " " << opt.ellvscale;
 }
 
 ///\name Routines called by ScaleLinkingLengths
@@ -190,7 +193,14 @@ private(i,r,vc)
 
     rlim[1]/=Mtot;
     rlim[0]*=0.99;rlim[2]*=1.01;
-    cout<<"System (halo) has a radial extent of (min ave max)=(";for (int j=0;j<3;j++)cout<<rlim[j]<<" ";cout<<") Lunits, and a maximum circular velocity of "<<MaxVcirc<< " Vunits."<<endl;
+    if (LOG_ENABLED(info)) {
+        std::ostringstream os;
+        os << "System (halo) has a radial extent of (min ave max)=(";
+        for (int j = 0; j < 3; j++)
+            os << rlim[j] << " ";
+        os << ") Lunits, and a maximum circular velocity of "<< MaxVcirc << " Vunits";
+        LOG(info) << os.str();
+    }
 }
 
 /*! Get virial quantities such as mass, radius by binnning system radial about cm
@@ -270,7 +280,14 @@ private(i)
     delete[] Mbin;
     delete[] Mencbin;
     delete[] rhoavebin;
-    cout<<"Halo has mass frac of "<<Mvir/Mtot<<" at virial radius "<<Rvir<<endl;
-    cout<<"And (Mfrac,Rmfrac) of ";for (int j=0;j<nenc;j++) cout<<"("<<Menc[j]<<","<<Renc[j]<<") ";cout<<endl;
+    LOG(info) << "Halo has mass frac of " << Mvir / Mtot << " at virial radius " << Rvir;
+    if (LOG_ENABLED(info)) {
+        std::ostringstream os;
+        os << "And (Mfrac,Rmfrac) of ";
+        for (int j = 0; j < nenc; j++) {
+            os << "(" << Menc[j] << "," << Renc[j] << ") ";
+        }
+        LOG(info) << os.str();
+    }
 }
 //@}

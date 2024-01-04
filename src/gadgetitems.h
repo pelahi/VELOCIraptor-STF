@@ -3,6 +3,7 @@
 
 //for endian independance
 #include "endianutils.h"
+#include "io.h"
 
 ///for gadget coords
 #ifdef GADGETDOUBLEPRECISION
@@ -192,6 +193,7 @@ inline Int_t get_nbodies(char *fname, int ptype=-1)
     fread(&DATA[0], sizeof(char)*4, 1, fd);DATA[4] = '\0';
     fread(&dummy, sizeof(dummy), 1, fd);
     fread(&dummy, sizeof(dummy), 1, fd);
+    LOG(trace) << "Reading "<<DATA;
 #endif
     fread(&dummy, sizeof(dummy), 1, fd);
     fread(&header1, sizeof(header1), 1, fd);
@@ -202,6 +204,7 @@ inline Int_t get_nbodies(char *fname, int ptype=-1)
     for(j=0, nbodies=0; j<NGTYPE; j++) if (header1.npartTotalHW[j]!=0) ihwflag=1;
     if (ptype==-1) {
         for(j=0, nbodies=0; j<NGTYPE; j++) {
+        	LOG(trace) <<"Header indicates for particle "<<j<<" number is "<<header1.npartTotal[j]<<" "<<header1.npartTotalHW[j];
             nbodies+=header1.npartTotal[j];
             if(ihwflag) nbodies+=((long long)(header1.npartTotalHW[j]) << 32);
         }

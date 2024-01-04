@@ -58,10 +58,10 @@ void MPIDomainExtentGadget(Options &opt){
         else sprintf(buf,"%s",opt.fname);
         Fgad[i].open(buf,ios::in);
         if(!Fgad[i]) {
-            cout<<"can't open file "<<buf<<endl;
+            LOG(info)<<"can't open file "<<buf;
             exit(0);
         }
-        else cout<<"reading "<<buf<<endl;
+        else LOG(info)<<"reading "<<buf;
 #ifdef GADGET2FORMAT
         SKIP2;
         Fgad[i].read((char*)&DATA[0],sizeof(char)*4);DATA[4] = '\0';
@@ -75,42 +75,6 @@ void MPIDomainExtentGadget(Options &opt){
         header[i].Endian();
     }
     for (m=0;m<3;m++) {mpi_xlim[m][0]=0;mpi_xlim[m][1]=header[0].BoxSize;}
-    /*
-    for (m=0;m<3;m++) {mpi_xlim[m][0]=MAXVALUE;mpi_xlim[m][1]=-MAXVALUE;}
-    cout<<"Getting domain extent"<<endl;
-    for(i=0;i<opt.num_files; i++)
-    {
-#ifdef GADGET2FORMAT
-        SKIP2;
-        Fgad[i].read((char*)&DATA[0],sizeof(char)*4);DATA[4] = '\0';
-        SKIP2;
-        SKIP2;
-        fprintf(stderr,"reading... %s\n",DATA);
-#endif
-        Fgad[i].read((char*)&dummy, sizeof(dummy));
-        for(k=0;k<6;k++)
-        {
-            for(n=0;n<header[i].npart[k];n++)
-            {
-                Fgad[i].read((char*)&ctemp[0], sizeof(FLOAT)*3);
-                for (m=0;m<3;m++) ctemp[m]=LittleFloat(ctemp[m]);
-                if (opt.partsearchtype==PSTALL)
-                    for (m=0;m<3;m++) {if (ctemp[m]<mpi_xlim[m][0]) mpi_xlim[m][0]=ctemp[m];if (ctemp[m]>mpi_xlim[m][1]) mpi_xlim[m][1]=ctemp[m];}
-                else if (opt.partsearchtype==PSTDARK)
-                    if (!k==GASTYPE||k==STARTYPE)
-                        for (m=0;m<3;m++) {if (ctemp[m]<mpi_xlim[m][0]) mpi_xlim[m][0]=ctemp[m];if (ctemp[m]>mpi_xlim[m][1]) mpi_xlim[m][1]=ctemp[m];}
-                else if (opt.partsearchtype==PSTSTAR)
-                    if (k==STARTYPE)
-                        for (m=0;m<3;m++) {if (ctemp[m]<mpi_xlim[m][0]) mpi_xlim[m][0]=ctemp[m];if (ctemp[m]>mpi_xlim[m][1]) mpi_xlim[m][1]=ctemp[m];}
-                else if (opt.partsearchtype==PSTGAS)
-                    if (k==GASTYPE)
-                        for (m=0;m<3;m++) {if (ctemp[m]<mpi_xlim[m][0]) mpi_xlim[m][0]=ctemp[m];if (ctemp[m]>mpi_xlim[m][1]) mpi_xlim[m][1]=ctemp[m];}
-            }
-        }
-    }
-    */
-    //There may be issues with particles exactly on the edge of a domain so before expanded limits by a small amount
-    //now only done if a specific compile option passed
 #ifdef MPIEXPANDLIM
     for (int j=0;j<3;j++) {
         Double_t dx=0.001*(mpi_xlim[j][1]-mpi_xlim[j][0]);
@@ -140,10 +104,12 @@ void MPINumInDomainGadget(Options &opt)
 {
     #define SKIP2 Fgad[i].read((char*)&dummy, sizeof(dummy));
     InitEndian();
-    if (NProcs>1) {
-    MPIDomainExtentGadget(opt);
-    MPIInitialDomainDecomposition(opt);
-    MPIDomainDecompositionGadget(opt);
+    if (NProcs == 1) return;
+    if (opt.cellnodeids.size() == 0) {
+        MPIDomainExtentGadget(opt);
+        MPIInitialDomainDecomposition(opt);
+        MPIDomainDecompositionGadget(opt);
+    }
     Int_t i,k,n;
     int dummy;
     FLOAT ctemp[3];
@@ -153,10 +119,11 @@ void MPINumInDomainGadget(Options &opt)
 #endif
     fstream *Fgad;
     struct gadget_header *header;
-    int *ireadfile,*ireadtask,*readtaskID;
+    Int_t Nlocalold=Nlocal;
+    int *ireadtask,*readtaskID;
     ireadtask=new int[NProcs];
     readtaskID=new int[opt.nsnapread];
-    ireadfile=new int[opt.num_files];
+    std::vector<int> ireadfile(opt.num_files);
     MPIDistributeReadTasks(opt,ireadtask,readtaskID);
 
     Int_t ibuf=0,*Nbuf, *Nbaryonbuf;
@@ -175,12 +142,13 @@ void MPINumInDomainGadget(Options &opt)
             if(opt.num_files>1) sprintf(buf,"%s.%lld",opt.fname,i);
             else sprintf(buf,"%s",opt.fname);
             Fgad[i].open(buf,ios::in);
+		    LOG(info) <<"Reading file "<<buf;
         #ifdef GADGET2FORMAT
             SKIP2;
             Fgad[i].read((char*)&DATA[0],sizeof(char)*4);DATA[4] = '\0';
             SKIP2;
             SKIP2;
-            fprintf(stderr,"reading... %s\n",DATA);
+            LOG(trace) "Reading... %s\n",DATA);
         #endif
             Fgad[i].read((char*)&dummy, sizeof(dummy));
             Fgad[i].read((char*)&header[i], sizeof(gadget_header));
@@ -197,9 +165,13 @@ void MPINumInDomainGadget(Options &opt)
             Fgad[i].read((char*)&dummy, sizeof(dummy));
             for(k=0;k<NGTYPE;k++)
             {
+            	LOG(trace)<<k<<" "<<header[i].npart[k];
                 for(n=0;n<header[i].npart[k];n++)
                 {
                     Fgad[i].read((char*)&ctemp[0], sizeof(FLOAT)*3);
+#ifdef PERIODWRAPINPUT
+                    PeriodWrapInput<FLOAT>(header[i].BoxSize, ctemp);
+#endif
                     ibuf=MPIGetParticlesProcessor(opt, ctemp[0],ctemp[1],ctemp[2]);
                     if (opt.partsearchtype==PSTALL) {
                         Nbuf[ibuf]++;
@@ -236,7 +208,6 @@ void MPINumInDomainGadget(Options &opt)
     if (opt.iBaryonSearch) {
         MPI_Allreduce(Nbaryonbuf,mpi_nlocal,NProcs,MPI_Int_t,MPI_SUM,MPI_COMM_WORLD);
         Nlocalbaryon[0]=mpi_nlocal[ThisTask];
-    }
     }
 }
 

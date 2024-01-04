@@ -8,7 +8,9 @@
 
 //-- For MPI
 
+#include "logging.h"
 #include "stf.h"
+#include "timer.h"
 
 /// \name routines which check to see if some search region overlaps with local mpi domain
 //@{
@@ -115,8 +117,8 @@ Int_t OpenMPLocalSearch(Options &opt,
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
-    auto time1=MyGetTime();
-    cout<<ThisTask<<": Starting local openmp searches "<<endl;
+    vr::Timer search_timer;
+    LOG(info) << "Starting local OpenMP searches";
     #pragma omp parallel default(shared) \
     private(i,p3dfofomp,orgIndex, ng)
     {
@@ -137,7 +139,7 @@ Int_t OpenMPLocalSearch(Options &opt,
         ngtot += ng;
     }
     }
-    cout<<ThisTask<<" finished local search "<<ngtot<<" in "<<MyElapsedTime(time1)<<endl;
+    LOG(info) << "Finished local search " << ngtot << " in " << search_timer;
     return ngtot;
 }
 
@@ -149,12 +151,13 @@ OMP_ImportInfo *OpenMPImportParticles(Options &opt, const Int_t nbodies, vector<
 {
     Int_t i,j,orgIndex;
     importtotal=0;
-    auto time1=MyGetTime();
     OMP_ImportInfo *ompimport;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
-    cout<<ThisTask<<": Starting import build "<<endl;
+
+    vr::Timer import_timer;
+    LOG(info) << "Starting import build";
     for (i=0;i<numompregions;i++) omp_nrecv_total[i]=omp_nrecv_offset[i]=0;
     for (i=0;i<numompregions;i++) {
         for (j=ompdomain[i].noffset;j<ompdomain[i].noffset+ompdomain[i].ncount;j++) {
@@ -167,7 +170,7 @@ OMP_ImportInfo *OpenMPImportParticles(Options &opt, const Int_t nbodies, vector<
 
     for (i=1;i<numompregions;i++) omp_nrecv_offset[i] = omp_nrecv_offset[i-1]+omp_nrecv_total[i-1];
     for (i=0;i<numompregions;i++) {
-        if (opt.iverbose > 1) cout<<ThisTask<<" omp region "<<i<<" is importing "<<omp_nrecv_total[i]<<endl;
+        LOG(debug) << "OpenMP region " << i << " is importing " << omp_nrecv_total[i];
         importtotal += omp_nrecv_total[i];
         omp_nrecv_total[i] = 0;
     }
@@ -188,7 +191,7 @@ OMP_ImportInfo *OpenMPImportParticles(Options &opt, const Int_t nbodies, vector<
             }
         }
     }
-    cout<<ThisTask<<" finished import "<<MyElapsedTime(time1)<<endl;
+    LOG(info) << "Finished import in "<< import_timer;
     return ompimport;
 }
 
@@ -203,51 +206,60 @@ void OpenMPLinkAcross(Options &opt,
     Int_t i;
     Int_t omp_links_across_total, numloops;
     Int_t nt, orgIndex, curIndex, *nn=new Int_t[nbodies], pfofcomp;
-    Int_t maxgroupnum;
+    Int_t maxgroupnum, newgroupoffset;
     vector<Int_t> localnewgroup(numompregions,0);
     int curTask;
     Coordinate x;
-    auto time1=MyGetTime();
-    Particle *Pval;
+    // Particle *Pval;
+    Particle Pval;
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
 
     if (NProcs > 1) {
-        maxgroupnum = ompdomain[numompregions-1].numgroups + ompdomain[numompregions-1].noffset;
+        // maxgroupnum = ompdomain[numompregions-1].numgroups + ompdomain[numompregions-1].noffset;
+        // maxgroupnum = nbodies + ompdomain[numompregions-1].noffset;
+        newgroupoffset = nbodies;
     }
 
-    cout<<ThisTask<<": Starting linking across OpenMP domains"<<endl;
+    LOG(info) << "Linking across OpenMP domains";
+    vr::Timer linking_timer;
     numloops = 0;
     do {
         omp_links_across_total = 0;
-        #pragma omp parallel default(shared) \
-        private(i, orgIndex, curIndex, x, nt, Pval, pfofcomp)
+        #pragma omp parallel default(none) \
+        private(i, orgIndex, curIndex, x, nt, Pval, pfofcomp) \
+        shared(NProcs, \
+        omp_links_across_total, numompregions, ompimport, omp_nrecv_offset, omp_nrecv_total, ompdomain, \
+        opt, Part, param, nn, tree3dfofomp, fofcheck, pfof, storeorgIndex, Head, Next, localnewgroup, newgroupoffset) 
         {
         #pragma omp for nowait reduction(+:omp_links_across_total)
         for (i=0;i<numompregions;i++) {
             for (auto j=0;j<omp_nrecv_total[i];j++) {
-                Pval=&Part[ompimport[omp_nrecv_offset[i]+j].index];
+                Pval = Part[ompimport[omp_nrecv_offset[i]+j].index];
                 pfofcomp = ompimport[omp_nrecv_offset[i]+j].pfof;
                 /// before ignored pfofcomp but since cannot guarantee openmp
                 /// will be complete if MPI is used.
                 if (pfofcomp == 0 && NProcs == 1) continue;
                 //for each imported particle, find all particles within search window
-                for (auto k=0;k<3;k++) x[k]=Pval->GetPosition(k);
+                // for (auto k=0;k<3;k++) x[k]=Pval->GetPosition(k);
+                for (auto k=0;k<3;k++) x[k]=Pval.GetPosition(k);
                 nt=tree3dfofomp[i]->SearchBallPosTagged(x, param[1], &nn[ompdomain[i].noffset]);
                 for (auto k=0;k<nt;k++) {
                     curIndex=nn[k+ompdomain[i].noffset]+ompdomain[i].noffset;
                     //check that at least on of the particles meets the type criterion if necessary
+
                     if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1)
-                        if (fofcheck(Part[curIndex],param)!=0 && fofcheck(*Pval,param)!=0) continue;
+                        if (fofcheck(Part[curIndex],param)!=0 && fofcheck(Pval,param)!=0) continue;
 
                     orgIndex = storeorgIndex[Part[curIndex].GetID()+ompdomain[i].noffset];
                     //otherwise, change these particles to local group id if local group id smaller
                     //if local particle in a group
-                    if (pfof[orgIndex]>0 && pfofcomp > 0)  {
+                    if (pfof[orgIndex] > 0 && pfofcomp > 0)  {
                         //only change if both particles are appropriate type and group ids indicate local needs to be exported
                         if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1)
-                            if (!(fofcheck(Part[curIndex],param)==0 && fofcheck(*Pval,param)==0)) continue;
+                            if (!(fofcheck(Part[curIndex],param)==0 && fofcheck(Pval,param)==0)) continue;
+
                         //if local group id is larger, change locally
                         if (pfof[orgIndex] > pfofcomp) {
                             Int_t ss = Head[nn[k+ompdomain[i].noffset]+ompdomain[i].noffset];
@@ -261,20 +273,21 @@ void OpenMPLinkAcross(Options &opt,
                     //if local particle not in a group and export is appropriate type, link
                     else {
                         if (opt.partsearchtype==PSTALL && opt.iBaryonSearch>1)
-                            if (fofcheck(*Pval,param)!=0) continue;
+                            if (fofcheck(Pval,param)!=0) continue;
                         //if local particle not in group and associated particle in group
                         //set the local particle to the appropriate id
-                        if (pfofcomp > 0) {
+                        if (pfofcomp > 0 && pfof[orgIndex] == 0) {
                             pfof[orgIndex] = pfofcomp;
+                            omp_links_across_total++;
                         }
-                        ///otherwise, if at this point, omp domains are incomplete
-                        ///as volume also split in mpi, so increase number of local
-                        ///groups and assign particle to this new group 
-                        else {
+                        //otherwise, if at this point, omp domains are incomplete
+                        //as volume also split in mpi, so increase number of local
+                        //groups and assign particle to this new group if not previously tagged.
+                        else if (pfof[orgIndex] == 0 && pfofcomp == 0) {
                             localnewgroup[i]++;
-                            pfof[orgIndex] = maxgroupnum + ompdomain[i].noffset + localnewgroup[i];
+                            pfof[orgIndex] = newgroupoffset + ompdomain[i].noffset + localnewgroup[i];
+                            omp_links_across_total++;
                         }
-                        omp_links_across_total++;
                     }
                 }
             }
@@ -295,10 +308,11 @@ void OpenMPLinkAcross(Options &opt,
         }
         }
         numloops++;
-        if (opt.iverbose>1) cout<<ThisTask<<" linking across at loop "<<numloops<<" having found "<<omp_links_across_total<<" links"<<endl;
+        LOG(trace) << "Linking across at loop " << numloops << " having found "
+                   << omp_links_across_total << " links";
     }while(omp_links_across_total>0);
     delete[] nn;
-    cout<<ThisTask<<" finished linking "<<MyElapsedTime(time1)<<endl;
+    LOG(info) << "Finished linking in " << linking_timer;
 }
 
 Int_t OpenMPResortParticleandGroups(Int_t nbodies, vector<Particle> &Part, Int_t *&pfof, Int_t minsize)

@@ -3,7 +3,9 @@
     \todo once ratio is calculated, must figure out best way to do global mpi fit. Probably best to combine the binned distribution and fit that
  */
 
+#include "logging.h"
 #include "stf.h"
+#include "vr_exceptions.h"
 
 /*! This calculates the logarithmic ratio of the measured velocity density and the expected velocity density assuming a bg muiltivariate gaussian distribution
     \todo must adjust interpolation scheme so that if NN has cells in a neighbouring MPI domain, the information is stored locally. This may require a rewrite
@@ -15,9 +17,6 @@ void GetDenVRatio(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngrid
 {
     Int_t i;
     int nthreads=1,tid;
-#ifndef USEMPI
-    int ThisTask=0;
-#endif
     Double_t **dist;
     Double_t norm=pow(2.0*M_PI,-1.5);
     Int_t **nn;
@@ -28,7 +27,7 @@ void GetDenVRatio(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngrid
     Particle *ptemp;
     KDTree *tree;
 
-    if (opt.iverbose>=2) cout<<ThisTask<<" Now calculate denvratios using grid"<<endl;
+    LOG(trace) << "Calculating denvratios using grid";
     //take inverse for interpolation
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
@@ -84,6 +83,9 @@ if (nbodies > ompsubsearchnum)
 #endif
     for (i=0;i<nbodies;i++)
     {
+        if (!(Part[i].GetDensity() > 0)) {
+            throw vr::non_positive_density(Part[i], __PRETTY_FUNCTION__);
+        }
         tempdenv=Part[i].GetDensity()/opt.Nsearch;
 #ifdef USEOPENMP
         tid=omp_get_thread_num();
@@ -121,7 +123,7 @@ if (nbodies > ompsubsearchnum)
 #ifdef USEOPENMP
 }
 #endif
-    if (opt.iverbose>=2) cout<<ThisTask<<" Done"<<endl;
+    LOG(trace) << "Done";
     for (int j=0;j<nthreads;j++) delete[] dist[j];
     delete[] dist;
     for (int j=0;j<nthreads;j++) delete[] nn[j];
@@ -133,6 +135,11 @@ if (nbodies > ompsubsearchnum)
     delete[] grid;
 }
 
+
+#define LOG_STATS(meanr, sdlow, sdhigh) \
+	LOG(trace) << "Using meanr=" << std::scientific << meanr              \
+	                           << " sdlow=" << std::scientific << sdlow   \
+	                           << " sdhigh=" << std::scientific << sdhigh;
 
 void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *Part, Double_t &meanr,Double_t &sdlow,Double_t &sdhigh, int sublevel)
 {
@@ -216,7 +223,7 @@ void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *
 
     //if object is small or bg search (ie sublevel==-1, then to keep statistics high, use preliminary determination of the variance and mean.
     if (nbodies<2*MINSUBSIZE) {
-        if (opt.iverbose>=2) printf("Using meanr=%e sdlow=%e sdhigh=%e\n",meanr,sdlow,sdhigh);
+        LOG_STATS(meanr, sdlow, sdhigh);
         return;
     }
     //now rebin around most probable over sl in either direction to be used to estimate dispersion
@@ -298,7 +305,7 @@ void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *
     sdhigh=sdlow;
     //again, if number of particles is low (and so bin statisitics is poor) use initial estimate
     if (nbodies<16*MINSUBSIZE||sublevel==-1) {
-        if (opt.iverbose>=2) printf("Using meanr=%e sdlow=%e sdhigh=%e\n",meanr,sdlow,sdhigh);
+        LOG_STATS(meanr, sdlow, sdhigh);
         return;
     }
 
@@ -338,7 +345,8 @@ void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *
     fixp[itemp][0]=1;fixp[itemp][1]=0;fixp[itemp][2]=0;fixp[itemp][3]=0;itemp++;
     fixp[itemp][0]=0;fixp[itemp][1]=0;fixp[itemp][2]=0;fixp[itemp][3]=0;itemp++;
 
-    if (opt.iverbose>=2) printf("Initial estimate: mu=%e var=%e \n",params[1],sqrt(params[2]));
+    LOG(trace) << "Initial estimate: mu=" << std::scientific << params[1]
+               << " var=" << std::scientific << std::sqrt(params[2]);
     nfits=8;
     oldchi2=MAXVALUE;
     for (int i=0;i<nfits;i++) {
@@ -351,16 +359,20 @@ void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *
             meanr=params[1];sdlow=sqrt(params[2]*params[3]);sdhigh=sqrt(params[2]);
             nfix=0;for (int j=0;j<nparams;j++) nfix+=(fixp[i][j]==1);
             oldchi2=chi2;
-            if(opt.iverbose>2) printf("chi2/dof=%e/%lld, A=%e mu=%e var=%e s=%e\n",chi2,nbins-(nparams-nfix)-1,params[0],params[1],sqrt(params[2]),sqrt(params[3]));
+            LOG(trace) << "chi2/dof=" << std::scientific << chi2 << "/" << nbins - (nparams - nfix) - 1
+                       << ", A=" << std::scientific << params[0]
+                       << " mu=" << std::scientific << params[1]
+                       << " var=" << std::scientific << std::sqrt(params[2])
+                       << " s=" << std::scientific << std::sqrt(params[3]);
         }
         //else if (oldchi2<chi2 && i>0) break;
         else {
-            if (opt.iverbose>2)printf("fit failed, using previous values\n");
+            LOG(trace) << "Fit failed, using previous values";
             params[0]=maxprob;params[1]=meanr;params[2]=sdhigh*sdhigh;params[3]=(sdlow*sdlow)/(sdhigh*sdhigh);
         }
     }
     delete[] difffuncs;
-    if (opt.iverbose>=2) printf("Using meanr=%e sdlow=%e sdhigh=%e\n",meanr,sdlow,sdhigh);
+    LOG_STATS(meanr, sdlow, sdhigh);
 }
 
 /*! Calculates the normalized deviations from the mean of the dominated population.
@@ -372,10 +384,7 @@ Int_t GetOutliersValues(Options &opt, const Int_t nbodies, Particle *Part, int s
 {
     Int_t nsubset = 0;
     int nthreads=1;
-#ifndef USEMPI
-    int ThisTask=0;
-#endif
-    if (opt.iverbose>=2) cout<<ThisTask<<" Now get average in grid cell and find outliers"<<endl;
+    LOG(trace) << "Getting average in grid cell and finding outliers";
     //printf("Using GLOBAL values to characterize the distribution and determine the normalized values used to determine outlier likelihood\n");
     Double_t globalmostprob,globalsdlow,globalsdhigh;
 
@@ -396,6 +405,6 @@ Int_t GetOutliersValues(Options &opt, const Int_t nbodies, Particle *Part, int s
         Part[i].SetPotential(tempell);
         nsubset+=(Part[i].GetPotential()>opt.ellthreshold);
     }
-    if (opt.iverbose>=2) cout<<ThisTask<<" Done"<<endl;
+    LOG(trace) << "Done";
     return nsubset;
 }

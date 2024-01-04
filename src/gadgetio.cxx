@@ -32,13 +32,13 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
     struct gadget_header *header;
     Double_t mscale,lscale,lvscale;
     Double_t MP_DM=MAXVALUE,LN,N_DM,MP_B=MAXVALUE;
-    int ifirstfile=0,*ireadfile,*ireadtask,*readtaskID;
+    int ifirstfile=0,*ireadtask,*readtaskID;
+    std::vector<int> ireadfile;
     Int_t ninputoffset = 0;
 #ifndef USEMPI
     Int_t Ntotal;
-    int NProcs=1;
-    ireadfile=new int[opt.num_files];
-    for (i=0;i<opt.num_files;i++) ireadfile[i]=1;
+    int ThisTask=0,NProcs=1;
+    ireadfile = std::vector<int>(opt.num_files, 1);
     ireadtask=new int[NProcs];
     ireadtask[0]=1;
 #endif
@@ -100,7 +100,7 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
             for (int j=0;j<opt.nsnapread;j++) Preadbuf[j].reserve(BufSize);
         }
         //to determine which files the thread should read
-        ireadfile=new int[opt.num_files];
+        ireadfile = std::vector<int>(opt.num_files);
         ifirstfile=MPISetFilesRead(opt,ireadfile,ireadtask);
         inreadsend=0;
         for (int j=0;j<opt.num_files;j++) inreadsend+=ireadfile[j];
@@ -149,10 +149,10 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
         else sprintf(buf,"%s",opt.fname);
         Fgad[i].open(buf,ios::in);
         if(!Fgad[i]) {
-            cout<<"can't open file "<<buf<<endl;
+            LOG(info)<<"can't open file "<<buf;
             exit(0);
         }
-        else cout<<"reading "<<buf<<endl;
+        else LOG(info)<<"reading "<<buf;
 #ifdef GADGET2FORMAT
         SKIP2;
         Fgad[i].read((char*)&DATA[0],sizeof(char)*4);DATA[4] = '\0';
@@ -194,7 +194,7 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
     else {
         opt.a=1.0;
         Hubbleflow=0.;
-        cout<<"Non-cosmological input, using h = "<< opt.h<<endl;
+        LOG(info)<<"Non-cosmological input, using h = "<< opt.h;
     }
     mscale=opt.massinputconversion/opt.h;lscale=opt.lengthinputconversion/opt.h*aadjust;lvscale=opt.lengthinputconversion/opt.h*opt.a;
     //for high res region find smallest mass
@@ -213,8 +213,8 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
 #ifdef NOMASS
     if (header[ifirstfile].mass[GDMTYPE] > 0) opt.MassValue = header[ifirstfile].mass[GDMTYPE]*mscale;
 #endif
-    cout<<"File contains "<<Ntotal<<" particles at is at time "<<opt.a<<endl;
-    cout<<"Particle system contains "<<nbodies<<" particles at is at time "<<opt.a<<" in a box of size "<<opt.p<<endl;
+    LOG(info)<<"File contains "<<Ntotal<<" particles at is at time "<<opt.a;
+    LOG(info)<<"Particle system contains "<<nbodies<<" particles at is at time "<<opt.a<<" in a box of size "<<opt.p;
     //for cosmological box
     //by default the interparticle spacing is determined using GDMTYPE
     //which is particle of type 1
@@ -244,7 +244,7 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
         Fgad[i].read((char*)&DATA[0],sizeof(char)*4);DATA[4] = '\0';
         SKIP2;
         SKIP2;
-        cout<<"reading "<<DATA<<endl;
+        LOG(debug)<<"reading "<<DATA;
 #endif
 #ifndef NOMASS
         //determine number of particles with masses that need to be read
@@ -253,37 +253,41 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
         for(k=0, Ntotfile=0; k<NGTYPE; k++) Ntotfile+=header[i].npart[k];
         //and read positions, velocities, ids, masses, etc
         SKIP2;
-        if (dummy/Ntotfile/3!=sizeof(FLOAT)) {cout<<" mismatch in position type size, file has "<<dummy/Ntotfile/3<<" but using "<<sizeof(FLOAT)<<endl;exit(9);}
+        if (dummy/Ntotfile/3!=sizeof(FLOAT)) {LOG(info)<<" mismatch in position type size, file has "<<dummy/Ntotfile/3<<" but using "<<sizeof(FLOAT);exit(9);}
         for(k=0,count2=count,bcount2=bcount,pc_new=pc;k<NGTYPE;k++)
         {
             for(n=0;n<header[i].npart[k];n++)
             {
                 Fgad[i].read((char*)&ctemp[0], sizeof(FLOAT)*3);
+                for (Int_t m=0;m<3;m++) ctemp[m] = LittleFLOAT(ctemp[m]);
+#ifdef PERIODWRAPINPUT
+                PeriodWrapInput<FLOAT>(opt.p, ctemp);
+#endif
                 if (opt.partsearchtype==PSTALL) {
-                    for (Int_t m=0;m<3;m++) Part[count2].SetPosition(m,LittleFLOAT(ctemp[m]));
+                    for (Int_t m=0;m<3;m++) Part[count2].SetPosition(m,ctemp[m]);
                     count2++;
                 }
                 else if (opt.partsearchtype==PSTDARK) {
                     if (!(k==GGASTYPE||k==GSTARTYPE||k==GBHTYPE)) {
-                        for (Int_t m=0;m<3;m++) Part[count2].SetPosition(m,LittleFLOAT(ctemp[m]));
+                        for (Int_t m=0;m<3;m++) Part[count2].SetPosition(m,ctemp[m]);
                         count2++;
                     }
                     else {
                         if (opt.iBaryonSearch==1 && (k==GGASTYPE || k==GSTARTYPE)) {
-                            for (Int_t m=0;m<3;m++) Pbaryons[bcount2].SetPosition(m,LittleFLOAT(ctemp[m]));
+                            for (Int_t m=0;m<3;m++) Pbaryons[bcount2].SetPosition(m,ctemp[m]);
                             bcount2++;
                         }
                     }
                 }
                 else if (opt.partsearchtype==PSTSTAR) {
                     if (k==GSTARTYPE) {
-                        for (Int_t m=0;m<3;m++) Part[count2].SetPosition(m,LittleFLOAT(ctemp[m]));
+                        for (Int_t m=0;m<3;m++) Part[count2].SetPosition(m,ctemp[m]);
                         count2++;
                     }
                 }
                 else if (opt.partsearchtype==PSTGAS) {
                     if (k==GGASTYPE) {
-                        for (Int_t m=0;m<3;m++) Part[count2].SetPosition(m,LittleFLOAT(ctemp[m]));
+                        for (Int_t m=0;m<3;m++) Part[count2].SetPosition(m,ctemp[m]);
                         count2++;
                     }
                 }
@@ -296,10 +300,10 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
         Fgad[i].read((char*)&DATA[0],sizeof(char)*4);DATA[4] = '\0';
         SKIP2;
         SKIP2;
-        cout<<"reading "<<DATA<<endl;
+        LOG(debug)<<"reading "<<DATA;
 #endif
         SKIP2;
-        if (dummy/Ntotfile/3!=sizeof(FLOAT)) {cout<<" mismatch in velocity type size, file has "<<dummy/Ntotfile/3<<" but using "<<sizeof(FLOAT)<<endl;exit(9);}
+        if (dummy/Ntotfile/3!=sizeof(FLOAT)) {LOG(info)<<" mismatch in velocity type size, file has "<<dummy/Ntotfile/3<<" but using "<<sizeof(FLOAT);exit(9);}
         for(k=0,count2=count,bcount2=bcount,pc_new=pc;k<NGTYPE;k++)
         {
             for(n=0;n<header[i].npart[k];n++)
@@ -342,10 +346,10 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
         Fgad[i].read((char*)&DATA[0],sizeof(char)*4);DATA[4] = '\0';
         SKIP2;
         SKIP2;
-        cout<<"reading "<<DATA<<endl;
+        LOG(debug)<<"reading "<<DATA;
 #endif
         SKIP2;
-        if (dummy/Ntotfile!=sizeof(idval)) {cout<<" mismatch in ID type size, file has "<<dummy/Ntotfile<<" but using "<<sizeof(idval)<<endl;exit(9);}
+        if (dummy/Ntotfile!=sizeof(idval)) {LOG(info)<<" mismatch in ID type size, file has "<<dummy/Ntotfile<<" but using "<<sizeof(idval);exit(9);}
         for(k=0,count2=count,bcount2=bcount,pc_new=pc;k<NGTYPE;k++)
         {
             for(n=0;n<header[i].npart[k];n++) {
@@ -442,12 +446,12 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
         Fgad[i].read((char*)&DATA[0],sizeof(char)*4);DATA[4] = '\0';
         SKIP2;
         SKIP2;
-        cout<<"reading "<<DATA<<endl;
+        LOG(debug)<<"reading "<<DATA;
 #endif
 #ifndef NOMASS
         if(ntot_withmasses>0) {
         SKIP2;
-        if (dummy/ntot_withmasses!=sizeof(REAL)) {cout<<" mismatch in mass type size, file has "<<dummy/ntot_withmasses<<" but using "<<sizeof(REAL)<<endl;exit(9);}
+        if (dummy/ntot_withmasses!=sizeof(REAL)) {LOG(info)<<" mismatch in mass type size, file has "<<dummy/ntot_withmasses<<" but using "<<sizeof(REAL);exit(9);}
         }
         for(k=0,count2=count,bcount2=bcount,pc_new=pc;k<NGTYPE;k++)
         {
@@ -503,10 +507,10 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
         Fgad[i].read((char*)&DATA[0],sizeof(char)*4);DATA[4] = '\0';
         SKIP2;
         SKIP2;
-        cout<<"reading "<<DATA<<endl;
+        LOG(debug)<<"reading "<<DATA;
 #endif
         SKIP2;
-        if (dummy/header[i].npart[GGASTYPE]!=sizeof(FLOAT)) {cout<<" mismatch in SPH type size, file has "<<dummy/header[i].npart[GGASTYPE]<<" but using "<<sizeof(FLOAT)<<endl;exit(9);}
+        if (dummy/header[i].npart[GGASTYPE]!=sizeof(FLOAT)) {LOG(info)<<" mismatch in SPH type size, file has "<<dummy/header[i].npart[GGASTYPE]<<" but using "<<sizeof(FLOAT);exit(9);}
         for(k=0,count2=count,bcount2=bcount,pc_new=pc;k<NGTYPE;k++)
         {
             if (k==GGASTYPE) {
@@ -539,10 +543,10 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
         Fgad[i].read((char*)&DATA[0],sizeof(char)*4);DATA[4] = '\0';
         SKIP2;
         SKIP2;
-        cout<<"reading "<<DATA<<endl;
+        LOG(debug)<<"reading "<<DATA;
 #endif
         SKIP2;
-        if (dummy/header[i].npart[GGASTYPE]!=sizeof(FLOAT)) {cout<<" mismatch in SPH type size, file has "<<dummy/header[i].npart[GGASTYPE]<<" but using "<<sizeof(FLOAT)<<endl;exit(9);}
+        if (dummy/header[i].npart[GGASTYPE]!=sizeof(FLOAT)) {LOG(info)<<" mismatch in SPH type size, file has "<<dummy/header[i].npart[GGASTYPE]<<" but using "<<sizeof(FLOAT);exit(9);}
         for(k=0,count2=count,bcount2=bcount,pc_new=pc;k<NGTYPE;k++)
         {
             if (k==GGASTYPE) {
@@ -573,17 +577,17 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
         Fgad[i].read((char*)&DATA[0],sizeof(char)*4);DATA[4] = '\0';
         SKIP2;
         SKIP2;
-        cout<<"reading "<<DATA<<endl;
+        LOG(debug)<<"reading "<<DATA;
 #endif
         if (!strcmp(DATA,"SFR ")){
         SKIP2;
-        if (dummy/header[i].npart[GGASTYPE]!=sizeof(FLOAT)) {cout<<" mismatch in SPH type size, file has "<<dummy/header[i].npart[GGASTYPE]<<" but using "<<sizeof(FLOAT)<<endl;exit(9);}
+        if (dummy/header[i].npart[GGASTYPE]!=sizeof(FLOAT)) {LOG(info)<<" mismatch in SPH type size, file has "<<dummy/header[i].npart[GGASTYPE]<<" but using "<<sizeof(FLOAT);exit(9);}
         Fgad[i].seekg(header[i].npart[GGASTYPE]*sizeof(FLOAT),ios::cur);
         SKIP2;
         }
         else {
         SKIP2;
-        if (dummy/header[i].npart[GGASTYPE]!=sizeof(FLOAT)) {cout<<" mismatch in SPH type size, file has "<<dummy/header[i].npart[GGASTYPE]<<" but using "<<sizeof(FLOAT)<<endl;exit(9);}
+        if (dummy/header[i].npart[GGASTYPE]!=sizeof(FLOAT)) {LOG(info)<<" mismatch in SPH type size, file has "<<dummy/header[i].npart[GGASTYPE]<<" but using "<<sizeof(FLOAT);exit(9);}
         for(k=0,count2=count,bcount2=bcount,pc_new=pc;k<NGTYPE;k++)
         {
             if (k==GGASTYPE) {
@@ -623,10 +627,10 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
         Fgad[i].read((char*)&DATA[0],sizeof(char)*4);DATA[4] = '\0';
         SKIP2;
         SKIP2;
-        cout<<"reading "<<DATA<<endl;
+        LOG(debug)<"reading "<<DATA;
 #endif
         SKIP2;
-        if (dummy/header[i].npart[GSTARTYPE]!=sizeof(FLOAT)) {cout<<" mismatch in Star type size, file has "<<dummy/header[i].npart[GSTARTYPE]<<" but using "<<sizeof(FLOAT)<<endl;exit(9);}
+        if (dummy/header[i].npart[GSTARTYPE]!=sizeof(FLOAT)) {LOG(info)<<" mismatch in Star type size, file has "<<dummy/header[i].npart[GSTARTYPE]<<" but using "<<sizeof(FLOAT);exit(9);}
         for(k=0,count2=count,bcount2=bcount,pc_new=pc;k<NGTYPE;k++)
         {
             for(n=0;n<header[i].npart[k];n++) {
@@ -677,10 +681,10 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
         Fgad[i].read((char*)&DATA[0],sizeof(char)*4);DATA[4] = '\0';
         SKIP2;
         SKIP2;
-        cout<<"reading "<<DATA<<endl;
+        LOG(debug)<<"reading "<<DATA;
 #endif
         SKIP2;
-        if (dummy/(header[i].npart[GSTARTYPE]+header[i].npart[GGASTYPE])!=sizeof(FLOAT)) {cout<<" mismatch in SPH+STAR type size, file has "<<dummy/(header[i].npart[GSTARTYPE]+header[i].npart[GGASTYPE])<<" but using "<<sizeof(FLOAT)<<endl;exit(9);}
+        if (dummy/(header[i].npart[GSTARTYPE]+header[i].npart[GGASTYPE])!=sizeof(FLOAT)) {LOG(info)<<" mismatch in SPH+STAR type size, file has "<<dummy/(header[i].npart[GSTARTYPE]+header[i].npart[GGASTYPE])<<" but using "<<sizeof(FLOAT);exit(9);}
         for(k=0,count2=count,bcount2=bcount,pc_new=pc;k<NGTYPE;k++)
         {
             for(n=0;n<header[i].npart[k];n++) {
@@ -736,10 +740,10 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
         Fgad[i].read((char*)&DATA[0],sizeof(char)*4);DATA[4] = '\0';
         SKIP2;
         SKIP2;
-        cout<<"reading "<<DATA<<endl;
+        LOG(debug)<<"reading "<<DATA;
 #endif
         SKIP2;
-        if (dummy/header[i].npart[GSTARTYPE]!=sizeof(FLOAT)) {cout<<" mismatch in STAR type size, file has "<<dummy/header[i].npart[GSTARTYPE]<<" but using "<<sizeof(FLOAT)<<endl;exit(9);}
+        if (dummy/header[i].npart[GSTARTYPE]!=sizeof(FLOAT)) {LOG(info)<<" mismatch in STAR type size, file has "<<dummy/header[i].npart[GSTARTYPE]<<" but using "<<sizeof(FLOAT);exit(9);}
         Fgad[i].seekg(header[i].npart[GSTARTYPE]*sizeof(FLOAT),ios::cur);
         SKIP2;
         }
@@ -755,10 +759,10 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
         Fgad[i].read((char*)&DATA[0],sizeof(char)*4);DATA[4] = '\0';
         SKIP2;
         SKIP2;
-        cout<<"reading "<<DATA<<endl;
+        LOG(debug)<<"reading "<<DATA;
 #endif
         SKIP2;
-        if (dummy/header[i].npart[GBHTYPE]!=sizeof(FLOAT)) {cout<<" mismatch in BH type size, file has "<<dummy/header[i].npart[GBHTYPE]<<" but using "<<sizeof(FLOAT)<<endl;exit(9);}
+        if (dummy/header[i].npart[GBHTYPE]!=sizeof(FLOAT)) {LOG(info)<<" mismatch in BH type size, file has "<<dummy/header[i].npart[GBHTYPE]<<" but using "<<sizeof(FLOAT);exit(9);}
         Fgad[i].seekg(header[i].npart[GBHTYPE]*sizeof(FLOAT),ios::cur);
         SKIP2;
         }
@@ -794,7 +798,7 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
     for(i=0; i<opt.num_files; i++)
     if (ireadfile[i])
     {
-        if(opt.num_files>1) sprintf(buf,"%s.%lld",opt.fname,i);
+        if(opt.num_files>1) sprintf(buf,"%s.%lld",opt.fname,static_cast<long long >(i));
         else sprintf(buf,"%s",opt.fname);
 
         count=0;for(k=0;k<NGTYPE;k++)count+=header[i].npart[k];
@@ -1116,6 +1120,9 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
                 vtemp[0]=vtempchunk[0+3*nn];vtemp[1]=vtempchunk[1+3*nn];vtemp[2]=vtempchunk[2+3*nn];
                 idval=idvalchunk[nn];
                 for (int kk=0;kk<3;kk++) {ctemp[kk]=LittleFLOAT(ctemp[kk]);vtemp[kk]=LittleFLOAT(vtemp[kk]);}
+#ifdef PERIODWRAPINPUT
+                PeriodWrapInput<FLOAT>(opt.p, ctemp);
+#endif
 #ifdef GASON
                 for (int sphblocks=0;sphblocks<NUMGADGETSPHBLOCKS;sphblocks++)sphtempchunk[sphblocks*nchunk+nn]=LittleFLOAT(sphtempchunk[sphblocks*nchunk+nn]);
 #endif
@@ -1437,7 +1444,6 @@ void ReadGadget(Options &opt, vector<Particle> &Part, const Int_t nbodies,Partic
     if (ireadtask[ThisTask]>=0) {
         delete[] Nreadbuf;
         delete[] Pbuf;
-        delete[] ireadfile;
     }
     delete[] ireadtask;
     delete[] readtaskID;

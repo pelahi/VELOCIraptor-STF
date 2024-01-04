@@ -4,6 +4,7 @@
 
 //--  Background Velocity Routines
 
+#include "logging.h"
 #include "stf.h"
 
 ///\name Cell construction using binary kd-tree
@@ -50,19 +51,19 @@ private(i,vel) if (nbodies > ompsubsearchnum)
     KDTree *tree;
     int itreetype = tree->TPHYS, ikerntype = tree->KEPAN, isplittingcriterion = 0, ianiso = 0 , iscale = 0;
     bool runomp = (nbodies > ompsubsearchnum);
-    if (opt.iverbose>=2) cout<<"Grid system using leaf nodes with maximum size of "<<opt.Ncell<<endl;
+    LOG(trace) << "Grid system using leaf nodes with maximum size of " << opt.Ncell;
     if (opt.gridtype==PHYSGRID) {
-        if (opt.iverbose>=2) cout<<"Building Physical Tree using simple spatial extend as splitting criterion"<<endl;
+        LOG(trace) << "Building Physical Tree using simple spatial extend as splitting criterion";
         //tree=new KDTree(Part,nbodies,opt.Ncell,tree->TPHYS);
     }
     else if (opt.gridtype==PHYSENGRID) {
-        if (opt.iverbose>=2) cout<<"Building physical Tree using minimum shannon entropy as splitting criterion"<<endl;
+        LOG(trace) << "Building physical Tree using minimum shannon entropy as splitting criterion";
         isplittingcriterion = 1;
         //tree=new KDTree(*S,opt.Ncell,tree->TPHYS,tree->KEPAN,100,1);
         //tree=new KDTree(Part,nbodies,opt.Ncell,tree->TPHYS,tree->KEPAN,100,1);
     }
     else if (opt.gridtype==PHASEENGRID) {
-        if (opt.iverbose>=2) cout<<"Building Phase-space Tree using minimum shannon entropy as splitting criterion"<<endl;
+        LOG(trace) << "Building Phase-space Tree using minimum shannon entropy as splitting criterion";
         itreetype = tree->TPHS;
         isplittingcriterion = 1;
         ianiso = 1;
@@ -86,7 +87,7 @@ void FillTreeGrid(Options &opt, const Int_t nbodies, const Int_t ngrid, KDTree *
     if (treetype==tree->TPHYS) ND=3;
     else if (treetype==tree->TPHS) ND=6;
 
-    if (opt.iverbose>=2) cout<<"Filling KD-Tree Grid"<<endl;
+    LOG(trace) << "Filling KD-Tree Grid";
 
     //this loop works well for large cells but for small cells may have to replace this with a for loop which goes through every particle
     //and stores nid and size of node, then builds grid based on these values and then places the particles in the cells.
@@ -136,7 +137,7 @@ void FillTreeGrid(Options &opt, const Int_t nbodies, const Int_t ngrid, KDTree *
     //resets particle order
     delete tree;
     delete[] ptemp;
-    if (opt.iverbose>=2) cout<<"Done."<<endl;
+    LOG(trace) << "Done";
 }
 
 //@}
@@ -151,7 +152,7 @@ Coordinate* GetCellVel(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
     Double_t mtot;
     Coordinate *gvel;
     gvel=new Coordinate[ngrid];
-    if (opt.iverbose>=2) cout<<"Calculating Grid Mean Velocity"<<endl;
+    LOG(trace) << "Calculating Grid Mean Velocity";
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
 private(i,mtot) if (nbodies > ompsubsearchnum)
@@ -169,7 +170,7 @@ private(i,mtot) if (nbodies > ompsubsearchnum)
 #ifdef USEOPENMP
 }
 #endif
-    if (opt.iverbose>=2) cout<<"Done"<<endl;
+    LOG(trace) << "Done";
     return gvel;
 }
 
@@ -180,7 +181,7 @@ Matrix* GetCellVelDisp(Options &opt, const Int_t nbodies, Particle *Part, Int_t 
     Double_t mtot;
     Matrix *gveldisp;
     gveldisp=new Matrix[ngrid];
-    if (opt.iverbose>=2) cout<<"Calculating Grid Velocity Dispersion"<<endl;
+    LOG(trace) << "Calculating Grid Velocity Dispersion";
 #ifdef USEOPENMP
 #pragma omp parallel default(shared) \
 private(i,mtot) if (nbodies > ompsubsearchnum)
@@ -198,7 +199,7 @@ private(i,mtot) if (nbodies > ompsubsearchnum)
 #ifdef USEOPENMP
 }
 #endif
-    if (opt.iverbose>=2) cout<<"Done"<<endl;
+    LOG(trace) << "Done";
     return gveldisp;
 }
 

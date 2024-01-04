@@ -7,6 +7,7 @@
 #include "allvars.h"
 
 #include "fofalgo.h"
+#include "logging.h"
 #include "stf-fitting.h"
 
 #ifndef STFPROTO_H
@@ -29,9 +30,6 @@ void NOMASSCheck(Options &opt);
 /// \name IO routines
 /// see \ref io.cxx for implementation or for reading data see for example \ref gadgetio.cxx or \ref tipsyio.cxx
 //@{
-
-///simple check to see if file exists
-bool FileExists(const char *fname);
 
 //-- Read routines
 
@@ -95,7 +93,7 @@ void WriteSimulationInfo(Options &opt);
 void WriteUnitInfo(Options &opt);
 
 ///Write particle ids of those within spherical overdensity of a field halo
-void WriteSOCatalog(Options &opt, const Int_t ngroups, vector<Int_t> *SOpids, vector<int> *SOtypes=NULL);
+void WriteSOCatalog(Options &opt, const Int_t ngroups, std::vector<std::vector<Int_t>> &SOpids, std::vector<std::vector<int>> &SOtypes);
 ///Write profiles
 void WriteProfiles(Options &opt, const Int_t ngroups, PropData *pdata);
 ///Writes ROCKSTAR like output
@@ -345,7 +343,6 @@ void ReorderInclusiveMasses(const Int_t &nold, const Int_t &nnew, Int_t *&numing
 ///Get Binding Energy
 void GetBindingEnergy(Options &opt, const Int_t nbodies, Particle *Part, Int_t ngroup, Int_t *&pfof, Int_t *&numingroup, PropData *&pdata, Int_t *&noffset);
 
-
 ///Get Morphology properties (since this is for a particular system just use pointer interface)
 void GetGlobalSpatialMorphology(const Int_t nbodies, Particle *p, Double_t& q, Double_t& s, Double_t Error, Matrix& eigenvec, int imflag=0, int itype=-1, int iiterate=1);
 ///Calculate inertia tensor and eigvector
@@ -378,11 +375,13 @@ double mycNFW(double c, void *params);
 ///wrappers for root finding used to get concentration
 double mycNFW_deriv(double c, void *params);
 ///wrappers for root finding used to get concentration
-double mycNFW_fdf(double c, void *params, double*y,double *dy);
+void mycNFW_fdf(double c, void *params, double*y,double *dy);
 ///wrappers for root finding used to get concentration
 double mycNFWRhalf(double c, void *params);
 ///Calculate aperture quantities
 void CalculateApertureQuantities(Options &opt, Int_t &ning, Particle *Part, PropData &pdata);
+//Calculate half-mass radii by interpolating
+Double_t GetApertureRadiusInterpolation(const Double_t &oldrc, const Double_t &rc, const Double_t &EncMass, const Double_t &mass, const Double_t refmass);
 ///determine the radial bin for calculating profiles
 int GetRadialBin(Options &opt, Double_t rc, int &ibin);
 ///add a particle's properties to the appropriate radial bin.
@@ -419,10 +418,20 @@ Int_t CalculateSphericalOverdensity(Options &opt, PropData &pdata,
     Int_t &numingroup, Particle *Part,
     Double_t &m200val, Double_t &m200mval, Double_t &mBN98val, Double_t &virval, Double_t &m500val,
     vector<Double_t> &SOlgrhovals);
+void Interpolate_SphericalOverdensity(Options &opt, PropData &pdata, Double_t &m200val, Double_t &m200mval, 
+					Double_t &mBN98val, Double_t &virval, Double_t &m500val,
+					vector<Double_t> &SOlgrhovals, Double_t gamma1, Double_t gamma2, 
+					Double_t rc, Double_t EncMass, Double_t rhoval, int iSOfound);
 void CalculateSphericalOverdensitySubhalo(Options &opt, PropData &pdata,
     Int_t &numingroup, Particle *Part,
     Double_t &m200val, Double_t &m200mval, Double_t &mBN98val, Double_t &virval, Double_t &m500val,
     vector<Double_t> &SOlgrhovals);
+void Loop_over_spherical_overdensities_subhalo(Options &opt, PropData &pdata, Int_t &num_parts, Particle *Part, 
+    Double_t &m200val, Double_t &m200mval, Double_t &mBN98val, Double_t &virval, Double_t &m500val,
+    vector<Double_t> &rhovals, vector<Double_t> &radius, vector<Double_t> &mass);
+void Check_spherical_overdensities_subhalo_minmass(Options &opt, PropData &pdata, Double_t MinMass);
+void Loop_over_spherical_overdensities_for_halfmassradii_subhalo(Options &opt, PropData &pdata,
+    Int_t &numingroup, Particle *Part);
 void CalculateSphericalOverdensityExclusive(Options &opt, PropData &pdata,
     Int_t &numingroup, Particle *Part,
     Double_t &m200val, Double_t &m200mval, Double_t &mBN98val, Double_t &virval, Double_t &m500val,
@@ -430,7 +439,17 @@ void CalculateSphericalOverdensityExclusive(Options &opt, PropData &pdata,
 ///calculate extra properties inside SO apertures
 void CalculateExtraSphericalOverdensityProperties(Options &opt, PropData &pdata,
     vector<Double_t> &radii, vector<Double_t> &masses, vector<Int_t> &indices,
-    vector<Coordinate> &posparts, vector<Coordinate> &velparts, vector<int> &typeparts);
+    vector<Coordinate> &posparts, vector<Coordinate> &velparts, 
+#if (defined(GASON)) || (defined(GASON) && defined(SWIFTINTERFACE))
+    vector<int> &typeparts, int sonum_hotgas, int SOthreshNorm, 
+    vector<Double_t> &temp, vector<Double_t> &sfr, vector<Double_t> &Zgas);
+#else
+    vector<int> &typeparts);
+#endif
+void Loop_over_spherical_overdensities_subhalo(Options &opt, PropData &pdata, Int_t &num_parts, Particle *Part, 
+    Double_t &m200val, Double_t &m200mval, Double_t &mBN98val, Double_t &virval, Double_t &m500val,
+    vector<Double_t> &rhovals, int SOnum, Double_t &enclosed_mass, std::vector<Double_t> &radius, 
+    std::vector<Double_t> &mass);
 
 void SetSphericalOverdensityMasstoFlagValue(Options &opt, PropData &pdata);
 void SetSphericalOverdensityMasstoTotalMass(Options &opt, PropData &pdata);
@@ -549,7 +568,7 @@ void MPINumInDomain(Options &opt);
 ///determine which mpi processes read input files
 void MPIDistributeReadTasks(Options&opt, int *&ireadtask, int*&readtaskID);
 ///set which file a given task will read
-int MPISetFilesRead(Options&opt, int *&ireadfile, int *&ireadtask);
+int MPISetFilesRead(Options&opt, std::vector<int> &ireadfile, int *&ireadtask);
 
 ///generic init of write communicator to mpi world;
 void MPIInitWriteComm();
@@ -853,14 +872,44 @@ void ReorderGroupIDsAndHaloDatabyValue(const Int_t numgroups, const Int_t newnum
 
 int CompareInt(const void *, const void *);
 ///Get memory use
-void GetMemUsage(Options &opt, string callingfunction, bool printreport);
-///Get memory use
-void GetMemUsage(string callingfunction, bool printreport);
-///Init memory log
-void InitMemUsageLog(Options &opt);
-///get a time
-std::chrono::time_point<std::chrono::high_resolution_clock> MyGetTime();
-double MyElapsedTime(std::chrono::time_point<std::chrono::high_resolution_clock> before);
+namespace vr {
+
+    struct memory_stats {
+        std::size_t current;
+        std::size_t peak;
+    };
+
+    struct memory_usage {
+        memory_stats vm;
+        memory_stats rss;
+    };
+
+    memory_usage get_memory_usage();
+}
+
+std::string GetMemUsage(const std::string &function);
+#define MEMORY_USAGE_REPORT(lvl) { if(LOG_ENABLED(lvl)) LOG(lvl) << GetMemUsage(__FUNCTION__); }
+
+/// Core binding 
+//@{
+#ifdef __APPLE__
+
+#define SYSCTL_CORE_COUNT   "machdep.cpu.core_count"
+#define CPU_SETSIZE 1024
+typedef struct cpu_set {
+  uint32_t    count;
+} cpu_set_t;
+int sched_getaffinity(pid_t pid, size_t cpu_size, cpu_set_t *cpu_set);
+#endif 
+void cpuset_to_cstr(cpu_set_t *mask, char *str);
+void report_binding();
+//@}
+
+namespace vr {
+	/// Get the basename of `filename`
+	std::string basename(const std::string &filename);
+}
+
 //@}
 
 /// \name Compilation functions
