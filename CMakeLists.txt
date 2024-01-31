@@ -10,7 +10,7 @@
 # This file is part of VELOCIraptor.
 
 cmake_minimum_required(VERSION 3.13)
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 
 # We have the version here
 file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/VERSION VR_VERSION)
@@ -27,7 +27,6 @@ else()
 endif()
 
 project(VELOCIraptor VERSION ${VR_VERSION} LANGUAGES ${VR_LANGS})
-set(CMAKE_CXX_STANDARD 11)
 # Set the code to always produce position independent code by default
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
