@@ -198,6 +198,22 @@ void MPINumInDomainHDF(Options &opt)
                 vintbuff = read_attribute_v<int>(Fhdf[i], hdf_header_info[i].names[hdf_header_info[i].INuminFile]);
                 for (k=0;k<NHDFTYPE;k++) hdf_header_info[i].npart[k]=vintbuff[k];
             }
+#ifdef PERIODWRAPINPUT
+            // Read the BoxSize
+            if (opt.ihdfnameconvention == HDFSWIFTEAGLENAMES || opt.ihdfnameconvention == HDFOLDSWIFTEAGLENAMES ||
+		        opt.ihdfnameconvention == HDFSWIFTFLAMINGONAMES)  {
+	      
+                /* SWIFT can have non-cubic boxes; but for cosmological runs they will always be cubes.
+                * This makes the BoxSize a vector attribute, with it containing three values, but they
+                * will always be the same. */
+                hdf_header_info[i].BoxSize = read_attribute_v<double>(Fhdf[i], 
+                    hdf_header_info[i].names[hdf_header_info[i].IBoxSize])[0];
+            } 
+            else {
+                hdf_header_info[i].BoxSize = read_attribute<double>(Fhdf[i], 
+                    hdf_header_info[i].names[hdf_header_info[i].IBoxSize]);
+            }
+#endif
             //open particle group structures
             for (j=0;j<nusetypes;j++) {k=usetypes[j]; partsgroup[i*NHDFTYPE+k]=HDF5OpenGroup(Fhdf[i],hdf_gnames.part_names[k]);}
             if (opt.partsearchtype==PSTDARK && opt.iBaryonSearch) {
@@ -231,6 +247,7 @@ void MPINumInDomainHDF(Options &opt)
 #endif
                 if (nend-nstart<chunksize)nchunk=nend-nstart;
                 else nchunk=chunksize;
+
                 for(n=nstart;n<nend;n+=nchunk)
                 {
                     if (nend - n < chunksize && nend - n > 0) nchunk=nend-n;
