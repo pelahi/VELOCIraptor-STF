@@ -414,7 +414,9 @@ Particles in strutures can be checked to see if they are bound relative to a kin
 This cleans the (sub)structures of spurious objects and particles.
 
     ``Unbind_flag = 1/0``
-        * Flag indciating whether substructures passed through an unbinding routine.
+        * Flag indicating whether substructures passed through an unbinding routine.
+    ``Unbind_Only_With_Baryons flag = 1/0``
+        * Flag indicating whether or not substructures should be passed through an unbinding routine only after having baryons added. This applies to running velociraptor on a simulation containing all different types of particles where substructure is searched using initially dark matter particles before adding baryons in a phase-space search.
     ``Unbinding_type = 1/0``
         * Integer setting the unbinding criteria used. Either just remove particles deemeed "unbound" (**1**), that is those with :math:`\alpha T+W>0` given by ``Allowed_kinetic_potential_ratio``, or (**0**) additionally removes "unbound" and least bound particles till system also has a true bound fraction > ``Min_bound_mass_frac``.
     ``Allowed_kinetic_potential_ratio =``

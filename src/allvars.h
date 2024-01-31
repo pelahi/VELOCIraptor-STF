@@ -35,6 +35,7 @@
 #include <sys/sysinfo.h>
 #include <sys/timeb.h>
 #include <sys/time.h>
+#include <tuple>
 #include <unordered_map>
 #include <unordered_set>
 #include <unistd.h>
@@ -375,6 +376,8 @@ struct UnbindInfo
     Double_t approxpotminnum;
     ///method of subsampling to calculate potential
     int approxpotmethod;
+    /// whether to include baryons before running unbinding in a simulation
+    int iunbindwithbaryons;
     //@}
     UnbindInfo(){
         icalculatepotential=true;
@@ -397,6 +400,7 @@ struct UnbindInfo
         approxpotnumfrac = 0.1;
         approxpotminnum = 5000;
         approxpotmethod = POTAPPROXMETHODTREE;
+        iunbindwithbaryons = 1;
     }
 };
 

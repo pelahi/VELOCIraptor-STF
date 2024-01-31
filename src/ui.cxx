@@ -357,6 +357,7 @@ void usage(void)
     See \ref unbinding and \ref unbind.cxx for more details
 
     \arg <b> \e Unbind_flag  </b> whether or not substructures should be passed through an unbinding routine. \ref Options.uinfo & \ref UnbindInfo.unbindflag \n
+    \arg <b> \e Unbind_Only_With_Baryons_flag  </b> whether or not substructures should be passed through an unbinding routine only after having baryons added. This applies to running velociraptor on a simulation containing all different types of particles where substructure is searched using initially dark matter particles before adding baryons in a phase-space search. \ref Options.uinfo & \ref UnbindInfo.iunbindwithbaryons \n
     \arg <b> \e Allowed_kinetic_potential_ratio  </b> ratio of kinetic to potential energy at which a particle is still considered bound, ie: particle is still bound
     if \f$ \alpha T+W<0 \f$, so \f$ \alpha=1 \f$ would be standard unbinding and \f$ \alpha<1 \f$ allows one to identify unbound tidal debris.
     Given that <b> VELOCIraptor </b> was designed to identify tidal streams, it makes little sense to have this set to 1 unless explicitly required.
@@ -1005,6 +1006,8 @@ void GetParamFile(Options &opt)
                     //unbinding
                     else if (strcmp(tbuff, "Unbind_flag")==0)
                         opt.uinfo.unbindflag = atoi(vbuff);
+                    else if (strcmp(tbuff, "Unbind_Only_With_Baryons_flag")==0)
+                        opt.uinfo.iunbindwithbaryons = atoi(vbuff);
                     else if (strcmp(tbuff, "Unbinding_type")==0)
                         opt.uinfo.unbindtype = atoi(vbuff);
                     else if (strcmp(tbuff, "Unbinding_use_thermal_energy")==0)
@@ -1144,8 +1147,10 @@ void GetParamFile(Options &opt)
                         opt.impiusemesh = (atoi(vbuff)>0);
                     else if (strcmp(tbuff, "MPI_zcurve_mesh_decomposition_min_num_cells_per_dim")==0)
                         opt.minnumcellperdim = atoi(vbuff);
-                    else if (strcmp(tbuff, "MPI_zcurve_mesh_decomposition_num_cells_per_dim")==0)
+                    else if (strcmp(tbuff, "MPI_zcurve_mesh_decomposition_num_cells_per_dim")==0) {
                         opt.numcellsperdim = atoi(vbuff);
+                        opt.numcells = opt.numcellsperdim*opt.numcellsperdim*opt.numcellsperdim;
+                    }
                     ///OpenMP related
                     else if (strcmp(tbuff, "OMP_run_fof")==0)
                         opt.iopenmpfof = atoi(vbuff);
@@ -2480,6 +2485,7 @@ ConfigInfo::ConfigInfo(Options &opt){
 
     //unbinding
     AddEntry("Unbind_flag", opt.uinfo.unbindflag);
+    AddEntry("Unbind_With_Only_Baryons_flag", opt.uinfo.iunbindwithbaryons);
     AddEntry("Unbinding_type", opt.uinfo.unbindtype);
     AddEntry("Bound_halos", opt.iBoundHalos);
     AddEntry("Allowed_kinetic_potential_ratio", opt.uinfo.Eratio);
