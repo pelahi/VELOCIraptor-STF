@@ -361,10 +361,11 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     //Now redistribute groups so that they are local to a processor (also orders the group ids according to size
     opt.HaloMinSize=MinNumOld;//reset minimum size
     Int_t newnbodies=MPIGroupExchange(opt, nbodies, Part.data(), pfof);
+    LOG(debug) <<"Group exchange will result in "<<Nlocal<<" particles compared to "<<nbodies;
     //once groups are local, can free up memory. Might need to increase size
     //of vector
     if (Nmemlocal<Nlocal) {
-        LOG(trace)<<" Resizing if necessary "<<Nmemlocal<<" "<<Nlocal;
+        LOG(debug)<<" Resizing particle vector as current size "<<Nmemlocal<<" < required size of "<<Nlocal;
         Part.resize(Nlocal);
         Nmemlocal=Nlocal;
     }
@@ -375,7 +376,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
     numgroups=MPICompileGroups(opt, newnbodies, Part.data(), pfof, opt.HaloMinSize);
     //and free up some memory if vector doesn't need to be as big
     if (Nmemlocal>Nlocal) {Part.resize(Nlocal);Nmemlocal=Nlocal;}
-    LOG(info) << "MPI thread " << ThisTask << " has found " << numgroups;
+    LOG(info) << "MPI thread " << ThisTask << " has found " << numgroups<< " in "<<Nlocal<<" particles";
     //free up memory now that only need to store pfof and global ids
     totalgroups=0;
     for (int j=0;j<NProcs;j++) totalgroups+=mpi_ngroups[j];
@@ -2837,6 +2838,8 @@ void UpdateGroupIDsFromSubstructure(Int_t activenumgroups, Int_t oldnumgroups,
 */
 void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubset, Int_t *&pfof, Int_t &ngroup, Int_t &nhalos, PropData *pdata)
 {
+    // store current unbinding flag
+    auto oldunbindflag = opt.uinfo.unbindflag;
     //now build a sublist of groups to search for substructure
     Int_t nsubsearch, oldnsubsearch, sublevel, ngroupidoffset, ngroupidoffsetold;
     bool iflag;
@@ -2859,9 +2862,26 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
 #ifndef USEMPI
     int ThisTask=0,NProcs=1;
 #endif
-    LOG(info) << "Beginning substructure search";
     MEMORY_USAGE_REPORT(debug);
-    if (ngroup>0) {
+    // Return if no groups in which to find substructure
+    if (ngroup==0) {
+        //nothing to search substructure for. 
+        LOG(info) << "No FOF groups in which to search for substructure. Returning " << ngroup;
+#ifdef USEMPI
+        MPI_Barrier(MPI_COMM_WORLD);
+        MPI_Allgather(&ngroup, 1, MPI_Int_t, mpi_ngroups, 1, MPI_Int_t, MPI_COMM_WORLD);
+#endif
+        MEMORY_USAGE_REPORT(debug);
+        return;
+    }
+
+    LOG(info) << "Beginning substructure search";
+    // adjust unbinding if searching for baryons. 
+    if (opt.iBaryonSearch >= 1 && opt.partsearchtype == PSTALL && opt.uinfo.iunbindwithbaryons == 1) {
+        opt.uinfo.unbindflag = 0;
+        LOG(info)<< "Simulation contains baryons so running unbinding on substructure only after adding baryons.";
+    }
+
     //point to current structure level
     pcsld=psldata;
     //ns=0;
@@ -3267,13 +3287,18 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
         delete[] papsldata;
         ngroup-=nhaloidoffset;
     }
-    }
     //update the number of local groups found
 #ifdef USEMPI
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Allgather(&ngroup, 1, MPI_Int_t, mpi_ngroups, 1, MPI_Int_t, MPI_COMM_WORLD);
 #endif
 
+    // Turning unbinding back on if was previously on and turn off during pure dark matter 
+    // search as baryons present and need to be added before unbinding run. 
+    if (opt.iBaryonSearch>=1 && opt.partsearchtype==PSTALL && opt.uinfo.iunbindwithbaryons == 1) {
+        opt.uinfo.unbindflag = oldunbindflag ;
+        LOG(info) <<"Turning unbinding back to after having found dark matter structures "<<opt.uinfo.unbindflag;
+    }
     LOG(info) << "Found a total of " << ngroup;
     MEMORY_USAGE_REPORT(debug);
 }
