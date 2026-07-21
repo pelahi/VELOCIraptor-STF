@@ -230,7 +230,7 @@ void OpenMPLinkAcross(Options &opt,
         #pragma omp parallel default(none) \
         private(i, orgIndex, curIndex, x, nt, Pval, pfofcomp) \
         shared(NProcs, \
-        omp_links_across_total, numompregions, ompimport, omp_nrecv_offset, omp_nrecv_total, ompdomain, \
+        omp_links_across_total, ompimport, omp_nrecv_offset, omp_nrecv_total, ompdomain, \
         opt, Part, param, nn, tree3dfofomp, fofcheck, pfof, storeorgIndex, Head, Next, localnewgroup, newgroupoffset) 
         {
         #pragma omp for nowait reduction(+:omp_links_across_total)
