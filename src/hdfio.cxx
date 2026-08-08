@@ -772,14 +772,14 @@ void ReadHDF(Options &opt, vector<Particle> &Part, const Int_t nbodies,Particle 
     double *udoublebuff=new double[chunksize];
 #endif
 #if defined(GASON)&&defined(STARON)
-    float *Zfloatbuff=new float[chunksize];
-    double *Zdoublebuff=new double[chunksize];
-    float *SFRfloatbuff=new float[chunksize];
-    double *SFRdoublebuff=new double[chunksize];
-    double *Tgasdoublebuff=new double[chunksize];
+float *SFRfloatbuff=new float[chunksize];
+double *SFRdoublebuff=new double[chunksize];
+double *Tgasdoublebuff=new double[chunksize];
 
 #endif
 #ifdef STARON
+    float *Zfloatbuff=new float[chunksize];
+    double *Zdoublebuff=new double[chunksize];
     float *Tagefloatbuff=new float[chunksize];
     double *Tagedoublebuff=new double[chunksize];
 #endif
