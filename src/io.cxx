@@ -2815,6 +2815,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
 
     //write the units as metadata for each data set
 #ifdef USEHDF
+    if (opt.ibinaryout==OUTHDF) {
     Fhdf.append(string(fname), H5F_ACC_RDWR, 0, false);
 #ifdef USEPARALLELHDF
     if (ThisWriteTask==0) {
@@ -2826,6 +2827,7 @@ void WriteProperties(Options &opt, const Int_t ngroups, PropData *pdata){
     }
 #endif
     Fhdf.close();
+    }
 #endif
 
 #ifdef USEMPI
