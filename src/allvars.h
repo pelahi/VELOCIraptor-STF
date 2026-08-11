@@ -415,9 +415,16 @@ struct Options
     //@{
     char *fname,*outname,*smname,*pname,*gname;
     char *ramsessnapname;
+    ///directory holding the part_*.h5 files read by the new (HDF5) ramses io, set via the
+    ///New_ramsesio_filename cfg option; independent of opt.fname (the -i input directory). The
+    ///snapshot number still comes from opt.ramsessnapname (-t), so the filename is built as
+    ///<newramsesfname>/part_<ramsessnapname>.h5
+    char *newramsesfname;
     //@}
     ///input format
     int inputtype;
+    ///if true, use the new ramses io implementation instead of the existing one
+    int inewramsesio;
     ///number of snapshots
     int num_files,snum;
     ///if parallel reading, number of files read in parallel
@@ -988,11 +995,13 @@ struct Options
         MassValue=-1.0;
 
         inputtype=IOGADGET;
+        inewramsesio=0;
 
         num_files=1;
         nsnapread=1;
 
         fname=outname=smname=pname=gname=outname=NULL;
+        newramsesfname=NULL;
 
         Bsize=32;
         Nvel=32;

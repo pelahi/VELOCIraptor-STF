@@ -13,6 +13,7 @@
 #include "hdfitems.h"
 #endif
 #include "ramsesitems.h"
+#include "newramsesitems.h"
 #ifdef USEXDR
 #endif
 #include "nchiladaitems.h"
@@ -72,7 +73,10 @@ Int_t ReadHeader(Options &opt){
         else if (opt.partsearchtype==PSTSTAR) return get_nbodies(opt.fname,GSTARTYPE);
         else if (opt.partsearchtype==PSTBH) return get_nbodies(opt.fname,GBHTYPE);
     }
-    else if (opt.inputtype==IORAMSES) return RAMSES_get_nbodies(opt.fname,opt.partsearchtype,opt);
+    else if (opt.inputtype==IORAMSES) {
+        if (opt.inewramsesio) return NewRAMSES_get_nbodies(opt.fname,opt.partsearchtype,opt);
+        else return RAMSES_get_nbodies(opt.fname,opt.partsearchtype,opt);
+    }
 #ifdef USEHDF
     else if (opt.inputtype==IOHDF) return HDF_get_nbodies(opt.fname,opt.partsearchtype,opt);
 #endif
@@ -103,7 +107,10 @@ void ReadData(Options &opt, vector<Particle> &Part, const Int_t nbodies, Particl
 
     if(opt.inputtype==IOTIPSY) ReadTipsy(opt,Part,nbodies, Pbaryons, nbaryons);
     else if (opt.inputtype==IOGADGET) ReadGadget(opt,Part,nbodies, Pbaryons, nbaryons);
-    else if (opt.inputtype==IORAMSES) ReadRamses(opt,Part,nbodies, Pbaryons, nbaryons);
+    else if (opt.inputtype==IORAMSES) {
+        if (opt.inewramsesio) ReadNewRamses(opt,Part,nbodies, Pbaryons, nbaryons);
+        else ReadRamses(opt,Part,nbodies, Pbaryons, nbaryons);
+    }
 #ifdef USEHDF
     else if (opt.inputtype==IOHDF) ReadHDF(opt,Part,nbodies, Pbaryons, nbaryons);
 #endif

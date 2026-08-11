@@ -9,6 +9,7 @@
 #include "stf.h"
 
 #include "ramsesitems.h"
+#include "newramsesitems.h"
 #include "endianutils.h"
 
 /// \name RAMSES Domain decomposition
@@ -242,6 +243,9 @@ void MPIDomainDecompositionWithTree(Options &opt){
 	//-----
 	// Read Header
 	//-----
+	//for the HDF5 format cosmological info is read directly (and independently, per task) by
+	//NewRAMSES_ReadForDomainTree below, so nothing to do here
+	if (!opt.inewramsesio) {
         if (ThisTask == 0)
         {
           //
@@ -282,6 +286,7 @@ void MPIDomainDecompositionWithTree(Options &opt){
 	MPI_Bcast(&lscale, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&lvscale, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&mscale, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	}
 
 	//-----
 	// Read
@@ -289,15 +294,25 @@ void MPIDomainDecompositionWithTree(Options &opt){
         ireadtask=new int[NProcs];
         readtaskID=new int[opt.nsnapread];
         ireadfile=new int[opt.num_files];
-        MPIDistributeReadTasks(opt,ireadtask,readtaskID);
-        MPISetFilesRead(opt,ireadfile,ireadtask);
+        if (opt.inewramsesio) {
+            //the HDF5 (single-file) format is read independently and in full by every task (see
+            //NewRAMSES_ReadForDomainTree below), so every task is treated as its own "reader"
+            for (int i=0;i<NProcs;i++) ireadtask[i]=i;
+        }
+        else {
+            MPIDistributeReadTasks(opt,ireadtask,readtaskID);
+            MPISetFilesRead(opt,ireadfile,ireadtask);
+        }
 
         if (ireadtask[ThisTask]>=0) {
 
 	    ////-----
 	    //// Particle
 	    ////-----
-            if (opt.partsearchtype!=PSTGAS) {
+	    if (opt.inewramsesio) {
+	        NewRAMSES_ReadForDomainTree(opt, Part_mpi, nbodies, count_mpi, xtempall, famtempall, lscale);
+	    }
+            else if (opt.partsearchtype!=PSTGAS) {
                 for (int i = 0, count2 = 0; i < opt.num_files; i++) if (ireadfile[i]){
                     sprintf(buf1,"%s/part_%s.out%05d",opt.fname,opt.ramsessnapname,i+1);
                     sprintf(buf2,"%s/part_%s.out",opt.fname,opt.ramsessnapname);
@@ -768,6 +783,12 @@ void MPINumInDomainRAMSES(Options &opt)
         for (int j=0;j<NProcs;j++) Nbuf[j]=0;
         for (int j=0;j<NProcs;j++) Nbaryonbuf[j]=0;
 
+        if (opt.inewramsesio) {
+            //HDF5 format: reads the whole dataset on task 0 only and leaves Nbuf/Nbaryonbuf at zero
+            //on every other task; the MPI_Allreduce below then recovers task 0's exact counts everywhere
+            NewRAMSES_CountNumInDomain(opt, Nbuf, Nbaryonbuf);
+        }
+        else {
         if (ThisTask == 0)
         {
           //
@@ -1049,6 +1070,7 @@ void MPINumInDomainRAMSES(Options &opt)
                     Famr[i].close();
                 }
             }
+        }
         }
         //now having read number of particles, run all gather
         Int_t mpi_nlocal[NProcs];

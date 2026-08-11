@@ -674,6 +674,16 @@ void GetParamFile(Options &opt)
                         opt.smname=new char[1024];
                         sprintf(opt.smname,"%s.localden",opt.outname);
                     }
+                    //use new ramses io implementation instead of the existing one
+                    else if (strcmp(tbuff, "New_ramsesio")==0)
+                        opt.inewramsesio = atoi(vbuff);
+                    //directory containing part_*.h5 for the new ramses io, independent of the -i input
+                    //directory; the actual filename is still built from this directory plus the -t
+                    //snapshot number (part_<t>.h5), so this only needs to be set once per cfg file
+                    else if (strcmp(tbuff, "New_ramsesio_filename")==0){
+                        opt.newramsesfname=new char[1024];
+                        strcpy(opt.newramsesfname,vbuff);
+                    }
                     //config search type
                     else if (strcmp(tbuff, "Particle_search_type")==0)
                         opt.partsearchtype = atoi(vbuff);
