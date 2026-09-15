@@ -1022,6 +1022,16 @@ private(i,j,diff,gid)
     how the search should be localized. It should definitely be localized prior to CheckSignificance and the search window across mpi domains should use the larger
     physical search window used by the iterative search if that has been called.
  */
+// Cached radii in a physical tree are squared distances in linking-length units.
+static void RescalePhysicalTreeRadii(Node *node, Double_t factor)
+{
+    node->SetFarthest(node->GetFarthest() * factor);
+    if (node->GetLeaf()) return;
+    SplitNode *split = static_cast<SplitNode *>(node);
+    RescalePhysicalTreeRadii(split->GetLeft(), factor);
+    RescalePhysicalTreeRadii(split->GetRight(), factor);
+}
+
 Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Particle *Partsubset, Int_t &numgroups, Int_t sublevel, Int_t *pnumcores)
 {
     KDTree *tree;
@@ -1039,6 +1049,7 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
     Int_t bgoffset, *pfofbg, numgroupsbg=0;
     int maxhalocoresublevel;
     Int_t numsubs=0;
+    Double_t treePhysicalLinkingLength2=0;
     //initialize
     numgroups=0;
     if (pnumcores!=NULL) *pnumcores=0;
@@ -1170,6 +1181,7 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
         //tree=new KDTree(Partsubset,nsubset,opt.Bsize,tree->TPHYS);
         Double_t js_adt=1.0;
         tree=new KDTree(js_adt, param, Partsubset,nsubset,opt.Bsize,tree->TPHYS);
+        treePhysicalLinkingLength2=param[1];
         param[0]=tree->GetTreeType();
         //if large enough for statistically significant structures to be found then search. This is a robust search
         if (nsubset>=MINSUBSIZE) {
@@ -1752,6 +1764,10 @@ private(i,tid)
 		param[0]=tree->GetTreeType();
 	}
 
+        if (treePhysicalLinkingLength2>0) {
+            RescalePhysicalTreeRadii(tree->GetRoot(), treePhysicalLinkingLength2/param[1]);
+            treePhysicalLinkingLength2=param[1];
+        }
         pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder,icheck,FOFcheckbg);
 
         for (i=0;i<nsubset;i++) if (pfofbg[Partsubset[i].GetID()]<=1 && pfof[Partsubset[i].GetID()]==0) Partsubset[i].SetType(numactiveloops);
@@ -1807,6 +1823,10 @@ private(i,tid)
 			tree=new KDTree(0.0, param, Partsubset,nsubset,opt.Bsize,tree->TPHS);
 			param[0]=tree->GetTreeType();
 		}
+                if (treePhysicalLinkingLength2>0) {
+                    RescalePhysicalTreeRadii(tree->GetRoot(), treePhysicalLinkingLength2/param[1]);
+                    treePhysicalLinkingLength2=param[1];
+                }
                 pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder,icheck,FOFcheckbg);
                 //now if numgroupsbg is greater than one, need to update the pfofbgnew array
                 if (numgroupsbg>1) {
