@@ -30,6 +30,7 @@ set(VR_SOURCES
     mpitipsyio.cxx
     mpivar.cxx
     nchiladaio.cxx
+    newramsesio.cxx
     omproutines.cxx
     ramsesio.cxx
     search.cxx

@@ -233,9 +233,13 @@ void DetermineDenVRatioDistribution(Options &opt,const Int_t nbodies, Particle *
         for (i=0;i<nbodies;i++) if (Part[i].GetPotential()>=rmin&&Part[i].GetPotential()<rmax) npeak++;
         //once have initial estimates of variance bin using Scott's formula
         //deltar=3.5*sdlow/pow(nbodies,1./3.);
-        deltar=3.5*sqrt(sdlow*sdlow+sdhigh*sdhigh)/pow(npeak,1./3.);
+        //guard against npeak==0 (or a degenerate rmin/rmax range), which would otherwise
+        //send deltar/nbins to inf/NaN and later crash vector::resize() with an uncaught exception
+        if (npeak>0) deltar=3.5*sqrt(sdlow*sdlow+sdhigh*sdhigh)/pow(npeak,1./3.);
+        else deltar=0;
         //nbins=ceil((rmax-rmin)/deltar+1);
-        nbins=round((rmax-rmin)/deltar+MINBIN);
+        if (npeak>0 && deltar>0 && std::isfinite(deltar)) nbins=round((rmax-rmin)/deltar+MINBIN);
+        else nbins=MINBIN;
         //recalculate deltar
         deltar = (rmax-rmin)/(double)nbins;
         W=GMatrix(nbins,nbins);

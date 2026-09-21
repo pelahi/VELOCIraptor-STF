@@ -1025,7 +1025,7 @@ void ReadRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Parti
                             }
                             else if (opt.partsearchtype == PSTDARK)
                             {
-                                if (!(typeval == STARTYPE || typeval == BHTYPE))
+                                if (typeval == DARKTYPE)
                                 {
 #ifdef USEMPI
                                     Pbuf[ibufindex] = Particle(mtemp * mscale,
