@@ -4,6 +4,8 @@
 
 #include "stf.h"
 
+#include <parallel/algorithm>
+
 
 ///\name Routines calculating numerous properties of groups
 //@{
@@ -2434,7 +2436,7 @@ private(j,Pval,x,y,z,massval)
                 Pval->SetPosition(k,(*Pval).GetPosition(k)-pdata[i].gcm[k]);
             }
         }
-        qsort(&Part[noffset[i]], numingroup[i], sizeof(Particle), RadCompare);
+        __gnu_parallel::sort(&Part[noffset[i]], &Part[noffset[i]]+numingroup[i], [](const Particle &a, const Particle &b){ return a.Radius() < b.Radius(); });
         pdata[i].gsize=Part[noffset[i]+numingroup[i]-1].Radius();
         pdata[i].gRhalfmass=Part[noffset[i]+(numingroup[i]/2)].Radius();
         //then get cmvel if extra output is desired as will need angular momentum
@@ -4632,7 +4634,7 @@ Int_t **SortAccordingtoBindingEnergy(Options &opt, const Int_t nbodies, Particle
             if (pfof[Part[i].GetID()]>ioffset) Part[i].SetPID(pfof[Part[i].GetID()]);
             else Part[i].SetPID(nbodies+1);//here move all particles not in groups to the back of the particle array
         }
-        qsort(Part, nbodies, sizeof(Particle), PIDCompare);
+        __gnu_parallel::stable_sort(Part, Part+nbodies, [](const Particle &a, const Particle &b){ return a.GetPID() < b.GetPID(); });
         for (i=0;i<nbodies;i++) Part[i].SetPID(storepid[Part[i].GetID()]);
         storepid.clear();
 
@@ -4662,6 +4664,12 @@ private(i,j)
 #endif
     for (i=1;i<=ngroup;i++)
     {
+        //left as qsort deliberately: this loop is itself parallel-across-groups (the
+        //omp for above), so a parallel sort here would either be a no-op under nested
+        //oversubscription protection or -- worse -- actually oversubscribe. Converting
+        //this exact pattern in unbind.cxx's CalculateBindingReferenceFrame (sequential
+        //group loop + parallel per-group sort) was tried and measured *slower* than
+        //leaving it parallel-across-groups, because most groups here are small.
         if (opt.iSortByBindingEnergy) {
             qsort(&Part[noffset[i]], numingroup[i], sizeof(Particle), DenCompare);
         }
@@ -4707,7 +4715,7 @@ private(i,j)
     //reset particles back to id order
     if (opt.iseparatefiles) {
         cout<<"Reset particles to original order"<<endl;
-        qsort(Part, nbodies, sizeof(Particle), IDCompare);
+        __gnu_parallel::sort(Part, Part+nbodies, [](const Particle &a, const Particle &b){ return a.GetID() < b.GetID(); });
     }
     cout<<"Done"<<endl;
     return pglist;
@@ -4730,7 +4738,7 @@ void CalculateHaloProperties(Options &opt, const Int_t nbodies, Particle *Part, 
         if (pfof[Part[i].GetID()]>0) Part[i].SetPID(pfof[Part[i].GetID()]);
         else Part[i].SetPID(nbodies+1);//here move all particles not in groups to the back of the particle array
     }
-    qsort(Part, nbodies, sizeof(Particle), PIDCompare);
+    __gnu_parallel::stable_sort(Part, Part+nbodies, [](const Particle &a, const Particle &b){ return a.GetPID() < b.GetPID(); });
 
     noffset[0]=noffset[1]=0;
     for (i=2;i<=ngroup;i++) noffset[i]=noffset[i-1]+numingroup[i-1];

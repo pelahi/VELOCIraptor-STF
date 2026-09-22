@@ -6,6 +6,8 @@
 
 #include "stf.h"
 
+#include <parallel/algorithm>
+
 #include "swiftinterface.h"
 
 /// \name Searches full system
@@ -515,7 +517,7 @@ Int_t* SearchFullSet(Options &opt, const Int_t nbodies, vector<Particle> &Part, 
             numingroup[pfof[i]]++;
         }
         for (i=2;i<=numgroups;i++) noffset[i]=noffset[i-1]+numingroup[i-1];
-        qsort(Part.data(), Nlocal, sizeof(Particle), PIDCompare);
+        __gnu_parallel::stable_sort(Part.begin(), Part.end(), [](const Particle &a, const Particle &b){ return a.GetPID() < b.GetPID(); });
         //sort(Part.begin(),Part.end(),PIDCompareVec);
         for (i=0;i<Nlocal;i++) Part[i].SetPID(storetype[Part[i].GetID()]);
         delete[] storetype;
@@ -803,7 +805,9 @@ private(i,tid,xscaling,vscaling,js_time)
 
     ///\todo only run this sort if necessary to keep id order
     for (i=0;i<npartingroups;i++) Part[i].SetID(ids[i]);
-    gsl_heapsort(Part.data(), Nlocal, sizeof(Particle), IDCompare);
+    double idsorttime = MyGetTime();
+    __gnu_parallel::sort(Part.begin(), Part.end(), [](const Particle &a, const Particle &b){ return a.GetID() < b.GetID(); });
+    cout<<ThisTask<<" VRtest: id sort of "<<Nlocal<<" particles took "<<MyGetTime()-idsorttime<<endl;
     //sort(Part.begin(), Part.end(), IDCompareVec);
     delete[] ids;
     numgroups=ng;
@@ -1091,8 +1095,16 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
       Partsubset[i].SetType(i);
     }
 
-    //Sort the particle data based on the particle IDs
-    qsort(Partsubset, nsubset, sizeof(Particle), PIDCompare);
+    //Sort the particle data based on the particle IDs.
+    //SearchSubset is called both at the top level (full nbodies, safe for a parallel
+    //sort) and per-substructure from inside search.cxx's active level-1 omp parallel
+    //loop over ompactivesubgroups (small nsubset, already-parallel context) -- guard
+    //against the nested case since a parallel sort spawned from inside an existing
+    //parallel region risks thread oversubscription, and isn't worth it for small N.
+    if (!omp_in_parallel())
+        __gnu_parallel::stable_sort(Partsubset, Partsubset+nsubset, [](const Particle &a, const Particle &b){ return a.GetPID() < b.GetPID(); });
+    else
+        qsort(Partsubset, nsubset, sizeof(Particle), PIDCompare);
 
     //Store the index in another array and reset the type data
     vector<int> storeindx(nsubset);
@@ -1991,8 +2003,13 @@ private(i,tid)
         Partsubset[i].SetType(storeindx[i]);
     }
 
-    // Sort base on the type
-    qsort(Partsubset, nsubset, sizeof(Particle), TypeCompare);
+    // Sort base on the type. Same nested-parallelism guard as the PID sort above in
+    // this function (SearchSubset is also called per-substructure from an active omp
+    // parallel loop in search.cxx).
+    if (!omp_in_parallel())
+        __gnu_parallel::stable_sort(Partsubset, Partsubset+nsubset, [](const Particle &a, const Particle &b){ return a.GetType() < b.GetType(); });
+    else
+        qsort(Partsubset, nsubset, sizeof(Particle), TypeCompare);
 
     //Reset the typedata and set the ID
     for (i = 0; i < nsubset; i++){
@@ -2062,7 +2079,10 @@ void HaloCoreGrowth(Options &opt, const Int_t nsubset, Particle *&Partsubset, In
                 Pcore[nincore].SetType(pfofbg[Partsubset[i].GetID()]);
                 nincore++;
             }
-            qsort(Pcore,nincore,sizeof(Particle),TypeCompare);
+            if (!omp_in_parallel())
+                __gnu_parallel::stable_sort(Pcore, Pcore+nincore, [](const Particle &a, const Particle &b){ return a.GetType() < b.GetType(); });
+            else
+                qsort(Pcore, nincore, sizeof(Particle), TypeCompare);
             noffset[0]=noffset[1]=0;
             for (i=2;i<=numgroupsbg;i++) noffset[i]=noffset[i-1]+ncore[i-1];
             //now get centre of masses and dispersions
@@ -2188,7 +2208,10 @@ private(i,tid,Pval,D2,dval,mval,pid,weight)
                     nincore++;
                     ncore[pfofbg[Partsubset[i].GetID()]]++;
                 }
-                qsort(Pcore,nincore,sizeof(Particle),TypeCompare);
+                if (!omp_in_parallel())
+                    __gnu_parallel::stable_sort(Pcore, Pcore+nincore, [](const Particle &a, const Particle &b){ return a.GetType() < b.GetType(); });
+                else
+                    qsort(Pcore, nincore, sizeof(Particle), TypeCompare);
                 noffset[0]=noffset[1]=0;
                 for (i=2;i<=numgroupsbg;i++) noffset[i]=noffset[i-1]+ncore[i-1];
                 //now get centre of masses and dispersions
@@ -3587,7 +3610,7 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
             storeval2[i]=Part[i].GetPID();
             Part[i].SetPID(pfofdark[i]);
         }
-        qsort(Part.data(),nparts,sizeof(Particle),TypeCompare);
+        __gnu_parallel::stable_sort(Part.begin(), Part.end(), [](const Particle &a, const Particle &b){ return a.GetType() < b.GetType(); });
         //sort(Part.begin(),Part.end(),TypeCompareVec);
         Pbaryons=&Part[ndark];
         for (i=0;i<nparts;i++) {
@@ -3645,7 +3668,7 @@ Int_t* SearchBaryons(Options &opt, Int_t &nbaryons, Particle *&Pbaryons, const I
 
     //search all dm particles in structures
     for (i=0;i<ndark;i++) Part[i].SetPotential(2*(pfofdark[i]==0)+(pfofdark[i]>1));
-    qsort(Part.data(), ndark, sizeof(Particle), PotCompare);
+    __gnu_parallel::sort(Part.begin(), Part.begin()+ndark, [](const Particle &a, const Particle &b){ return a.GetPotential() < b.GetPotential(); });
     //sort(Part.begin(),Part.begin()+ndark,PotCompareVec);
     ids=new Int_t[ndark+1];
     //store the original order of the dark matter particles
@@ -3783,7 +3806,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
         //reset order
         delete tree;
         for (i=0;i<ndark;i++) Part[i].SetID(ids[i]);
-        qsort(Part.data(), ndark, sizeof(Particle), IDCompare);
+        __gnu_parallel::sort(Part.begin(), Part.begin()+ndark, [](const Particle &a, const Particle &b){ return a.GetID() < b.GetID(); });
         //sort(Part.begin(), Part.begin()+ndark, IDCompareVec);
         delete[] ids;
 
@@ -3830,11 +3853,11 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
         //reset order
         if (npartingroups>0) delete tree;
         for (i=0;i<ndark;i++) Part[i].SetID(ids[i]);
-        qsort(Part.data(), ndark, sizeof(Particle), IDCompare);
+        __gnu_parallel::sort(Part.begin(), Part.begin()+ndark, [](const Particle &a, const Particle &b){ return a.GetID() < b.GetID(); });
         //sort(Part.begin(), Part.end(), IDCompareVec);
         delete[] ids;
         for (i=0;i<nparts;i++) {Part[i].SetPID(pfofall[Part[i].GetID()]);Part[i].SetID(storeval[i]);}
-        qsort(Part.data(), nparts, sizeof(Particle), IDCompare);
+        __gnu_parallel::sort(Part.begin(), Part.end(), [](const Particle &a, const Particle &b){ return a.GetID() < b.GetID(); });
         //sort(Part.begin(), Part.end(), IDCompareVec);
         for (i=0;i<nparts;i++) {
             pfofall[i]=Part[i].GetPID();Part[i].SetPID(storeval2[i]);
@@ -3851,11 +3874,11 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
         //reset order
         if (npartingroups>0) delete tree;
         for (i=0;i<ndark;i++) Part[i].SetID(ids[i]);
-        qsort(Part.data(), ndark, sizeof(Particle), IDCompare);
+        __gnu_parallel::sort(Part.begin(), Part.begin()+ndark, [](const Particle &a, const Particle &b){ return a.GetID() < b.GetID(); });
         //sort(Part.begin(), Part.begin()+ndark, IDCompareVec);
         delete[] ids;
         for (i=0;i<nparts;i++) {Part[i].SetPID(pfofall[Part[i].GetID()]);Part[i].SetID(storeval[i]);}
-        qsort(Part.data(), nparts, sizeof(Particle), IDCompare);
+        __gnu_parallel::sort(Part.begin(), Part.end(), [](const Particle &a, const Particle &b){ return a.GetID() < b.GetID(); });
         //sort(Part.begin(), Part.end(), IDCompareVec);
         for (i=0;i<nparts;i++) {
             pfofall[i]=Part[i].GetPID();Part[i].SetPID(storeval2[i]);
@@ -3867,7 +3890,7 @@ private(i,tid,p1,pindex,x1,D2,dval,rval,icheck,nnID,dist2,baryonfofold)
     else {
         delete tree;
         for (i=0;i<ndark;i++) Part[i].SetID(ids[i]);
-        qsort(Part.data(), ndark, sizeof(Particle), IDCompare);
+        __gnu_parallel::sort(Part.begin(), Part.begin()+ndark, [](const Particle &a, const Particle &b){ return a.GetID() < b.GetID(); });
         //sort(Part.begin(), Part.begin()+ndark, IDCompareVec);
         delete[] ids;
         for (i=0;i<nbaryons;i++) Pbaryons[i].SetID(i+ndark);
