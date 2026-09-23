@@ -474,7 +474,14 @@ private(EncMassSF,EncMassNSF,Krot_sf,Krot_nsf,Ekin_sf,Ekin_nsf)
         pdata[i].gveldisp=pdata[i].gveldisp*(1.0/pdata[i].gmass);
         pdata[i].gsigma_v=pow(pdata[i].gveldisp.Det(),1.0/6.0);
         Ekin*=0.5;
-        if (opt.iextrahalooutput && pdata[i].hostid == -1) {
+        //guarded the same way as the glambda_B calculation further down this file
+        //(search for "gR200c != -1"): gR200c/gM200c can be the -1 "SO radius not
+        //found" sentinel, which would otherwise divide by/sqrt a negative number and
+        //silently produce a NaN here.
+        if (pdata[i].gR200c == -1 || pdata[i].gM200c <= 0) {
+            pdata[i].glambda_B=0;
+        }
+        else if (opt.iextrahalooutput && pdata[i].hostid == -1) {
             pdata[i].glambda_B=pdata[i].gJ200c.Length()/(pdata[i].gM200c*sqrt(2.0*opt.G*pdata[i].gM200c*pdata[i].gR200c));
         }
         else if (opt.iextrahalooutput && pdata[i].hostid != -1){
@@ -1217,7 +1224,12 @@ private(j,Pval,rc,x,y,z,vx,vy,vz,J,mval)
         pdata[i].gveldisp=pdata[i].gveldisp*(1.0/pdata[i].gmass);
         pdata[i].gsigma_v=pow(pdata[i].gveldisp.Det(),1.0/6.0);
         Ekin*=0.5;
-        if (opt.iextrahalooutput && pdata[i].hostid == -1) {
+        //see the identical guard added around the other glambda_B calculation earlier
+        //in this file: gR200c/gM200c can be the -1 "SO radius not found" sentinel.
+        if (pdata[i].gR200c == -1 || pdata[i].gM200c <= 0) {
+            pdata[i].glambda_B=0;
+        }
+        else if (opt.iextrahalooutput && pdata[i].hostid == -1) {
             pdata[i].glambda_B=pdata[i].gJ200c.Length()/(pdata[i].gM200c*sqrt(2.0*opt.G*pdata[i].gM200c*pdata[i].gR200c));
         }
         else if (opt.iextrahalooutput && pdata[i].hostid != -1){
