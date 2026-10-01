@@ -3064,6 +3064,12 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
         //vector that will store the subgroups that are small
         //enough to be searched fully in parallel.
         ompactivesubgroups.resize(0);
+        //groups with fewer particles than this are searched concurrently (one thread per group),
+        //larger ones are searched one at a time with the internal openmp loops.
+        //can be overridden at run time with the environment variable VR_OMP_SPLIT_NUM
+        Int_t ompsplitnum = ompsplitsubsearchnum;
+        if (getenv("VR_OMP_SPLIT_NUM")!=NULL) ompsplitnum = atoll(getenv("VR_OMP_SPLIT_NUM"));
+        if (opt.iverbose) cout<<ThisTask<<" Groups with fewer than "<<ompsplitnum<<" particles are searched in parallel over groups, others in serial"<<endl;
 #endif
         GetMemUsage(opt, __func__+string("--line--")+to_string(__LINE__)+string("--subelvel--")+to_string(sublevel), (opt.iverbose>=1));
 
@@ -3071,11 +3077,13 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
             // try running loop over largest objects in serial with parallel inside calls
             // so skip of group is small enough and running with openmp
 #ifdef USEOPENMP
-            if (subnumingroup[i] < ompsplitsubsearchnum) {
+            if (subnumingroup[i] < ompsplitnum) {
                 ompactivesubgroups.push_back(i);
                 continue;
             }
 #endif
+            double ser_time[4];
+            ser_time[0]=MyGetTime();
             subpfofold[i]=pfof[subpglist[i][0]];
             subPart=new Particle[subnumingroup[i]];
             for (Int_t j=0;j<subnumingroup[i];j++) {
@@ -3101,11 +3109,15 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                 AdjustSubPartToPhaseCM(subnumingroup[i], subPart, cmphase);
             }
             PreCalcSearchSubSet(opt, subnumingroup[i], subPart, sublevel);
+            ser_time[1]=MyGetTime();
             subpfof = SearchSubset(opt, subnumingroup[i], subnumingroup[i], subPart,
                 subngroup[i], sublevel, &numcores[i]);
+            ser_time[2]=MyGetTime();
             CleanAndUpdateGroupsFromSubSearch(opt, subnumingroup[i], subPart, subpfof,
                     subngroup[i], subsubnumingroup[i], subsubpglist[i], numcores[i],
                     subpglist[i], pfof, ngroup, ngroupidoffset_old[i]);
+            ser_time[3]=MyGetTime();
+            if (opt.iverbose) cout<<"	SUBFOF Serial Log - "<<i<<" th of "<<oldnsubsearch<<" / # of particles : "<<subnumingroup[i]<<" / # Groups : "<<subngroup[i]<<" / Time [s] : "<<ser_time[3]-ser_time[0]<<" (prep "<<ser_time[1]-ser_time[0]<<", search "<<ser_time[2]-ser_time[1]<<", clean+unbind "<<ser_time[3]-ser_time[2]<<")"<<endl;
             delete[] subpfof;
             delete[] subPart;
             ns+=subngroup[i];
@@ -3161,7 +3173,7 @@ void SearchSubSub(Options &opt, const Int_t nsubset, vector<Particle> &Partsubse
                         subpglist[i], pfof, ngroup, ngroupidoffset_old[i]);
 		js_time[3] = MyGetTime();
 		js_nstep++;
-		if(js_time[3] - js_time[0] > 100. && opt.iverbose) cout<<"	SUBFOF Log - "<<i<<" th / "<<js_nstep<<" of "<<ompactivesubgroups.size()<<" / # of particles : "<<subnumingroup[i]<<" / # Groups : "<<subngroup[i]<<" / Time [s] : "<<js_time[3] - js_time[0]<<endl;
+		if((js_time[3] - js_time[0] > 100. || subnumingroup[i] >= 1000000) && opt.iverbose) cout<<"	SUBFOF Log - "<<i<<" th / "<<js_nstep<<" of "<<ompactivesubgroups.size()<<" / # of particles : "<<subnumingroup[i]<<" / # Groups : "<<subngroup[i]<<" / Time [s] : "<<js_time[3] - js_time[0]<<endl;
                 delete[] subpfof;
                 delete[] subPart;
                 ns += subngroup[i];

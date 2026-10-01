@@ -80,13 +80,64 @@ static hid_t NewRamsesPosH5Type()
 ///reads [offset,offset+count) particles of one type out of group "dm" or "star" in chunks of
 ///NEWRAMSESCHUNKSIZE, converts to physical units and appends the particles to dest (Part or Pbaryons),
 ///routing them to the appropriate MPI domain when compiled with MPI support
+///the finest-refinement-level DM particle mass, in the same raw (pre-mscale) code units as
+///buf[k].mass, computed exactly as dmp_mass is in ramsesio.cxx (see RAMSES_get_nbodies there):
+///for a uniform-resolution box of Neff^3 DM particles, each carries this fraction of OmegaM-OmegaB.
+///Zoom-in simulations also contain coarser, more massive "buffer zone" DM particles (8x/64x/512x...
+///this mass, one step per refinement level dropped) outside the high-res region; the original binary
+///reader has always excluded them by this same mass-equality check (within 1e-5 relative tolerance)
+///plus family==1, but this newer HDF5 reader had no equivalent filter, silently including them.
+static inline Double_t NewRamsesDMPMass(const Options &opt, double omegam, double omegab)
+{
+    return 1.0/((Double_t)opt.Neff*opt.Neff*opt.Neff) * (omegam-omegab)/omegam;
+}
+static inline bool NewRamsesIsFineDM(Double_t rawmass, Double_t dmpmass)
+{
+    return fabs((rawmass-dmpmass)/dmpmass) < 1e-5;
+}
+
+///counts, without materializing any Particle objects, how many entries in the "dm" group's
+///finest refinement level match dmpmass -- used by NewRAMSES_get_nbodies to get an exact
+///a-priori count for allocation, mirroring the pre-scan RAMSES_get_nbodies does for the
+///original binary reader.
+static Int_t NewRamsesCountFineDM(hid_t Fhdf, Int_t ndmtotal, Double_t dmpmass)
+{
+    if (ndmtotal<=0) return 0;
+    hid_t group     = H5Gopen2(Fhdf, "dm", H5P_DEFAULT);
+    hid_t dataset   = H5Dopen2(group, "data", H5P_DEFAULT);
+    hid_t filespace = H5Dget_space(dataset);
+    //memory compound type containing only the "mass" field -- HDF5 only reads that field off disk
+    hid_t memtype = H5Tcreate(H5T_COMPOUND, sizeof(float));
+    H5Tinsert(memtype, "mass", 0, H5T_NATIVE_FLOAT);
+
+    vector<float> buf;
+    Int_t nread=0, nmatch=0;
+    while (nread<ndmtotal) {
+        Int_t thischunk = min((Int_t)NEWRAMSESCHUNKSIZE, ndmtotal-nread);
+        hsize_t start = nread, hcount = thischunk;
+        safe_hdf5<herr_t>(H5Sselect_hyperslab, filespace, H5S_SELECT_SET, &start, (const hsize_t*)NULL, &hcount, (const hsize_t*)NULL);
+        hid_t memspace = H5Screate_simple(1, &hcount, NULL);
+        buf.resize(thischunk);
+        safe_hdf5<herr_t>(H5Dread, dataset, memtype, memspace, filespace, H5P_DEFAULT, buf.data());
+        H5Sclose(memspace);
+        for (Int_t k=0;k<thischunk;k++) if (NewRamsesIsFineDM((Double_t)buf[k], dmpmass)) nmatch++;
+        nread+=thischunk;
+    }
+    H5Tclose(memtype);
+    H5Sclose(filespace);
+    H5Dclose(dataset);
+    H5Gclose(group);
+    return nmatch;
+}
+
 static void NewRamsesReadParticleGroup(
     Options &opt, hid_t Fhdf, const char *groupname, int ptype,
     Int_t offset, Int_t count,
     Double_t mscale, Double_t lscale, Double_t velscale, Double_t Hubbleflow,
     Particle *dest, Int_t &destcount,
     int *ireadtask, const Int_t BufSize, Int_t *Nbuf, Particle *Pbuf,
-    Int_t *Nreadbuf, vector<Particle> *Preadbuf)
+    Int_t *Nreadbuf, vector<Particle> *Preadbuf,
+    Double_t dmpmass=-1)
 {
     if (count<=0) return;
     hid_t group     = H5Gopen2(Fhdf, groupname, H5P_DEFAULT);
@@ -106,6 +157,8 @@ static void NewRamsesReadParticleGroup(
         H5Sclose(memspace);
 
         for (Int_t k=0;k<thischunk;k++) {
+            //exclude coarser zoom-in buffer-zone DM particles, matching the original binary reader
+            if (dmpmass>=0 && !NewRamsesIsFineDM((Double_t)buf[k].mass, dmpmass)) continue;
             //raw code-unit positions (0 to 1); MPIGetParticlesProcessor expects these units (mpi_domain
             //boundaries are set up in code units by MPIDomainExtentRAMSES/MPIDomainDecompositionWithTree),
             //while the Particle itself is constructed with the usual lscale-scaled (kpc) positions
@@ -151,7 +204,16 @@ Int_t NewRAMSES_get_nbodies(char *fname, int ptype, Options &opt)
 
     hid_t Fhdf = H5Fopen(buf, H5F_ACC_RDONLY, H5P_DEFAULT);
     long long ndm=0, nstar=0;
-    if (ptype==PSTALL||ptype==PSTDARK) ndm = read_attribute<long long>(Fhdf, "dm/size");
+    if (ptype==PSTALL||ptype==PSTDARK) {
+        ndm = read_attribute<long long>(Fhdf, "dm/size");
+        double omegam = read_attribute<double>(Fhdf, "omega_m");
+        double omegab = read_attribute<double>(Fhdf, "omega_b");
+        Double_t dmpmass = NewRamsesDMPMass(opt, omegam, omegab);
+        Int_t ndmfine = NewRamsesCountFineDM(Fhdf, (Int_t)ndm, dmpmass);
+        if (ndmfine<ndm) cout<<"New ramses io: excluding "<<(ndm-ndmfine)<<" coarser zoom-buffer DM particles ("
+            <<ndmfine<<" of "<<ndm<<" match the finest-level mass)"<<endl;
+        ndm = ndmfine;
+    }
     if (ptype==PSTALL||ptype==PSTSTAR) nstar = read_attribute<long long>(Fhdf, "star/size");
     H5Fclose(Fhdf);
 
@@ -253,6 +315,10 @@ void ReadNewRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Pa
 
     //interparticle spacing (assuming a uniform resolution box)
     opt.ellxscale = lscale/(double)opt.Neff;
+    //excludes coarser zoom-in buffer-zone DM particles, matching the original binary reader
+    //(see NewRamsesDMPMass); ndmtotal itself is left as the raw HDF5 row count so the read
+    //loops below still scan every row to test its mass, they just skip writing the ones that fail
+    Double_t dmpmass = NewRamsesDMPMass(opt, omegam, omegab);
 
     cout<<"Particle system contains "<<nbodies<<" particles (of interest) at is at time "<<opt.a<<" in a box of size "<<opt.p<<endl;
 
@@ -265,7 +331,7 @@ void ReadNewRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Pa
     Fhdf = H5Fopen(buf, H5F_ACC_RDONLY, H5P_DEFAULT);
     if (readdm) {
         NewRamsesReadParticleGroup(opt, Fhdf, "dm", DARKTYPE, 0, ndmtotal, mscale, lscale, velscale, Hubbleflow,
-            Part.data(), count2, NULL, 0, NULL, NULL, NULL, NULL);
+            Part.data(), count2, NULL, 0, NULL, NULL, NULL, NULL, dmpmass);
     }
     if (readstar) {
         Particle *stardest = startobaryon? Pbaryons : Part.data();
@@ -317,7 +383,7 @@ void ReadNewRamses(Options &opt, vector<Particle> &Part, const Int_t nbodies, Pa
         if (readdm) {
             Int_t nper=ndmtotal/opt.nsnapread, off=k*nper, cnt=(k==opt.nsnapread-1)?(ndmtotal-off):nper;
             NewRamsesReadParticleGroup(opt, Fhdf, "dm", DARKTYPE, off, cnt, mscale, lscale, velscale, Hubbleflow,
-                Part.data(), Nlocal, ireadtask, BufSize, Nbuf, Pbuf, Nreadbuf, Preadbuf);
+                Part.data(), Nlocal, ireadtask, BufSize, Nbuf, Pbuf, Nreadbuf, Preadbuf, dmpmass);
             if (opt.nsnapread>1) {
                 MPI_Allgather(Nreadbuf, opt.nsnapread, MPI_Int_t, mpi_nsend_readthread, opt.nsnapread, MPI_Int_t, mpi_comm_read);
                 MPISendParticlesBetweenReadThreads(opt, Preadbuf, Part.data(), ireadtask, readtaskID, Pbaryons, mpi_comm_read, mpi_nsend_readthread, mpi_nsend_readthread_baryon);
