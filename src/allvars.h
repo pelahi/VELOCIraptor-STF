@@ -1812,7 +1812,7 @@ struct PropData
         gM500c=gR500c=0;
         gMBN98=gRBN98=0;
         gRhalf200c = gRhalf200m = gRhalfBN98 = 0.;
-        cNFW200c = cNFW200c = cNFWBN98 = 0;
+        cNFW200c = cNFW200m = cNFWBN98 = 0;
         gcm[0]=gcm[1]=gcm[2]=gcmvel[0]=gcmvel[1]=gcmvel[2]=0.;
         gJ[0]=gJ[1]=gJ[2]=0;
         gJ200m[0]=gJ200m[1]=gJ200m[2]=0;
