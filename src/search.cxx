@@ -1026,12 +1026,13 @@ private(i,j,diff,gid)
     how the search should be localized. It should definitely be localized prior to CheckSignificance and the search window across mpi domains should use the larger
     physical search window used by the iterative search if that has been called.
  */
-///Fresh phase-space (TPHS) tree with the current core-search linking lengths. The core search
-///compares particles with FOF6d, a 6D metric, so the tree must measure the same 6D distance for
-///the node skip/enclose tests in FOFSearchCriterion to be exact; rebuilding (rather than
-///rescaling cached node radii) also keeps them exact when the position and velocity linking
-///lengths change at different rates. The old tree's destructor restores ID order first, so
-///the new tree reassigns the same IDs and the ID-indexed pfof arrays stay valid.
+///Phase-space (TPHS) tree for the core search. The core search compares particles with FOF6d, a
+///6D metric, so the tree must measure the same 6D distance for the node skip/enclose tests in
+///FOFSearchCriterion to be exact. Node radii are stored separately in position and velocity and
+///scaled with the linking lengths of each search, so this one tree stays exact through the
+///core-search loops however the position and velocity linking lengths shrink. The old tree's
+///destructor restores ID order first, so the new tree reassigns the same IDs and the
+///ID-indexed pfof arrays stay valid.
 static void RebuildCoreTree(KDTree *&tree, Double_t *param, Particle *P, Int_t n, Options &opt)
 {
     delete tree;
@@ -1822,8 +1823,7 @@ private(i,tid)
                 //here since loop just iterates to search the largest core, we just set all previously tagged particles not belonging to main core as 1
                 for (i=0;i<nsubset;i++) Partsubset[i].SetPotential((pfofbgnew[Partsubset[i].GetID()]!=1)+(pfof[Partsubset[i].GetID()]>0));
 
-                //linking lengths have shrunk, rebuild the core-search tree with them
-                RebuildCoreTree(tree, param, Partsubset, nsubset, opt);
+                //the core-search tree needs no rebuild for the shrunk linking lengths (see RebuildCoreTree)
                 pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder,icheck,FOFcheckbg);
                 //now if numgroupsbg is greater than one, need to update the pfofbgnew array
                 if (numgroupsbg>1) {

@@ -3966,7 +3966,12 @@ double CalcConcentrationRootFindingRhalf(double rratio, double tol)
     T = gsl_root_fsolver_brent;
     s = gsl_root_fsolver_alloc (T);
     //gsl_invoke(gsl_root_fsolver_set, s, &F, x_lo, x_hi);
-    gsl_root_fsolver_set (s, &F, x_lo, x_hi);
+    //the GSL error handler is off, so a start interval that does not bracket the root only shows
+    //up in the return value; iterating an unset solver would return uninitialised memory
+    if (gsl_root_fsolver_set (s, &F, x_lo, x_hi) != GSL_SUCCESS) {
+        gsl_root_fsolver_free (s);
+        return -1.0;
+    }
     do
     {
         iter++;
@@ -3998,7 +4003,12 @@ double CalcConcentrationRootFindingVmax(double VmaxVvir2, double tol)
     T = gsl_root_fsolver_brent;
     s = gsl_root_fsolver_alloc (T);
     //gsl_invoke(gsl_root_fsolver_set, s, &F, x_lo, x_hi);
-    gsl_root_fsolver_set (s, &F, x_lo, x_hi);
+    //the GSL error handler is off, so a start interval that does not bracket the root only shows
+    //up in the return value; iterating an unset solver would return uninitialised memory
+    if (gsl_root_fsolver_set (s, &F, x_lo, x_hi) != GSL_SUCCESS) {
+        gsl_root_fsolver_free (s);
+        return -1.0;
+    }
     do
     {
         iter++;
