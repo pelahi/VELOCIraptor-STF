@@ -25,6 +25,18 @@ else()
 	set(VR_LANGS CXX C)
 endif()
 
+# Optimise by default: with no build type and no compiler flags given (on the command line or
+# through CFLAGS/CXXFLAGS), the compilers would otherwise run without any optimisation (-O0).
+# An explicit CMAKE_BUILD_TYPE or CMAKE_<LANG>_FLAGS, or an existing cache entry, takes precedence.
+if (NOT CMAKE_BUILD_TYPE)
+	if (NOT DEFINED CMAKE_CXX_FLAGS AND NOT DEFINED ENV{CXXFLAGS})
+		set(CMAKE_CXX_FLAGS "-O2" CACHE STRING "Flags used by the CXX compiler during all build types.")
+	endif()
+	if (NOT DEFINED CMAKE_C_FLAGS AND NOT DEFINED ENV{CFLAGS})
+		set(CMAKE_C_FLAGS "-O2" CACHE STRING "Flags used by the C compiler during all build types.")
+	endif()
+endif()
+
 project(VELOCIraptor VERSION ${VR_VERSION} LANGUAGES ${VR_LANGS})
 set(CMAKE_CXX_STANDARD 11)
 # Set the code to always produce position independent code by default
