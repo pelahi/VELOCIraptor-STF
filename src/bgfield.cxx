@@ -78,7 +78,6 @@ private(i,vel) if (nbodies > ompsubsearchnum)
 void FillTreeGrid(Options &opt, const Int_t nbodies, const Int_t ngrid, KDTree *&tree, Particle *Part, GridCell* &grid)
 //void FillTreeGrid(Options &opt, const Int_t nbodies, const Int_t ngrid, KDTree *tree, Particle *Part, GridCell* grid, PartCellNum *pglist)
 {
-    Int_t gridcount=0,ncount=0;
     //this is used to create tree and search for near neighbours
     Particle *ptemp=new Particle[ngrid];
     int treetype=tree->GetTreeType();
@@ -88,38 +87,53 @@ void FillTreeGrid(Options &opt, const Int_t nbodies, const Int_t ngrid, KDTree *
 
     if (opt.iverbose>=2) cout<<"Filling KD-Tree Grid"<<endl;
 
-    //this loop works well for large cells but for small cells may have to replace this with a for loop which goes through every particle
-    //and stores nid and size of node, then builds grid based on these values and then places the particles in the cells.
-    //for leaf nodes, use starts and ends indices (ie what particles in the system are in the node)
-    while (ncount<nbodies) {
-        //check if particle is within start and end, if not just means that splitting is not perfect
-        //and this particle is left alone. Go to the next particle
-        Node *np=(tree->FindLeafNode((Int_t)ncount));
-        Int_t start=((LeafNode*)np)->GetStart();
-        Int_t end=((LeafNode*)np)->GetEnd();
-        //this while loop ensures that if there is a particle out of place, one still proceeds to move through
-        //the tree appropriately.
-        while (!(ncount>=start&&ncount<end))
-        {
-            ncount++;
-            np=(tree->FindLeafNode((Int_t)ncount));
-            start=((LeafNode*)np)->GetStart();
-            end=((LeafNode*)np)->GetEnd();
-        }
+    //Pass 1 (sequential): walk the tree leaf by leaf to discover each cell's
+    //[start,end) particle range and its boundary/count metadata. This walk is
+    //inherently stateful (each step's starting point depends on where the previous
+    //leaf ended) so it can't be parallelized directly, but it's cheap -- just tree
+    //navigation, none of the per-particle centre-of-mass math.
+    vector<Int_t> cellstart(ngrid), cellend(ngrid);
+    {
+        Int_t gridcount=0,ncount=0;
+        while (ncount<nbodies) {
+            //check if particle is within start and end, if not just means that splitting is not perfect
+            //and this particle is left alone. Go to the next particle
+            Node *np=(tree->FindLeafNode((Int_t)ncount));
+            Int_t start=((LeafNode*)np)->GetStart();
+            Int_t end=((LeafNode*)np)->GetEnd();
+            //this while loop ensures that if there is a particle out of place, one still proceeds to move through
+            //the tree appropriately.
+            while (!(ncount>=start&&ncount<end))
+            {
+                ncount++;
+                np=(tree->FindLeafNode((Int_t)ncount));
+                start=((LeafNode*)np)->GetStart();
+                end=((LeafNode*)np)->GetEnd();
+            }
 
-        grid[gridcount].ndim=ND;
-        //get center of mass and boundaries of grid cell
-        for (int j=0;j<ND;j++) {
-            grid[gridcount].xm[j]=0.;
-            grid[gridcount].xbl[j]=np->GetBoundary(j,0);
-            grid[gridcount].xbu[j]=np->GetBoundary(j,1);
+            grid[gridcount].ndim=ND;
+            for (int j=0;j<ND;j++) {
+                grid[gridcount].xbl[j]=np->GetBoundary(j,0);
+                grid[gridcount].xbu[j]=np->GetBoundary(j,1);
+            }
+            grid[gridcount].nparts=np->GetCount();
+            grid[gridcount].gid=np->GetID();
+            grid[gridcount].nindex=new Int_t[grid[gridcount].nparts];
+            cellstart[gridcount]=start; cellend[gridcount]=end;
+            gridcount++; ncount=end;
         }
-        grid[gridcount].nparts=np->GetCount();
-        grid[gridcount].gid=np->GetID();
-        grid[gridcount].nindex=new Int_t[grid[gridcount].nparts];
+    }
 
+    //Pass 2 (parallel across cells): the O(nbodies) centre-of-mass accumulation.
+    //Each cell's [start,end) range is disjoint from every other cell's (established
+    //by pass 1), so this is safe to run across threads with no atomics needed.
+#ifdef USEOPENMP
+    #pragma omp parallel for if(!omp_in_parallel()) schedule(dynamic)
+#endif
+    for (Int_t gridcount=0;gridcount<ngrid;gridcount++) {
+        for (int j=0;j<ND;j++) grid[gridcount].xm[j]=0.;
         Double_t mtot=0.;
-        for (Int_t k=start,l=0;k<end;k++,l++){
+        for (Int_t k=cellstart[gridcount],l=0;k<cellend[gridcount];k++,l++){
             Int_t id=Part[k].GetID();
             grid[gridcount].nindex[l]=id;
             for (int j=0;j<ND;j++)
@@ -131,7 +145,6 @@ void FillTreeGrid(Options &opt, const Int_t nbodies, const Int_t ngrid, KDTree *
         mtot=1.0/mtot;
         for (int j=0;j<ND;j++) grid[gridcount].xm[j]=grid[gridcount].xm[j]*mtot;
         for (int j=0;j<ND;j++) ptemp[gridcount].SetPhase(j,grid[gridcount].xm[j]);
-        gridcount++; ncount=end;
     }
     //resets particle order
     delete tree;

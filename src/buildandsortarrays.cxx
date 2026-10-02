@@ -123,9 +123,9 @@ static void ScatterIntoPGList(const Int_t nbodies, const Int_t numgroups, Int_t 
 Int_t **BuildPGList(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t *pfof){
     Int_t **pglist=new Int_t*[numgroups+1];
     pglist[0]=NULL;
-#ifdef USEOPENMP
-    #pragma omp parallel for if(!omp_in_parallel()) schedule(static)
-#endif
+    //sequential: only O(numgroups) allocations, and doing them concurrently across many
+    //threads was observed to blow up glibc's per-thread malloc-arena memory overhead
+    //(std::bad_alloc) at galaxy-scale group counts, for no measurable speed benefit.
     for (Int_t i=1;i<=numgroups;i++) {
         pglist[i] = NULL;
         if (numingroup[i]<=0) continue;
@@ -140,9 +140,6 @@ Int_t **BuildPGList(const Int_t nbodies, const Int_t numgroups, Int_t *numingrou
 Int_t **BuildPGListTyped(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t *pfof, Particle *P, int type){
     Int_t **pglist=new Int_t*[numgroups+1];
     pglist[0]=NULL;
-#ifdef USEOPENMP
-    #pragma omp parallel for if(!omp_in_parallel()) schedule(static)
-#endif
     for (Int_t i=1;i<=numgroups;i++) {
         pglist[i] = NULL;
         if (numingroup[i]<=0) continue;
@@ -157,9 +154,6 @@ Int_t **BuildPGListTyped(const Int_t nbodies, const Int_t numgroups, Int_t *numi
 Int_t **BuildPGList(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t *pfof, Particle *Part){
     Int_t **pglist=new Int_t*[numgroups+1];
     pglist[0]=NULL;
-#ifdef USEOPENMP
-    #pragma omp parallel for if(!omp_in_parallel()) schedule(static)
-#endif
     for (Int_t i=1;i<=numgroups;i++) {
         pglist[i] = NULL;
         if (numingroup[i]<=0) continue;
@@ -174,9 +168,6 @@ Int_t **BuildPGList(const Int_t nbodies, const Int_t numgroups, Int_t *numingrou
 Int_t **BuildPGList(const Int_t nbodies, const Int_t numgroups, Int_t *numingroup, Int_t *pfof, Int_t *ids){
     Int_t **pglist=new Int_t*[numgroups+1];
     pglist[0]=NULL;
-#ifdef USEOPENMP
-    #pragma omp parallel for if(!omp_in_parallel()) schedule(static)
-#endif
     for (Int_t i=1;i<=numgroups;i++) {
         pglist[i] = NULL;
         if (numingroup[i]<=0) continue;
@@ -251,16 +242,21 @@ Particle **BuildPartList(Int_t numgroups, Int_t *numingroup, Int_t **pglist, Par
 {
     Particle **gPart=new Particle*[numgroups+1];
     gPart[0] = NULL;
-    //each group's gPart[i] is independent of every other group's, so this is safe to
-    //parallelize directly across groups with no atomics needed; guarded the same way
-    //as BuildNumInGroup/BuildPGList against an already-active outer parallel region.
-#ifdef USEOPENMP
-    #pragma omp parallel for if(!omp_in_parallel()) schedule(dynamic)
-#endif
+    //allocation kept sequential: numgroups concurrent new[] calls across many threads
+    //was observed to blow up glibc's per-thread malloc-arena overhead (std::bad_alloc)
+    //at galaxy-scale group counts (see BuildPGList). The per-particle copy/property-set
+    //work below is the genuine O(nbodies) cost and stays parallel across groups, since
+    //each group's gPart[i] is independent of every other group's.
     for (auto i=1;i<=numgroups;i++) {
         gPart[i] = NULL;
         if (numingroup[i]<=0) continue;
         gPart[i]=new Particle[numingroup[i]];
+    }
+#ifdef USEOPENMP
+    #pragma omp parallel for if(!omp_in_parallel()) schedule(dynamic)
+#endif
+    for (auto i=1;i<=numgroups;i++) {
+        if (numingroup[i]<=0) continue;
         for (auto j=0;j<numingroup[i];j++) {
             gPart[i][j]=Part[pglist[i][j]];
 #if defined(GASON) || defined(STARON) || defined(BHON) || defined(EXTRADMON)

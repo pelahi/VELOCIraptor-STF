@@ -1026,14 +1026,17 @@ private(i,j,diff,gid)
     how the search should be localized. It should definitely be localized prior to CheckSignificance and the search window across mpi domains should use the larger
     physical search window used by the iterative search if that has been called.
  */
-// Cached radii in a physical tree are squared distances in linking-length units.
-static void RescalePhysicalTreeRadii(Node *node, Double_t factor)
+///Fresh phase-space (TPHS) tree with the current core-search linking lengths. The core search
+///compares particles with FOF6d, a 6D metric, so the tree must measure the same 6D distance for
+///the node skip/enclose tests in FOFSearchCriterion to be exact; rebuilding (rather than
+///rescaling cached node radii) also keeps them exact when the position and velocity linking
+///lengths change at different rates. The old tree's destructor restores ID order first, so
+///the new tree reassigns the same IDs and the ID-indexed pfof arrays stay valid.
+static void RebuildCoreTree(KDTree *&tree, Double_t *param, Particle *P, Int_t n, Options &opt)
 {
-    node->SetFarthest(node->GetFarthest() * factor);
-    if (node->GetLeaf()) return;
-    SplitNode *split = static_cast<SplitNode *>(node);
-    RescalePhysicalTreeRadii(split->GetLeft(), factor);
-    RescalePhysicalTreeRadii(split->GetRight(), factor);
+    delete tree;
+    tree=new KDTree(0.0, param, P, n, opt.Bsize, KDTree::TPHS);
+    param[0]=tree->GetTreeType();
 }
 
 Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Particle *Partsubset, Int_t &numgroups, Int_t sublevel, Int_t *pnumcores)
@@ -1053,7 +1056,6 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
     Int_t bgoffset, *pfofbg, numgroupsbg=0;
     int maxhalocoresublevel;
     Int_t numsubs=0;
-    Double_t treePhysicalLinkingLength2=0;
     //initialize
     numgroups=0;
     if (pnumcores!=NULL) *pnumcores=0;
@@ -1192,8 +1194,11 @@ Int_t* SearchSubset(Options &opt, const Int_t nbodies, const Int_t nsubset, Part
 // new tree generator
         //tree=new KDTree(Partsubset,nsubset,opt.Bsize,tree->TPHYS);
         Double_t js_adt=1.0;
-        tree=new KDTree(js_adt, param, Partsubset,nsubset,opt.Bsize,tree->TPHYS);
-        treePhysicalLinkingLength2=param[1];
+        //the tree's node distance must be the comparison function's metric: FOF6d (FOF6DSUBSET) is a
+        //6D distance, so use a phase-space tree; the stream criteria are not a metric at all, for
+        //which the enclose shortcut is turned off in FOFSearchCriterion and a physical tree only
+        //serves the node skipping
+        tree=new KDTree(js_adt, param, Partsubset,nsubset,opt.Bsize,(fofcmp==&FOF6d)?KDTree::TPHS:KDTree::TPHYS);
         param[0]=tree->GetTreeType();
         //if large enough for statistically significant structures to be found then search. This is a robust search
         if (nsubset>=MINSUBSIZE) {
@@ -1768,18 +1773,7 @@ private(i,tid)
         for (i=0;i<nsubset;i++) Partsubset[i].SetType(-1);
         param[9]=0.5;
 
-	//--JS--
-	// Build tree for FOF6DCORE
-	if(opt.foftype==FOF6DCORE){
-		delete tree;
-		tree= new KDTree(0.0, param, Partsubset,nsubset,opt.Bsize,tree->TPHS);
-		param[0]=tree->GetTreeType();
-	}
-
-        if (treePhysicalLinkingLength2>0) {
-            RescalePhysicalTreeRadii(tree->GetRoot(), treePhysicalLinkingLength2/param[1]);
-            treePhysicalLinkingLength2=param[1];
-        }
+        RebuildCoreTree(tree, param, Partsubset, nsubset, opt);
         pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder,icheck,FOFcheckbg);
 
         for (i=0;i<nsubset;i++) if (pfofbg[Partsubset[i].GetID()]<=1 && pfof[Partsubset[i].GetID()]==0) Partsubset[i].SetType(numactiveloops);
@@ -1828,17 +1822,8 @@ private(i,tid)
                 //here since loop just iterates to search the largest core, we just set all previously tagged particles not belonging to main core as 1
                 for (i=0;i<nsubset;i++) Partsubset[i].SetPotential((pfofbgnew[Partsubset[i].GetID()]!=1)+(pfof[Partsubset[i].GetID()]>0));
 
-		//-- JS --
-		// Update tree for 6dFOF CORE search case with using updated param
-		if(opt.foftype==FOF6DCORE){
-			delete tree;
-			tree=new KDTree(0.0, param, Partsubset,nsubset,opt.Bsize,tree->TPHS);
-			param[0]=tree->GetTreeType();
-		}
-                if (treePhysicalLinkingLength2>0) {
-                    RescalePhysicalTreeRadii(tree->GetRoot(), treePhysicalLinkingLength2/param[1]);
-                    treePhysicalLinkingLength2=param[1];
-                }
+                //linking lengths have shrunk, rebuild the core-search tree with them
+                RebuildCoreTree(tree, param, Partsubset, nsubset, opt);
                 pfofbg=tree->FOFCriterion(fofcmp,param,numgroupsbg,minsize,iorder,icheck,FOFcheckbg);
                 //now if numgroupsbg is greater than one, need to update the pfofbgnew array
                 if (numgroupsbg>1) {
